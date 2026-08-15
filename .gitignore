@@ -1,0 +1,9 @@
+# 環境變數 —— 絕對不要 commit
+.env
+.env.*
+!.env.example
+
+node_modules/
+npm-debug.log*
+.DS_Store
+*.log

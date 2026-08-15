@@ -1,0 +1,164 @@
+[
+  {
+    "id": 1,
+    "text": "Could you tell me where the nearest subway station is?",
+    "category": "travel",
+    "difficulty": "easy"
+  },
+  {
+    "id": 2,
+    "text": "I'd like to check in, please. I have a reservation under Chen.",
+    "category": "travel",
+    "difficulty": "easy"
+  },
+  {
+    "id": 3,
+    "text": "Excuse me, does this bus go to the airport terminal?",
+    "category": "travel",
+    "difficulty": "easy"
+  },
+  {
+    "id": 4,
+    "text": "I'm afraid my luggage didn't arrive on the same flight.",
+    "category": "travel",
+    "difficulty": "medium"
+  },
+  {
+    "id": 5,
+    "text": "Would it be possible to change my seat to an aisle one?",
+    "category": "travel",
+    "difficulty": "medium"
+  },
+  {
+    "id": 6,
+    "text": "The weather is thoroughly unpredictable throughout the autumn.",
+    "category": "travel",
+    "difficulty": "hard"
+  },
+  {
+    "id": 7,
+    "text": "How was your weekend? Did you do anything interesting?",
+    "category": "daily",
+    "difficulty": "easy"
+  },
+  {
+    "id": 8,
+    "text": "I usually grab a coffee on my way to work.",
+    "category": "daily",
+    "difficulty": "easy"
+  },
+  {
+    "id": 9,
+    "text": "Sorry, I didn't catch that. Could you say it again more slowly?",
+    "category": "daily",
+    "difficulty": "easy"
+  },
+  {
+    "id": 10,
+    "text": "I've been meaning to call you, but things got really busy.",
+    "category": "daily",
+    "difficulty": "medium"
+  },
+  {
+    "id": 11,
+    "text": "Let's schedule a quick catch-up sometime later this week.",
+    "category": "daily",
+    "difficulty": "medium"
+  },
+  {
+    "id": 12,
+    "text": "That restaurant was surprisingly affordable for such good food.",
+    "category": "daily",
+    "difficulty": "medium"
+  },
+  {
+    "id": 13,
+    "text": "The thirty-three thieves thought they thrilled the throne.",
+    "category": "daily",
+    "difficulty": "hard"
+  },
+  {
+    "id": 14,
+    "text": "She specifically requested a vegetarian alternative for the buffet.",
+    "category": "daily",
+    "difficulty": "hard"
+  },
+  {
+    "id": 15,
+    "text": "Thanks for having me. I'm excited to learn more about this role.",
+    "category": "interview",
+    "difficulty": "easy"
+  },
+  {
+    "id": 16,
+    "text": "I have about five years of experience in software development.",
+    "category": "interview",
+    "difficulty": "easy"
+  },
+  {
+    "id": 17,
+    "text": "My greatest strength is staying calm when priorities shift quickly.",
+    "category": "interview",
+    "difficulty": "medium"
+  },
+  {
+    "id": 18,
+    "text": "I led a small team that migrated our entire billing system.",
+    "category": "interview",
+    "difficulty": "medium"
+  },
+  {
+    "id": 19,
+    "text": "Could you walk me through what a typical week looks like here?",
+    "category": "interview",
+    "difficulty": "medium"
+  },
+  {
+    "id": 20,
+    "text": "I'm particularly interested in the collaborative culture you described.",
+    "category": "interview",
+    "difficulty": "hard"
+  },
+  {
+    "id": 21,
+    "text": "We prioritized reliability over adding entirely new features.",
+    "category": "interview",
+    "difficulty": "hard"
+  },
+  {
+    "id": 22,
+    "text": "I thoroughly reviewed the requirements before I scheduled the meeting.",
+    "category": "interview",
+    "difficulty": "hard"
+  },
+  {
+    "id": 23,
+    "text": "Do you accept credit cards, or is it cash only?",
+    "category": "travel",
+    "difficulty": "easy"
+  },
+  {
+    "id": 24,
+    "text": "I'll take the local specialty, whatever you'd recommend.",
+    "category": "travel",
+    "difficulty": "medium"
+  },
+  {
+    "id": 25,
+    "text": "It completely slipped my mind that today was a public holiday.",
+    "category": "daily",
+    "difficulty": "medium"
+  },
+  {
+    "id": 26,
+    "text": "The world's largest rural literature museum opened last year.",
+    "category": "daily",
+    "difficulty": "hard"
+  },
+  {
+    "id": 27,
+    "text": "Would you mind if I followed up with a few questions by email?",
+    "category": "interview",
+    "difficulty": "medium"
+  }
+]

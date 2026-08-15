@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>英語口說練習</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app__header">
+        <h1>英語口說練習</h1>
+        <p class="app__subtitle">唸出下面這句話，聽聽看哪裡可以更自然。</p>
+      </header>
+
+      <!-- 瀏覽器不支援時的整頁提示 -->
+      <div id="fatal" class="banner banner--error" hidden></div>
+
+      <section class="card" aria-labelledby="sentence-heading">
+        <div class="card__meta">
+          <h2 id="sentence-heading" class="visually-hidden">練習句</h2>
+          <span id="category" class="chip"></span>
+          <span id="difficulty" class="chip chip--muted"></span>
+        </div>
+
+        <p id="sentence" class="sentence">載入中…</p>
+
+        <div class="row">
+          <button id="btn-speak" class="btn btn--ghost" type="button">
+            <span aria-hidden="true">🔊</span> 播放正確發音
+          </button>
+          <button id="btn-next" class="btn btn--ghost" type="button">
+            <span aria-hidden="true">🔀</span> 換一句
+          </button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="record-heading">
+        <h2 id="record-heading" class="card__title">錄下你的發音</h2>
+
+        <div class="row">
+          <button id="btn-record" class="btn btn--primary" type="button">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="btn-record-label">開始錄音</span>
+          </button>
+          <span id="timer" class="timer" hidden>00:00</span>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+
+        <div id="playback" class="playback" hidden>
+          <p class="playback__label">你的錄音：</p>
+          <audio id="audio" controls></audio>
+          <p id="audio-info" class="hint"></p>
+          <button id="btn-submit" class="btn btn--primary" type="button">
+            送出，取得發音講評
+          </button>
+        </div>
+      </section>
+
+      <section id="feedback-card" class="card" aria-labelledby="feedback-heading" hidden>
+        <h2 id="feedback-heading" class="card__title">發音講評</h2>
+        <div id="feedback"></div>
+      </section>
+
+      <footer class="app__footer">
+        <p class="hint">
+          錄音需要麥克風權限，且必須從 <code>localhost</code> 開啟（區網 IP 不算 secure
+          context，瀏覽器會擋掉麥克風）。
+        </p>
+      </footer>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

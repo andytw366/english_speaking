@@ -1,0 +1,21 @@
+{
+  "name": "speaking-coach",
+  "version": "0.1.0",
+  "private": true,
+  "description": "英語口說練習 App —— 錄音後由 Gemini 給繁體中文發音講評",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^2.17.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
+}

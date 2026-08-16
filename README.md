@@ -2,8 +2,13 @@
 
 本機執行的網頁 App：顯示英文練習句 → 聽示範發音 → 錄下自己唸的版本 → 交給 Gemini 給繁體中文的發音講評。
 
-**目前進度：階段 1（骨架）與階段 2（錄音）已完成。** 後端的 `/api/pronunciation-feedback`
-現在回的是假資料，還沒接上 Gemini —— 那是階段 3 的工作。請先照下面「階段 2 驗收」實測一次。
+**目前進度：階段 1～4 已完成。** 階段 5（練習紀錄、分類篩選、波形視覺化）還沒做。
+
+> ⚠️ **階段 3／4 尚未用真實金鑰端對端測過** —— 開發環境沒有可用的 Gemini API 金鑰。
+> SDK 的參數形狀（`interactions.create`、音訊 part 的 `data` / `mime_type`、
+> `response_format`、`output_text`）都有對照 `@google/genai` 的型別定義確認過，
+> 錯誤分類路徑也用無效金鑰實測過（見下方「錯誤處理」），
+> 但「成功拿到講評」這條路徑要你填入金鑰後才能驗證。
 
 ---
 
@@ -63,22 +68,29 @@ dotenv.config({ path: path.join(ROOT, '.env') });
 
 ---
 
-## 階段 2 驗收（請實測這幾項）
+## 錯誤處理
 
-1. `npm start`，開 <http://localhost:3000>
-2. 按「🔊 播放正確發音」→ 應該聽到英語示範
-3. 按「開始錄音」→ 允許麥克風權限 → 唸出那句話 → 按「停止錄音」
-4. 播放回放 → **應該聽得到自己的聲音**（播的就是轉換後的 WAV，能聽到就代表轉換是好的）
-5. 打開瀏覽器 DevTools 的 Console → 應該看到類似這行：
+所有失敗情境都會在前端顯示繁體中文的說明，講清楚該做什麼，不會只丟 error code。
 
-   ```
-   [WAV] 原始錄音 audio/webm;codecs=opus 24.3 KB → WAV 156.2 KB / 4.88 秒 / 16000 Hz 單聲道
-   ```
+| 情境 | HTTP | 說明 |
+|---|---|---|
+| `.env` 沒有 `GEMINI_API_KEY` | 500 | 伺服器啟動時也會在 console 警告 |
+| 金鑰格式不對（沒換掉範例值） | 401 | 送出前先擋掉，不浪費一次 API 呼叫 |
+| 金鑰無效 | 400 | **注意：Gemini 對無效金鑰回的是 400 不是 401**，見下方 |
+| 額度用盡 | 429 | 提示免費層有每分鐘／每日限制 |
+| Gemini 服務異常 | 502 | |
+| 逾時（60 秒） | 504 | |
+| 錄音檔超過 8 MB | 413 | |
+| 麥克風權限被拒／找不到裝置／被占用 | — | 前端各自對應不同提示 |
+| 瀏覽器不支援 `MediaRecorder`／非 secure context | — | 整頁橫幅提示 |
 
-6. 按「送出，取得發音講評」→ 會顯示標著「階段 2 假資料」的回覆，代表前後端串通了
+> **實測發現：金鑰無效時 Gemini 回的是 HTTP 400，不是 401/403**，而且 SDK 的錯誤訊息裡
+> 看不到 `API_KEY_INVALID` 這個原因。所以 400 的訊息會同時提示「可能是金鑰無效」與
+> 「可能是音檔問題」兩種可能，而不是只講音檔格式 —— 否則使用者會被引導去查錯方向。
+> 另外程式在送出前會先檢查金鑰是不是 `AIza` 開頭，把「忘了換掉 `.env` 範例值」這種
+> 最常見的狀況提早擋下來。
 
-順手測一下錯誤處理：在瀏覽器設定裡把本站的麥克風權限改成「封鎖」，重新整理後按錄音，
-應該看到中文的權限說明，而不是一句 error code。
+完整的錯誤內容只寫進伺服器 console，回給前端的訊息不含金鑰或 stack。
 
 ---
 
@@ -92,7 +104,8 @@ english_speaking/
 ├── package.json
 ├── sentences.json        # 27 句練習句，含 id / text / category / difficulty
 ├── server/
-│   └── index.js          # Express：靜態檔、/api/health、/api/sentences、/api/pronunciation-feedback
+│   ├── index.js          # Express：靜態檔、/api/health、/api/sentences、/api/pronunciation-feedback
+│   └── gemini.js         # 封裝 Gemini 呼叫、structured output schema、錯誤分類
 └── public/
     ├── index.html
     ├── style.css
@@ -104,9 +117,23 @@ english_speaking/
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/api/health` | 回 `{ ok: true }` |
+| GET | `/api/health` | 回 `{ ok: true, geminiConfigured: boolean }` |
 | GET | `/api/sentences` | 回 `sentences.json` |
-| POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV 檔）+ `sentence`（目標句）。**目前回假資料** |
+| POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV 檔）+ `sentence`（目標句） |
+
+`/api/pronunciation-feedback` 成功時回傳（階段 4 的 structured output）：
+
+```json
+{
+  "transcript": "AI 實際聽到的英文內容",
+  "score": 78,
+  "problem_words": ["thoroughly", "scheduled"],
+  "feedback_zh": "• 條列講評…"
+}
+```
+
+前端拿 `transcript` 跟目標句做 LCS 逐字比對，把沒對上的字、以及 `problem_words` 點名的字標紅。
+`score` 在 UI 上明確標示為「參考分數」，並註明是 AI 主觀評估、不是標準化測驗分數。
 
 ### 為什麼錄音要轉成 WAV
 
@@ -145,11 +172,17 @@ MDN 標記為 "Limited availability"、Firefox 支援有問題。
 
 ---
 
-## 接下來
+## 在 WSL 上開發
 
-- **階段 3：** 建 `server/gemini.js`，用 `ai.interactions.create()` 把 WAV 送給
-  `gemini-3.6-flash`，取得繁體中文講評；針對金鑰無效（401/403）、額度用盡（429）、
-  格式不接受（400）、逾時分別給不同的中文提示。
-- **階段 4：** 改用 structured output（`response_format`）讓 Gemini 一次回
-  `{ transcript, score, problem_words, feedback_zh }`；前端把 transcript 跟目標句做逐字比對標色。
-- **階段 5：** `localStorage` 練習紀錄、依情境／難度篩選例句、錄音波形視覺化。
+建議把專案放在 **WSL 自己的檔案系統**（例如 `~/english_speaking`），
+不要放在 `/mnt/c/...` —— `node_modules` 在 Windows 掛載點上讀寫會慢很多。
+
+WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏覽器開
+`http://localhost:3000`，瀏覽器會認定這是 localhost，secure context 成立、麥克風可以用。
+這點對這個專案很關鍵，因為改用區網 IP 開就會被瀏覽器擋掉麥克風。
+
+## 接下來（階段 5，還沒做）
+
+- `localStorage` 練習紀錄
+- 依情境／難度篩選例句（`sentences.json` 已經有 `category` 與 `difficulty` 欄位）
+- 錄音波形視覺化（`AnalyserNode`）

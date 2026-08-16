@@ -378,14 +378,65 @@ async function submitRecording() {
   }
 }
 
+// ─── 階段 4：transcript 與目標句逐字比對 ────────────────────────────────
+// 用 LCS（最長共同子序列）找出對得上的字，對不上的就標色。
+// 不需要很精準 —— 目的是讓使用者一眼看到哪幾個字沒唸到或唸錯。
+function normalizeWord(w) {
+  return w.toLowerCase().replace(/[^a-z0-9']/g, '');
+}
+
+function matchedTargetIndices(targetWords, spokenWords) {
+  const a = targetWords.map(normalizeWord);
+  const b = spokenWords.map(normalizeWord);
+  // dp[i][j] = a[i..] 與 b[j..] 的 LCS 長度
+  const dp = Array.from({ length: a.length + 1 }, () => new Int32Array(b.length + 1));
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const matched = new Set();
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      matched.add(i);
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return matched;
+}
+
+function highlightSentence(transcript, problemWords = []) {
+  if (!current) return;
+  const targetWords = current.text.split(/\s+/);
+  const matched = matchedTargetIndices(targetWords, (transcript || '').split(/\s+/));
+  const problems = new Set(problemWords.map(normalizeWord).filter(Boolean));
+
+  el.sentence.replaceChildren();
+  targetWords.forEach((word, idx) => {
+    const span = document.createElement('span');
+    span.textContent = word;
+    // 沒被聽到，或被 Gemini 點名發音有問題 → 標色
+    if (!matched.has(idx) || problems.has(normalizeWord(word))) {
+      span.className = 'word--miss';
+      span.title = !matched.has(idx) ? '這個字沒有聽到，或唸得不一樣' : '這個字的發音需要加強';
+    }
+    el.sentence.append(span);
+    if (idx < targetWords.length - 1) el.sentence.append(' ');
+  });
+}
+
 function renderFeedback(data) {
   el.feedback.replaceChildren();
 
-  if (data?.stub) {
-    const note = document.createElement('p');
-    note.className = 'hint';
-    note.textContent = '⚠️ 目前是階段 2 的假資料，尚未接上 Gemini。';
-    el.feedback.append(note);
+  if (data?.transcript) {
+    highlightSentence(data.transcript, data.problem_words);
   }
 
   if (typeof data?.score === 'number') {
@@ -402,7 +453,10 @@ function renderFeedback(data) {
     const t = document.createElement('p');
     t.className = 'hint';
     t.textContent = `AI 聽到的內容：${data.transcript}`;
-    el.feedback.append(t);
+    const legend = document.createElement('p');
+    legend.className = 'hint';
+    legend.textContent = '上方句子中標紅的字，是沒被聽到、或發音需要加強的部分。';
+    el.feedback.append(t, legend);
   }
 
   const body = document.createElement('p');

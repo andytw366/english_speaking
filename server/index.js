@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 import express from 'express';
 import multer from 'multer';
 
+import { getPronunciationFeedback, GeminiError, hasApiKey } from './gemini.js';
+
 // 專案根目錄（server/ 的上一層）。
 // §3：.env 放在專案根目錄。這裡明確指定路徑而不是靠 dotenv 的預設值，
 // 這樣不論從哪個 cwd 執行 `npm start` 都讀得到，避免踩雷清單 #4。
@@ -30,7 +32,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(ROOT, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, geminiConfigured: hasApiKey() });
 });
 
 app.get('/api/sentences', (req, res, next) => {
@@ -64,23 +66,31 @@ app.post(
         `${(req.file.size / 1024).toFixed(1)} KB，目標句：「${sentence}」`
     );
 
-    // ─── 階段 2：先回假資料 ─────────────────────────────────────────────
-    // 階段 3/4 會把這一段換成 server/gemini.js 的真實呼叫。
-    // 回傳形狀刻意跟階段 4 的 structured output schema 一致，
-    // 這樣前端寫一次就好，接上 Gemini 後不用再改。
-    const words = sentence.replace(/[.,!?]/g, '').split(/\s+/);
-    res.json({
-      stub: true,
-      transcript: sentence,
-      score: 82,
-      problem_words: words.filter((w) => w.length > 6).slice(0, 2),
-      feedback_zh: [
-        '（這是階段 2 的假資料，尚未真的送給 Gemini 分析）',
-        `• 後端已成功收到你的錄音：${(req.file.size / 1024).toFixed(1)} KB、${req.file.mimetype}`,
-        '• 錄音、回放、WAV 轉換這條路徑都通了',
-        '• 接上 Gemini 之後，這裡會換成真正的發音講評',
-      ].join('\n'),
-    });
+    const startedAt = Date.now();
+    try {
+      const result = await getPronunciationFeedback({
+        audioBuffer: req.file.buffer,
+        // 前端一律送 WAV（§2.3）。萬一 mimetype 缺漏就補上預設值。
+        mimeType: req.file.mimetype?.startsWith('audio/')
+          ? req.file.mimetype
+          : 'audio/wav',
+        sentence,
+      });
+
+      console.log(
+        `[feedback] Gemini 回覆完成，耗時 ${((Date.now() - startedAt) / 1000).toFixed(1)} 秒，` +
+          `分數 ${result.score}`
+      );
+      res.json(result);
+    } catch (err) {
+      if (err instanceof GeminiError) {
+        // 完整錯誤已在 gemini.js 裡 log 過，這裡只回安全的中文訊息
+        return res
+          .status(err.httpStatus)
+          .json({ error: err.code, message: err.userMessage });
+      }
+      throw err;
+    }
   }
 );
 
@@ -111,4 +121,11 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`口說練習 App 已啟動： http://localhost:${PORT}`);
   console.log('提示：麥克風需要 secure context，請務必用 localhost 開啟，不要用區網 IP。');
+  if (!hasApiKey()) {
+    console.warn(
+      '\n⚠️  找不到 GEMINI_API_KEY —— 送出錄音時會失敗。\n' +
+        `   請在 ${path.join(ROOT, '.env')} 填入 GEMINI_API_KEY=你的金鑰，然後重新啟動。\n` +
+        '   金鑰申請：https://aistudio.google.com/apikey\n'
+    );
+  }
 });

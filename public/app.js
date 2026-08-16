@@ -1,4 +1,14 @@
 import { blobToWav } from './wav-encoder.js';
+import { createWaveform } from './waveform.js';
+import {
+  storageAvailable,
+  loadHistory,
+  addRecord,
+  clearHistory,
+  summarise,
+  loadPrefs,
+  savePrefs,
+} from './storage.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -7,22 +17,37 @@ const el = {
   sentence: $('sentence'),
   category: $('category'),
   difficulty: $('difficulty'),
+  filterCategory: $('filter-category'),
+  filterDifficulty: $('filter-difficulty'),
+  filterCount: $('filter-count'),
   btnSpeak: $('btn-speak'),
   btnNext: $('btn-next'),
   btnRecord: $('btn-record'),
   btnRecordLabel: $('btn-record-label'),
   btnSubmit: $('btn-submit'),
   timer: $('timer'),
+  level: $('level'),
+  levelFill: $('level-fill'),
+  levelText: $('level-text'),
+  waveform: $('waveform'),
   status: $('status'),
   playback: $('playback'),
   audio: $('audio'),
   audioInfo: $('audio-info'),
+  model: $('model'),
+  modelNote: $('model-note'),
   feedbackCard: $('feedback-card'),
   feedback: $('feedback'),
+  historyCard: $('history-card'),
+  historyStats: $('history-stats'),
+  historyList: $('history-list'),
+  btnClearHistory: $('btn-clear-history'),
 };
 
 const CATEGORY_LABEL = { daily: '日常對話', interview: '面試', travel: '旅遊' };
 const DIFFICULTY_LABEL = { easy: '簡單', medium: '中等', hard: '困難' };
+// 難度下拉選單要照這個順序排，直接用 Object.keys 會變成 sentences.json 的出現順序
+const DIFFICULTY_ORDER = ['easy', 'medium', 'hard'];
 
 const MAX_RECORDING_MS = 60_000;
 
@@ -35,7 +60,14 @@ let timerId = null;
 let autoStopId = null;
 let startedAt = 0;
 let wavBlob = null;
+let wavStats = null;
 let playbackUrl = null;
+let models = [];
+let history = [];
+// 瀏覽器不支援錄音時 fatal() 會停用錄音鍵，之後換句子不可以再把它打開
+let browserSupported = true;
+
+const waveform = createWaveform(el.waveform, showLevel);
 
 // ─── 狀態訊息 ────────────────────────────────────────────────────────────
 function setStatus(text, kind = '') {
@@ -46,6 +78,7 @@ function setStatus(text, kind = '') {
 function fatal(message) {
   el.fatal.textContent = message;
   el.fatal.hidden = false;
+  browserSupported = false;
   el.btnRecord.disabled = true;
 }
 
@@ -59,13 +92,82 @@ async function loadSentences() {
   }
 }
 
+// ─── 階段 5：依情境／難度篩選 ────────────────────────────────────────────
+// 選項是從 sentences.json 實際出現的值長出來的，不是寫死的清單 ——
+// 之後在 sentences.json 加新的 category 不用回來改前端。
+
+function buildFilterOptions() {
+  const categories = [...new Set(sentences.map((s) => s.category).filter(Boolean))];
+  const difficulties = [...new Set(sentences.map((s) => s.difficulty).filter(Boolean))].sort(
+    (a, b) => DIFFICULTY_ORDER.indexOf(a) - DIFFICULTY_ORDER.indexOf(b)
+  );
+
+  const fill = (select, values, labels) => {
+    select.replaceChildren();
+    const all = document.createElement('option');
+    all.value = '';
+    all.textContent = '全部';
+    select.append(all);
+    for (const value of values) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = labels[value] ?? value;
+      select.append(option);
+    }
+  };
+
+  fill(el.filterCategory, categories, CATEGORY_LABEL);
+  fill(el.filterDifficulty, difficulties, DIFFICULTY_LABEL);
+
+  // 還原上次選的條件。值可能已經不存在（sentences.json 改過），所以要確認選得上。
+  const prefs = loadPrefs();
+  if (categories.includes(prefs.category)) el.filterCategory.value = prefs.category;
+  if (difficulties.includes(prefs.difficulty)) el.filterDifficulty.value = prefs.difficulty;
+}
+
+function filteredSentences() {
+  const category = el.filterCategory.value;
+  const difficulty = el.filterDifficulty.value;
+  return sentences.filter(
+    (s) => (!category || s.category === category) && (!difficulty || s.difficulty === difficulty)
+  );
+}
+
+function onFilterChange() {
+  savePrefs({
+    category: el.filterCategory.value,
+    difficulty: el.filterDifficulty.value,
+  });
+  showRandomSentence();
+}
+
 function showRandomSentence() {
-  let next = current;
-  // 句子多於一句時，避免連續抽到同一句
-  while (sentences.length > 1 && next?.id === current?.id) {
-    next = sentences[Math.floor(Math.random() * sentences.length)];
+  const pool = filteredSentences();
+  el.filterCount.textContent = `符合條件 ${pool.length} / ${sentences.length} 句`;
+
+  if (pool.length === 0) {
+    // 條件組合不存在時要講清楚，不要留一個空白的句子讓人以為壞了
+    current = null;
+    el.sentence.textContent = '這個組合沒有練習句';
+    el.category.textContent = '';
+    el.difficulty.textContent = '';
+    el.btnSpeak.disabled = true;
+    el.btnRecord.disabled = true;
+    resetRecording();
+    setStatus('請放寬情境或難度的條件，才有句子可以練習。', 'error');
+    return;
   }
-  current = next ?? sentences[0];
+
+  el.btnSpeak.disabled = false;
+  el.btnRecord.disabled = !browserSupported;
+
+  let next = current;
+  // 池子多於一句時，避免連續抽到同一句
+  while (pool.length > 1 && next?.id === current?.id) {
+    next = pool[Math.floor(Math.random() * pool.length)];
+  }
+  // 池子只剩一句，或原本的句子已經不在池子裡，就直接用第一句
+  current = pool.includes(next) ? next : pool[0];
 
   el.sentence.textContent = current.text;
   el.category.textContent = CATEGORY_LABEL[current.category] ?? current.category;
@@ -226,6 +328,8 @@ async function startRecording() {
   recorder.start();
   startedAt = Date.now();
   setRecordingUI(true);
+  // 階段 5：即時波形。畫不出來也不影響錄音，所以失敗就算了。
+  waveform.start(stream);
   setStatus(`錄音中，唸完後按「停止錄音」。（最長 ${MAX_RECORDING_MS / 1000} 秒）`);
 
   timerId = setInterval(updateTimer, 200);
@@ -245,6 +349,8 @@ async function handleRecordingStopped() {
   clearInterval(timerId);
   clearTimeout(autoStopId);
   setRecordingUI(false);
+  // 先停波形再關 stream —— 反過來的話 AnalyserNode 會讀到已經結束的 track
+  waveform.stop();
   stopStream();
 
   const recordedType = recorder?.mimeType || chunks[0]?.type || 'audio/webm';
@@ -261,6 +367,7 @@ async function handleRecordingStopped() {
     // §2.3：不要把 webm 直接送給 API，一律轉成 16 kHz 單聲道 WAV。
     const result = await blobToWav(raw);
     wavBlob = result.blob;
+    wavStats = result.stats;
 
     const kb = (wavBlob.size / 1024).toFixed(1);
     const seconds = result.durationSec.toFixed(2);
@@ -270,14 +377,33 @@ async function handleRecordingStopped() {
       `[WAV] 原始錄音 ${recordedType} ${(raw.size / 1024).toFixed(1)} KB → ` +
         `WAV ${kb} KB / ${seconds} 秒 / ${result.sampleRate} Hz 單聲道`
     );
+    console.log(
+      `[音量] peak=${wavStats.peak.toFixed(4)} rms=${wavStats.rms.toFixed(4)} ` +
+        `有聲比例=${(wavStats.voicedRatio * 100).toFixed(1)}% 起伏=${wavStats.flatness.toFixed(3)}`
+    );
 
     showPlayback(wavBlob);
     el.audioInfo.textContent = `WAV ${kb} KB・${seconds} 秒・${result.sampleRate} Hz 單聲道（原始 ${recordedType}）`;
-    setStatus('錄好了！先聽聽看，沒問題就送出。');
+
+    // 階段 5：沒有人聲就別讓它送出去。
+    // 後端也會擋（server/audio.js），這裡擋是為了立刻給回饋、順便省一次上傳。
+    if (wavStats.silent) {
+      el.btnSubmit.disabled = true;
+      setStatus(
+        '這段錄音裡幾乎沒有聲音，送出去也分析不了。\n' +
+          '請確認麥克風沒有被靜音、系統選到的輸入裝置是對的，然後靠近一點重錄。',
+        'error'
+      );
+    } else if (wavStats.quiet) {
+      setStatus('錄好了，不過音量偏小，可以再靠近麥克風一點。要送出也沒問題。');
+    } else {
+      setStatus('錄好了！先聽聽看，沒問題就送出。');
+    }
   } catch (err) {
     console.error('[WAV 轉換失敗]', err);
     // 轉換失敗時仍讓使用者聽原始錄音，至少能判斷錄音本身有沒有問題
     wavBlob = null;
+    wavStats = null;
     showPlayback(raw);
     el.audioInfo.textContent = `原始錄音 ${(raw.size / 1024).toFixed(1)} KB（${recordedType}）`;
     el.btnSubmit.disabled = true;
@@ -301,8 +427,23 @@ function setRecordingUI(isRecording) {
   el.btnRecord.classList.toggle('is-recording', isRecording);
   el.btnRecordLabel.textContent = isRecording ? '停止錄音' : '開始錄音';
   el.timer.hidden = !isRecording;
+  el.level.hidden = !isRecording;
   el.btnNext.disabled = isRecording;
   el.btnSpeak.disabled = isRecording;
+  el.filterCategory.disabled = isRecording;
+  el.filterDifficulty.disabled = isRecording;
+}
+
+/**
+ * 即時音量指示（由 waveform 的 onLevel 每一幀呼叫）。
+ * 目的是讓使用者在錄音當下就知道麥克風有沒有在收音，
+ * 而不是錄完送出後才被「沒有偵測到人聲」擋下來。
+ */
+function showLevel(peak) {
+  const percent = Math.min(100, Math.round(peak * 140));
+  el.levelFill.style.width = `${percent}%`;
+  el.levelFill.classList.toggle('level__fill--low', peak < 0.02);
+  el.levelText.textContent = peak < 0.02 ? '幾乎沒收到聲音' : '收音中';
 }
 
 function updateTimer() {
@@ -319,10 +460,12 @@ function stopStream() {
 
 function resetRecording() {
   stopStream();
+  waveform.reset();
   clearInterval(timerId);
   clearTimeout(autoStopId);
   chunks = [];
   wavBlob = null;
+  wavStats = null;
   recorder = null;
   el.playback.hidden = true;
   el.feedbackCard.hidden = true;
@@ -341,12 +484,23 @@ function resetRecording() {
 async function submitRecording() {
   if (!wavBlob || !current) return;
 
+  // 前端這關擋掉明顯沒聲音的錄音，省下一次上傳與 API 呼叫。
+  // 真正的把關在後端（server/audio.js）—— 前端的判斷不能當作保證。
+  if (wavStats?.silent) {
+    setStatus(
+      '這段錄音裡幾乎沒有聲音，請重新錄一次再送出。',
+      'error'
+    );
+    return;
+  }
+
   el.btnSubmit.disabled = true;
   setStatus('分析中，請稍候…', 'busy');
 
   const form = new FormData();
   form.append('audio', wavBlob, 'recording.wav');
   form.append('sentence', current.text);
+  if (el.model.value) form.append('model', el.model.value);
 
   try {
     const res = await fetch('/api/pronunciation-feedback', {
@@ -366,7 +520,13 @@ async function submitRecording() {
     }
 
     renderFeedback(payload);
-    setStatus('');
+    // 後端判定沒有人聲時不算一次練習，不要拿 0 分去汙染平均分數
+    if (payload?.speech_detected === false) {
+      setStatus('');
+    } else {
+      saveToHistory(payload);
+      setStatus('');
+    }
   } catch (err) {
     console.error('[submit]', err);
     setStatus(
@@ -435,6 +595,20 @@ function highlightSentence(transcript, problemWords = []) {
 function renderFeedback(data) {
   el.feedback.replaceChildren();
 
+  // 沒偵測到人聲：不要顯示「0 分」，那看起來像是發音很爛，
+  // 實際上是根本沒錄到東西 —— 兩件事給使用者的訊息完全不同。
+  if (data?.speech_detected === false) {
+    const body = document.createElement('p');
+    body.style.whiteSpace = 'pre-wrap';
+    body.textContent = data.feedback_zh ?? '沒有偵測到人聲，請重新錄音。';
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.textContent = '這次不會計入練習紀錄。';
+    el.feedback.append(body, note);
+    el.feedbackCard.hidden = false;
+    return;
+  }
+
   if (data?.transcript) {
     highlightSentence(data.transcript, data.problem_words);
   }
@@ -464,7 +638,165 @@ function renderFeedback(data) {
   body.textContent = data?.feedback_zh ?? '（沒有收到講評內容）';
   el.feedback.append(body);
 
+  if (data?.model) {
+    const by = document.createElement('p');
+    by.className = 'hint';
+    by.textContent = `由 ${labelForModel(data.model)} 評分`;
+    el.feedback.append(by);
+  }
+
   el.feedbackCard.hidden = false;
+}
+
+// ─── 階段 5：model 選單 ──────────────────────────────────────────────────
+// 清單由後端的 /api/models 提供。前端不自己寫死 model 名稱，
+// 後端也會用同一份白名單驗證送上來的值 —— 選單只是 UI，不是權限。
+
+async function loadModels() {
+  const res = await fetch('/api/models');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const payload = await res.json();
+  models = Array.isArray(payload.models) ? payload.models : [];
+  if (models.length === 0) throw new Error('後端沒有回傳任何可用的 model');
+
+  el.model.replaceChildren();
+  for (const m of models) {
+    const option = document.createElement('option');
+    option.value = m.id;
+    option.textContent = m.label ?? m.id;
+    el.model.append(option);
+  }
+
+  // 上次選的優先，其次後端給的預設值
+  const preferred = loadPrefs().model;
+  el.model.value = models.some((m) => m.id === preferred) ? preferred : payload.default;
+  if (!el.model.value) el.model.value = models[0].id;
+  updateModelNote();
+}
+
+function labelForModel(id) {
+  return models.find((m) => m.id === id)?.label ?? id;
+}
+
+function updateModelNote() {
+  const chosen = models.find((m) => m.id === el.model.value);
+  el.modelNote.textContent = chosen?.note ?? '';
+}
+
+function onModelChange() {
+  savePrefs({ model: el.model.value });
+  updateModelNote();
+}
+
+// ─── 階段 5：練習紀錄 ────────────────────────────────────────────────────
+
+function saveToHistory(data) {
+  if (!current || typeof data?.score !== 'number') return;
+
+  history = addRecord({
+    at: new Date().toISOString(),
+    sentenceId: current.id,
+    sentenceText: current.text,
+    category: current.category,
+    difficulty: current.difficulty,
+    score: data.score,
+    transcript: data.transcript ?? '',
+    problemWords: Array.isArray(data.problem_words) ? data.problem_words : [],
+    model: data.model ?? el.model.value,
+  });
+  renderHistory();
+}
+
+function formatTime(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const sameDay = new Date().toDateString() === date.toDateString();
+  const time = date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return `今天 ${time}`;
+  return `${date.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })} ${time}`;
+}
+
+function scoreClass(score) {
+  if (score >= 80) return 'score--good';
+  if (score >= 60) return 'score--ok';
+  return 'score--low';
+}
+
+function renderHistory() {
+  if (history.length === 0) {
+    el.historyCard.hidden = true;
+    return;
+  }
+  el.historyCard.hidden = false;
+
+  const stats = summarise(history);
+  el.historyStats.replaceChildren();
+  const tiles = [
+    ['練習次數', String(stats.count)],
+    ['平均分數', stats.average === null ? '—' : String(stats.average)],
+    ['最高分', stats.best === null ? '—' : String(stats.best)],
+  ];
+  for (const [label, value] of tiles) {
+    const tile = document.createElement('div');
+    tile.className = 'stat';
+    const v = document.createElement('span');
+    v.className = 'stat__value';
+    v.textContent = value;
+    const l = document.createElement('span');
+    l.className = 'stat__label';
+    l.textContent = label;
+    tile.append(v, l);
+    el.historyStats.append(tile);
+  }
+
+  // 只列最近 20 筆，再多就變成一整頁捲不完的清單
+  el.historyList.replaceChildren();
+  for (const record of history.slice(0, 20)) {
+    const item = document.createElement('li');
+    item.className = 'history__item';
+
+    const score = document.createElement('span');
+    score.className = `history__score ${scoreClass(record.score)}`;
+    score.textContent = record.score;
+
+    const main = document.createElement('div');
+    main.className = 'history__main';
+
+    const text = document.createElement('span');
+    text.className = 'history__sentence';
+    text.textContent = record.sentenceText ?? '';
+
+    const meta = document.createElement('span');
+    meta.className = 'history__meta';
+    meta.textContent = [
+      formatTime(record.at),
+      CATEGORY_LABEL[record.category] ?? record.category,
+      labelForModel(record.model),
+    ]
+      .filter(Boolean)
+      .join('・');
+
+    main.append(text, meta);
+    item.append(score, main);
+    el.historyList.append(item);
+  }
+
+  if (history.length > 20) {
+    const more = document.createElement('li');
+    more.className = 'hint';
+    more.textContent = `另有 ${history.length - 20} 筆較早的紀錄未顯示。`;
+    el.historyList.append(more);
+  }
+}
+
+function onClearHistory() {
+  if (history.length === 0) return;
+  if (!window.confirm(`確定要刪掉全部 ${history.length} 筆練習紀錄嗎？這個動作無法復原。`)) {
+    return;
+  }
+  clearHistory();
+  history = [];
+  renderHistory();
 }
 
 // ─── 啟動 ────────────────────────────────────────────────────────────────
@@ -491,14 +823,23 @@ el.btnRecord.addEventListener('click', () => {
   if (recorder?.state === 'recording') stopRecording();
   else startRecording();
 });
+el.filterCategory.addEventListener('change', onFilterChange);
+el.filterDifficulty.addEventListener('change', onFilterChange);
+el.model.addEventListener('change', onModelChange);
+el.btnClearHistory.addEventListener('click', onClearHistory);
 
-// 離開頁面時確實釋放麥克風
-window.addEventListener('pagehide', stopStream);
+// 離開頁面時確實釋放麥克風與 AudioContext
+window.addEventListener('pagehide', () => {
+  waveform.stop();
+  stopStream();
+});
 
 (async function init() {
   const supported = checkBrowserSupport();
+
   try {
     await loadSentences();
+    buildFilterOptions();
     showRandomSentence();
   } catch (err) {
     console.error('[loadSentences]', err);
@@ -509,6 +850,22 @@ window.addEventListener('pagehide', stopStream);
     );
     return;
   }
+
+  // model 清單拿不到不是致命錯誤 —— 收起選單，讓後端用它的預設值就好。
+  try {
+    await loadModels();
+  } catch (err) {
+    console.error('[loadModels]', err);
+    el.model.closest('.field').hidden = true;
+    el.modelNote.textContent = '讀不到可用的 model 清單，將使用伺服器的預設值。';
+  }
+
+  history = loadHistory();
+  renderHistory();
+  if (!storageAvailable()) {
+    console.warn('[storage] localStorage 不可用，這次的練習紀錄與偏好設定不會被保存');
+  }
+
   if (supported) {
     // 提早暖機 voice 清單，避免第一次按播放沒聲音
     loadVoices().catch(() => {});

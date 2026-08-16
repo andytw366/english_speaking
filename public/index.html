@@ -17,8 +17,22 @@
       <div id="fatal" class="banner banner--error" hidden></div>
 
       <section class="card" aria-labelledby="sentence-heading">
+        <h2 id="sentence-heading" class="visually-hidden">練習句</h2>
+
+        <!-- 階段 5：依情境／難度篩選 -->
+        <div class="filters">
+          <label class="field">
+            <span class="field__label">情境</span>
+            <select id="filter-category" class="select"></select>
+          </label>
+          <label class="field">
+            <span class="field__label">難度</span>
+            <select id="filter-difficulty" class="select"></select>
+          </label>
+          <span id="filter-count" class="hint filters__count"></span>
+        </div>
+
         <div class="card__meta">
-          <h2 id="sentence-heading" class="visually-hidden">練習句</h2>
           <span id="category" class="chip"></span>
           <span id="difficulty" class="chip chip--muted"></span>
         </div>
@@ -44,7 +58,15 @@
             <span id="btn-record-label">開始錄音</span>
           </button>
           <span id="timer" class="timer" hidden>00:00</span>
+          <span id="level" class="level" hidden>
+            <span class="level__bar"><span id="level-fill" class="level__fill"></span></span>
+            <span id="level-text" class="level__text">音量</span>
+          </span>
         </div>
+
+        <!-- 階段 5：錄音時的即時波形（AnalyserNode）-->
+        <canvas id="waveform" class="waveform" height="72" hidden
+                aria-label="錄音波形" role="img"></canvas>
 
         <div id="status" class="status" role="status" aria-live="polite"></div>
 
@@ -52,6 +74,13 @@
           <p class="playback__label">你的錄音：</p>
           <audio id="audio" controls></audio>
           <p id="audio-info" class="hint"></p>
+
+          <label class="field field--inline">
+            <span class="field__label">分析用的 model</span>
+            <select id="model" class="select"></select>
+          </label>
+          <p id="model-note" class="hint"></p>
+
           <button id="btn-submit" class="btn btn--primary" type="button">
             送出，取得發音講評
           </button>
@@ -61,6 +90,17 @@
       <section id="feedback-card" class="card" aria-labelledby="feedback-heading" hidden>
         <h2 id="feedback-heading" class="card__title">發音講評</h2>
         <div id="feedback"></div>
+      </section>
+
+      <!-- 階段 5：localStorage 練習紀錄 -->
+      <section id="history-card" class="card" aria-labelledby="history-heading" hidden>
+        <h2 id="history-heading" class="card__title">練習紀錄</h2>
+        <div id="history-stats" class="stats"></div>
+        <ol id="history-list" class="history"></ol>
+        <div class="row history__actions">
+          <button id="btn-clear-history" class="btn" type="button">清除所有紀錄</button>
+          <span class="hint">紀錄只存在這台電腦的瀏覽器裡，不會上傳。</span>
+        </div>
       </section>
 
       <footer class="app__footer">

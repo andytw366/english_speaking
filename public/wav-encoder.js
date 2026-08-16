@@ -8,10 +8,21 @@
 
 const TARGET_SAMPLE_RATE = 16000;
 
+// 無人聲判斷的門檻。這幾個值跟 server/audio.js 的必須一致 —— 兩邊要一起改。
+// 前端這份是為了即時擋下、省掉一次上傳與 API 呼叫；後端那份才是真正的把關
+// （前端送什麼上來都不能信）。門檻是拿真實語音校準過的，見 test/audio.test.js。
+const PEAK_FLOOR = 0.02;
+const FRAME_RMS_FLOOR = 0.015;
+const VOICED_RATIO_FLOOR = 0.02;
+const FLATNESS_FLOOR = 0.08;
+const FRAME_MS = 20;
+/** 峰值低於這個值就提醒使用者音量偏小（但仍然允許送出）。 */
+const QUIET_PEAK = 0.08;
+
 /**
  * 解碼任意瀏覽器錄音格式，重新取樣成 16 kHz 單聲道，編成 WAV。
  * @param {Blob} blob MediaRecorder 產生的錄音
- * @returns {Promise<{blob: Blob, durationSec: number, sampleRate: number}>}
+ * @returns {Promise<{blob: Blob, durationSec: number, sampleRate: number, stats: object}>}
  */
 export async function blobToWav(blob) {
   const arrayBuffer = await blob.arrayBuffer();
@@ -50,6 +61,70 @@ export async function blobToWav(blob) {
     blob: encodeWav(samples, TARGET_SAMPLE_RATE),
     durationSec: rendered.duration,
     sampleRate: TARGET_SAMPLE_RATE,
+    stats: analyseSamples(samples, TARGET_SAMPLE_RATE),
+  };
+}
+
+/**
+ * 算出這段錄音的音量特徵，用來判斷「到底有沒有人在說話」。
+ *
+ * 為什麼需要這個：實測把純靜音送給 Gemini，flash 系列會把提示裡的目標句
+ * 當成聽到的內容並回 95～98 分（詳見 server/audio.js 開頭的紀錄）。
+ * 那個問題沒辦法靠 prompt 修，只能在送出前用訊號本身判斷。
+ *
+ * @param {Float32Array} samples 單聲道 PCM
+ * @returns {{peak: number, rms: number, voicedRatio: number, flatness: number,
+ *            silent: boolean, quiet: boolean}}
+ */
+export function analyseSamples(samples, sampleRate = TARGET_SAMPLE_RATE) {
+  const framesPerWindow = Math.max(1, Math.round((sampleRate * FRAME_MS) / 1000));
+
+  let peak = 0;
+  let sumSquares = 0;
+  const windowRms = [];
+  let windowSumSquares = 0;
+  let windowCount = 0;
+
+  for (let i = 0; i < samples.length; i++) {
+    const v = samples[i];
+    const abs = Math.abs(v);
+    if (abs > peak) peak = abs;
+    sumSquares += v * v;
+
+    windowSumSquares += v * v;
+    if (++windowCount === framesPerWindow) {
+      windowRms.push(Math.sqrt(windowSumSquares / windowCount));
+      windowSumSquares = 0;
+      windowCount = 0;
+    }
+  }
+  if (windowCount > 0) windowRms.push(Math.sqrt(windowSumSquares / windowCount));
+
+  const voiced = windowRms.filter((r) => r > FRAME_RMS_FLOOR).length;
+  const voicedRatio = windowRms.length ? voiced / windowRms.length : 0;
+
+  // 變異係數：音量起伏的程度。真人說話因為有音節，實測約 1.2；
+  // 穩定的電流聲／冷氣聲約 0.008，差兩個數量級。
+  let flatness = Infinity;
+  if (windowRms.length >= 2) {
+    const mean = windowRms.reduce((a, b) => a + b, 0) / windowRms.length;
+    if (mean <= 0) {
+      flatness = 0;
+    } else {
+      const variance =
+        windowRms.reduce((acc, r) => acc + (r - mean) * (r - mean), 0) / windowRms.length;
+      flatness = Math.sqrt(variance) / mean;
+    }
+  }
+
+  return {
+    peak,
+    rms: samples.length ? Math.sqrt(sumSquares / samples.length) : 0,
+    voicedRatio,
+    flatness,
+    silent:
+      peak < PEAK_FLOOR || voicedRatio < VOICED_RATIO_FLOOR || flatness < FLATNESS_FLOOR,
+    quiet: peak < QUIET_PEAK,
   };
 }
 

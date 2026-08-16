@@ -6,7 +6,14 @@ import dotenv from 'dotenv';
 import express from 'express';
 import multer from 'multer';
 
-import { getPronunciationFeedback, GeminiError, hasApiKey } from './gemini.js';
+import {
+  getPronunciationFeedback,
+  GeminiError,
+  hasApiKey,
+  MODELS,
+  defaultModel,
+} from './gemini.js';
+import { analyseWavPcm16, isSilentRecording } from './audio.js';
 
 // 專案根目錄（server/ 的上一層）。
 // §3：.env 放在專案根目錄。這裡明確指定路徑而不是靠 dotenv 的預設值，
@@ -35,6 +42,12 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, geminiConfigured: hasApiKey() });
 });
 
+// 前端的 model 選單就是讀這支。清單寫死在後端，前端只能從裡面挑 ——
+// 這樣「使用者可以選 model」才不等於「任何字串都能送進 API 呼叫」。
+app.get('/api/models', (req, res) => {
+  res.json({ models: MODELS, default: defaultModel() });
+});
+
 app.get('/api/sentences', (req, res, next) => {
   fs.promises
     .readFile(path.join(ROOT, 'sentences.json'), 'utf8')
@@ -61,10 +74,39 @@ app.post(
       });
     }
 
+    // model 由前端從 /api/models 的清單挑，沒送就用預設值。
+    // 白名單檢查在 gemini.js 裡做（那是唯一擋得住任意字串的地方）。
+    const model = (req.body?.model || '').trim() || undefined;
+
     console.log(
       `[feedback] 收到錄音：${req.file.mimetype}，` +
-        `${(req.file.size / 1024).toFixed(1)} KB，目標句：「${sentence}」`
+        `${(req.file.size / 1024).toFixed(1)} KB，model：${model ?? defaultModel()}，` +
+        `目標句：「${sentence}」`
     );
+
+    // 沒有人聲就別送給 Gemini —— flash 系列會把目標句當成聽到的內容並給高分，
+    // 見 server/audio.js 開頭的實測紀錄。這一關擋掉後連 API 都不會呼叫。
+    const stats = analyseWavPcm16(req.file.buffer);
+    if (isSilentRecording(stats)) {
+      console.log(
+        `[feedback] 判定為無人聲（peak=${stats.peak.toFixed(4)}、` +
+          `有聲音框佔比=${(stats.voicedRatio * 100).toFixed(1)}%），未呼叫 Gemini`
+      );
+      return res.json({
+        speech_detected: false,
+        transcript: '',
+        score: 0,
+        problem_words: [],
+        feedback_zh:
+          '• 這段錄音裡幾乎沒有聲音。\n' +
+          '• 請確認麥克風沒有被靜音、系統輸入裝置選對了，並靠近麥克風再錄一次。',
+        model: null,
+        gated_by: 'silence',
+      });
+    }
+    if (!stats.analysed) {
+      console.warn(`[feedback] 無法分析音訊能量（${stats.reason}），略過無人聲檢查`);
+    }
 
     const startedAt = Date.now();
     try {
@@ -75,11 +117,12 @@ app.post(
           ? req.file.mimetype
           : 'audio/wav',
         sentence,
+        model,
       });
 
       console.log(
-        `[feedback] Gemini 回覆完成，耗時 ${((Date.now() - startedAt) / 1000).toFixed(1)} 秒，` +
-          `分數 ${result.score}`
+        `[feedback] Gemini（${result.model}）回覆完成，` +
+          `耗時 ${((Date.now() - startedAt) / 1000).toFixed(1)} 秒，分數 ${result.score}`
       );
       res.json(result);
     } catch (err) {
@@ -120,6 +163,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`口說練習 App 已啟動： http://localhost:${PORT}`);
+  console.log(`預設 model：${defaultModel()}（可在頁面上切換，或用 .env 的 GEMINI_MODEL 改預設）`);
   console.log('提示：麥克風需要 secure context，請務必用 localhost 開啟，不要用區網 IP。');
   if (!hasApiKey()) {
     console.warn(

@@ -9,9 +9,11 @@
 以及**無人聲偵測**（修掉一個會給出完全錯誤評分的問題，見下方）。
 
 > ✅ **已用真實金鑰端對端驗證過**（2026-08）。
-> 成功路徑、五個可選 model、無人聲偵測、白名單擋非法 model 都實測通過。
+> 成功路徑、五個可選 model、無人聲偵測、白名單擋非法 model 都實測通過；
+> 前端也用 Playwright 在真實瀏覽器裡跑過完整流程（錄音用假麥克風餵真實語音檔），
+> 34 項檢查全過，見 `npm run test:e2e`。
 > 驗證用的語音是拿 Gemini TTS 產生的真人語音樣本，不是合成訊號 ——
-> 樣本留在 `test/fixtures/speech-16k.wav`，`npm test` 會用到。
+> 樣本留在 `test/fixtures/speech-16k.wav`，單元測試與 E2E 都用它。
 
 ---
 
@@ -23,14 +25,13 @@
 | 瀏覽器 | Chrome / Edge 建議。Safari 可用（錄音格式會是 mp4/aac，程式會自動轉成 WAV） |
 | 網址 | **必須用 `http://localhost:3000`** —— 原因見下方「已知限制」 |
 
-> ⚠️ **Node 版本**：`@google/genai` 的 `engines` 要求 `>= 20.0.0`，但 npm 預設不會強制擋，
-> 所以在 Node 18 上照樣裝得起來也跑得動（本專案的所有驗證都是在 v18.19.1 上跑完的，
-> 沒有遇到問題）。不過那是「剛好能動」，不是官方支援的組合 ——
-> SDK 之後改用 Node 20+ 的語法時會無預警壞掉。建議還是升到 Node 20 或 22：
+> **Node 版本**：`@google/genai` 的 `engines` 要求 `>= 20.0.0`，但 npm 預設不會強制擋，
+> 所以在 Node 18 上照樣裝得起來也跑得動 —— 那是「剛好能動」，不是官方支援的組合。
+> 開發環境已用 nvm 升到 **v22.23.2**（`nvm alias default 22`，新開的終端機會自動生效）。
+> 如果 `node -v` 還顯示舊版：
 >
 > ```bash
-> curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-> nvm install 22 && nvm use 22
+> nvm use 22
 > ```
 
 ## 安裝與啟動
@@ -101,6 +102,39 @@ GEMINI_MODEL=gemini-3.7-flash
 | `gemini-3.5-flash` | 12.9s | 明顯較慢 |
 | `gemini-3.5-flash-lite` | 4.1s | 對無人聲的判斷最嚴格 |
 | `gemini-3.1-flash-lite` | 3.8s | 最快，品質較陽春 |
+
+### 為什麼要等這麼久（不是因為要分析音訊）
+
+實測結論：**延遲跟音訊幾乎無關，主要花在模型的內部推理上。**
+
+| 測法 | 結果 |
+|---|---|
+| 完全不送音訊（純文字同樣的 prompt） | 仍要 **6.6 秒** |
+| 音訊 1.5 秒 → 6 秒 → 24 秒 | 延遲**沒有隨長度上升**（變異比差異還大） |
+| 音訊的 token 量 | 1.5 秒 = 38 tokens，24 秒 = 600 tokens，佔比極小 |
+
+真正的成本在回應的 `usage` 裡看得到。`gemini-3.6-flash` 一次呼叫大約是：
+
+```
+total_input_tokens    53      ← 提示詞
+total_output_tokens  154      ← 實際回給你的 JSON
+total_thought_tokens 676      ← 模型自己在心裡想的，看不到但要算時間
+```
+
+**推理用掉的 token 是實際輸出的 4 倍以上**，那才是等待的來源。
+對照組：`gemini-3.1-flash-lite` 的 `total_thought_tokens` 是 **0**，所以它一直是最快的。
+
+想再快一點，`generation_config.thinking_level` 可以設 `minimal` / `low` / `medium` / `high`：
+
+```js
+ai.interactions.create({
+  model, input, response_format,
+  generation_config: { thinking_level: 'minimal' },
+});
+```
+
+⚠️ 但這個沒有在 `gemini-3.6-flash` 上驗證過 —— 測到一半就把免費層的配額打到 429 了。
+在 flash-lite 上測是沒有差別的（它本來就不推理）。要用之前請自己確認品質有沒有掉。
 
 ### 為什麼清單這麼短
 
@@ -205,8 +239,9 @@ english_speaking/
 │   └── audio.js          # WAV 能量分析（峰值／有聲比例／音量變異），判斷有沒有人聲
 ├── test/
 │   ├── audio.test.js     # 門檻的回歸測試（不需網路與金鑰）
+│   ├── e2e.mjs           # Playwright 瀏覽器端對端測試（需伺服器與金鑰）
 │   └── fixtures/
-│       └── speech-16k.wav  # 真實語音樣本，用來確認門檻不會誤擋真人錄音
+│       └── speech-16k.wav  # 真實語音樣本；單元測試與 E2E 的假麥克風都用它
 └── public/
     ├── index.html
     ├── style.css
@@ -308,23 +343,45 @@ WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏�
 
 ## 測試
 
+### 單元測試（不需網路與金鑰）
+
 ```bash
 npm test
 ```
 
-`test/audio.test.js` 驗的是無人聲偵測的門檻，用 `node:test`，不需要網路也不需要金鑰。
-它同時測兩個方向：**該擋的要擋**（靜音、極低噪音、平穩嗡嗡聲），
-以及**真實語音在各種音量下都不可以被擋**（門檻調太嚴造成誤擋，比原本的 bug 更糟）。
+`test/audio.test.js` 驗的是無人聲偵測的門檻。它同時測兩個方向：
+**該擋的要擋**（靜音、極低噪音、平穩嗡嗡聲），以及**真實語音在各種音量下都不可以被擋**
+（門檻調太嚴造成誤擋，比原本的 bug 更糟）。
 
 正向樣本用的是真實語音而不是合成訊號 —— 合成訊號的能量分布跟真人說話差太多，測不出誤擋。
+
+### 瀏覽器端對端測試（需伺服器與金鑰）
+
+```bash
+npm start          # 另一個終端機
+npm run test:e2e
+```
+
+用 Playwright 開 headless Chromium 跑完整流程。關鍵是 Chromium 的
+`--use-file-for-fake-audio-capture` 可以把 WAV 檔當成麥克風輸入，
+所以 `getUserMedia` → `MediaRecorder` → 轉 WAV → 能量檢查 → 上傳 → Gemini →
+顯示講評 → 寫進 `localStorage` 這整條路徑都是真的在跑，沒有任何假資料。
+
+環境變數：`BASE`（預設 `http://localhost:3000`）、`MODEL`（預設 `gemini-3.1-flash-lite`，
+最省配額）、`SHOTS`（設成目錄路徑就會存下各步驟的截圖）。
+
+**WSL 可以直接跑 headless，不需要 X server 或 WSLg。** 安裝：
+
+```bash
+npm install
+npx playwright install chromium
+```
 
 ## 接下來
 
 階段 1～5 都完成了。還可以做的：
 
-- **UI 尚未在瀏覽器實機驗證。** 開發環境沒有可用的瀏覽器，所以階段 5 的前端
-  （篩選、波形、練習紀錄、model 選單）只做過靜態檢查與後端 API 的端對端驗證，
-  畫面本身要你在 Windows 的瀏覽器開 `http://localhost:3000` 確認一次。
 - 練習紀錄目前只有清單與統計，可以加上分數趨勢圖或「重練這句」。
 - 目前每次都隨機抽句，可以改成優先抽出分數低的句子。
+- 用 `thinking_level` 換取速度（見上方「為什麼要等這麼久」），但要先確認品質沒掉。
 - 支援其他 AI 供應商（會需要第二組金鑰與另一套錯誤分類，錯誤處理的面積會變兩倍）。

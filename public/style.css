@@ -34,6 +34,13 @@
   box-sizing: border-box;
 }
 
+/* `hidden` 屬性靠的是瀏覽器預設的 display:none，任何 .foo { display: ... }
+   都會蓋過它 —— 例如 .playback{display:flex} 會讓 <div hidden> 照樣顯示出來。
+   這條規則讓 hidden 一律有效，程式裡才能安心用 el.foo.hidden = true 控制顯示。 */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   padding: 2rem 1rem 4rem;

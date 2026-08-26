@@ -274,3 +274,90 @@ function classifyError(err) {
     err
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Azure 接上之後的主要用法：讓 Gemini 把 Azure 的客觀分數翻譯成中文教練建議。
+//
+// 這條路徑吃的是一小段 JSON，不是音訊 —— 音訊計費是 32 tokens/秒，
+// 一段 5 秒錄音約 160 tokens；改吃 JSON 只要幾百 tokens 但不含音訊成本，
+// 而且不必把使用者的錄音再送一份給第二個服務。
+// ─────────────────────────────────────────────────────────────────────────
+
+const NARRATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    feedback_zh: {
+      type: 'string',
+      description: '繁體中文的簡短條列講評，每行以「• 」開頭，最多 4 行。',
+    },
+  },
+  required: ['feedback_zh'],
+};
+
+/**
+ * 把 Azure 的評估結果轉成繁體中文講評。
+ * @param {object} assessment assessPronunciation() 的回傳值
+ */
+export async function narrateAssessment(assessment) {
+  if (!hasApiKey() || !looksLikeApiKey(process.env.GEMINI_API_KEY.trim())) {
+    // 沒有 Gemini 金鑰不算錯誤 —— Azure 的分數本身已經有用了，
+    // 呼叫端會改用 localSummary()。
+    return null;
+  }
+
+  const problems = (assessment.words ?? [])
+    .filter((w) => w.errorType !== 'None' || (w.accuracy ?? 100) < 80)
+    .map((w) => {
+      const phonemes = (w.phonemes ?? [])
+        .filter((p) => (p.accuracy ?? 100) < 70)
+        .map((p) => `${p.phoneme}(${p.accuracy})`)
+        .join(' ');
+      return `- ${w.word}：準確度 ${w.accuracy}，狀況 ${w.errorType}` +
+        (phonemes ? `，較弱的音素 ${phonemes}` : '');
+    })
+    .join('\n');
+
+  const s = assessment.scores ?? {};
+  const prompt = `你是一位英語發音教練。以下是語音評估系統對一段錄音的客觀分析結果。
+
+目標句：「${assessment.referenceText}」
+系統聽到：「${assessment.recognizedText}」
+
+整體分數（滿分 100）：
+- 發音總分 ${s.pronunciation}
+- 準確度 ${s.accuracy}
+- 流暢度 ${s.fluency}
+- 完整度 ${s.completeness}
+- 語調／重音 ${s.prosody}
+
+需要注意的字：
+${problems || '（沒有明顯問題的字）'}
+
+請用繁體中文寫出簡短的條列講評，最多 4 行，每行以「• 」開頭：
+1. 針對上面分數最低的面向，說明那代表什麼、要怎麼改善
+2. 針對需要注意的字，用具體的口腔動作描述怎麼發音（例如「th 要把舌尖輕觸上齒」）
+3. 最後一行給一句鼓勵
+
+不要重複列出分數數字，使用者已經看到了。直接講怎麼改善。`;
+
+  try {
+    const interaction = await withTimeout(
+      getClient().interactions.create({
+        model: MODEL,
+        input: [{ type: 'text', text: prompt }],
+        response_format: {
+          type: 'text',
+          mime_type: 'application/json',
+          schema: NARRATION_SCHEMA,
+        },
+      }),
+      TIMEOUT_MS
+    );
+    const parsed = JSON.parse(interaction.output_text);
+    return typeof parsed.feedback_zh === 'string' ? parsed.feedback_zh : null;
+  } catch (err) {
+    // 講評失敗不該讓整個請求失敗 —— Azure 的分數還是要回給使用者
+    console.error('[gemini] 產生中文講評失敗（將改用本地摘要）：', err);
+    return null;
+  }
+}

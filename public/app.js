@@ -378,17 +378,81 @@ async function submitRecording() {
   }
 }
 
-// ─── 階段 4：transcript 與目標句逐字比對 ────────────────────────────────
-// 用 LCS（最長共同子序列）找出對得上的字，對不上的就標色。
-// 不需要很精準 —— 目的是讓使用者一眼看到哪幾個字沒唸到或唸錯。
+// ─── 逐字比對與標色 ──────────────────────────────────────────────────────
 function normalizeWord(w) {
   return w.toLowerCase().replace(/[^a-z0-9']/g, '');
 }
 
+/** 分數 → 顏色等級 */
+function scoreLevel(v) {
+  if (typeof v !== 'number') return 'na';
+  if (v >= 80) return 'good';
+  if (v >= 60) return 'ok';
+  return 'bad';
+}
+
+/**
+ * 把 Azure 的 Words 對齊到畫面上顯示的目標句。
+ * Azure 回的字沒有標點，且 enableMiscue 開啟時會多出 Insertion（多唸的字），
+ * 所以不能直接用索引對應 —— 這裡用雙指標按字面比對。
+ */
+function alignAzureWords(targetWords, azureWords) {
+  const usable = (azureWords ?? []).filter((w) => w.errorType !== 'Insertion');
+  const out = new Array(targetWords.length).fill(null);
+  let j = 0;
+  for (let i = 0; i < targetWords.length; i++) {
+    const t = normalizeWord(targetWords[i]);
+    let k = j;
+    while (k < usable.length && normalizeWord(usable[k].word) !== t) k++;
+    if (k < usable.length) {
+      out[i] = usable[k];
+      j = k + 1;
+    }
+  }
+  return out;
+}
+
+const ERROR_LABEL = {
+  Mispronunciation: '發音不準',
+  Omission: '沒有唸到',
+  Insertion: '多唸了',
+  UnexpectedBreak: '中間多了停頓',
+  MissingBreak: '少了該有的停頓',
+  Monotone: '語調太平',
+};
+
+/** Azure 路徑：依每個字的準確度分級標色 */
+function highlightFromAzure(words) {
+  if (!current) return;
+  const targetWords = current.text.split(/\s+/);
+  const aligned = alignAzureWords(targetWords, words);
+
+  el.sentence.replaceChildren();
+  targetWords.forEach((word, idx) => {
+    const info = aligned[idx];
+    const span = document.createElement('span');
+    span.textContent = word;
+    span.className = `word word--${info ? scoreLevel(info.accuracy) : 'na'}`;
+    if (info?.errorType === 'Omission') span.classList.add('word--omitted');
+    if (info) {
+      span.title =
+        `準確度 ${info.accuracy}` +
+        (info.errorType && info.errorType !== 'None'
+          ? `・${ERROR_LABEL[info.errorType] ?? info.errorType}`
+          : '');
+    }
+    el.sentence.append(span);
+    if (idx < targetWords.length - 1) el.sentence.append(' ');
+  });
+}
+
+/**
+ * Gemini 退路：沒有逐字分數時，用 LCS 找出沒被聽到的字。
+ * 用最長共同子序列，不求精準，只要讓使用者一眼看到哪幾個字沒對上。
+ */
 function matchedTargetIndices(targetWords, spokenWords) {
   const a = targetWords.map(normalizeWord);
   const b = spokenWords.map(normalizeWord);
-  // dp[i][j] = a[i..] 與 b[j..] 的 LCS 長度
   const dp = Array.from({ length: a.length + 1 }, () => new Int32Array(b.length + 1));
   for (let i = a.length - 1; i >= 0; i--) {
     for (let j = b.length - 1; j >= 0; j--) {
@@ -399,20 +463,14 @@ function matchedTargetIndices(targetWords, spokenWords) {
   let i = 0;
   let j = 0;
   while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      matched.add(i);
-      i++;
-      j++;
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      i++;
-    } else {
-      j++;
-    }
+    if (a[i] === b[j]) { matched.add(i); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
   }
   return matched;
 }
 
-function highlightSentence(transcript, problemWords = []) {
+function highlightFromTranscript(transcript, problemWords = []) {
   if (!current) return;
   const targetWords = current.text.split(/\s+/);
   const matched = matchedTargetIndices(targetWords, (transcript || '').split(/\s+/));
@@ -422,47 +480,159 @@ function highlightSentence(transcript, problemWords = []) {
   targetWords.forEach((word, idx) => {
     const span = document.createElement('span');
     span.textContent = word;
-    // 沒被聽到，或被 Gemini 點名發音有問題 → 標色
     if (!matched.has(idx) || problems.has(normalizeWord(word))) {
-      span.className = 'word--miss';
+      span.className = 'word word--bad';
       span.title = !matched.has(idx) ? '這個字沒有聽到，或唸得不一樣' : '這個字的發音需要加強';
+    } else {
+      span.className = 'word';
     }
     el.sentence.append(span);
     if (idx < targetWords.length - 1) el.sentence.append(' ');
   });
 }
 
+// ─── 講評區渲染 ──────────────────────────────────────────────────────────
+function scoreTile(label, value, hint) {
+  const tile = document.createElement('div');
+  tile.className = `tile tile--${scoreLevel(value)}`;
+  const v = document.createElement('div');
+  v.className = 'tile__value';
+  v.textContent = typeof value === 'number' ? Math.round(value) : '—';
+  const l = document.createElement('div');
+  l.className = 'tile__label';
+  l.textContent = label;
+  tile.append(v, l);
+  if (hint) tile.title = hint;
+  return tile;
+}
+
+function renderAzureScores(data) {
+  const s = data.scores ?? {};
+
+  const overall = document.createElement('div');
+  overall.className = 'overall';
+  overall.innerHTML =
+    `<span class="overall__value">${typeof s.pronunciation === 'number' ? Math.round(s.pronunciation) : '—'}</span>` +
+    `<span class="overall__max">/ 100</span>` +
+    `<span class="overall__label">發音總分</span>`;
+  el.feedback.append(overall);
+
+  const grid = document.createElement('div');
+  grid.className = 'tiles';
+  grid.append(
+    scoreTile('準確度', s.accuracy, '個別音發得準不準'),
+    scoreTile('流暢度', s.fluency, '字與字之間的停頓是否自然'),
+    scoreTile('完整度', s.completeness, '有沒有漏字'),
+    scoreTile('語調', s.prosody, '重音、語調、語速與節奏'),
+  );
+  el.feedback.append(grid);
+
+  const src = document.createElement('p');
+  src.className = 'hint';
+  src.textContent =
+    'Azure Speech 發音評估的客觀分數（逐音素分析）。語調評估目前僅支援 en-US。';
+  el.feedback.append(src);
+}
+
+/** 有問題的字：列出錯誤類型與較弱的音素 */
+function renderWordDetail(words) {
+  const problems = (words ?? []).filter(
+    (w) => (w.errorType && w.errorType !== 'None') || (w.accuracy ?? 100) < 80
+  );
+  if (problems.length === 0) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'worddetail';
+  const h = document.createElement('h3');
+  h.className = 'worddetail__title';
+  h.textContent = '需要加強的字';
+  wrap.append(h);
+
+  for (const w of problems.slice(0, 6)) {
+    const row = document.createElement('div');
+    row.className = 'worddetail__row';
+
+    const name = document.createElement('span');
+    name.className = `worddetail__word worddetail__word--${scoreLevel(w.accuracy)}`;
+    name.textContent = w.word;
+
+    const meta = document.createElement('span');
+    meta.className = 'worddetail__meta';
+    meta.textContent =
+      (typeof w.accuracy === 'number' ? `${Math.round(w.accuracy)} 分` : '') +
+      (w.errorType && w.errorType !== 'None'
+        ? `・${ERROR_LABEL[w.errorType] ?? w.errorType}`
+        : '');
+
+    row.append(name, meta);
+
+    const weak = (w.phonemes ?? []).filter((p) => (p.accuracy ?? 100) < 70);
+    if (weak.length) {
+      const chips = document.createElement('span');
+      chips.className = 'phonemes';
+      for (const p of weak) {
+        const chip = document.createElement('span');
+        chip.className = `phoneme phoneme--${scoreLevel(p.accuracy)}`;
+        chip.textContent = `${p.phoneme} ${Math.round(p.accuracy ?? 0)}`;
+        chips.append(chip);
+      }
+      row.append(chips);
+    }
+    wrap.append(row);
+  }
+  el.feedback.append(wrap);
+}
+
 function renderFeedback(data) {
   el.feedback.replaceChildren();
 
-  if (data?.transcript) {
-    highlightSentence(data.transcript, data.problem_words);
-  }
+  if (data?.provider === 'azure') {
+    highlightFromAzure(data.words);
+    renderAzureScores(data);
+    renderWordDetail(data.words);
 
-  if (typeof data?.score === 'number') {
-    const score = document.createElement('p');
-    score.innerHTML = `<strong>參考分數：${data.score} / 100</strong>`;
-    const disclaimer = document.createElement('p');
-    disclaimer.className = 'hint';
-    disclaimer.textContent =
-      '這是 AI 的主觀評估，僅供參考，不是標準化測驗分數。';
-    el.feedback.append(score, disclaimer);
-  }
+    if (data.recognizedText) {
+      const t = document.createElement('p');
+      t.className = 'hint';
+      t.textContent = `系統聽到：${data.recognizedText}`;
+      el.feedback.append(t);
+    }
+  } else {
+    // Gemini 退路：主觀分數
+    if (data?.transcript) highlightFromTranscript(data.transcript, data.problem_words);
 
-  if (data?.transcript) {
-    const t = document.createElement('p');
-    t.className = 'hint';
-    t.textContent = `AI 聽到的內容：${data.transcript}`;
-    const legend = document.createElement('p');
-    legend.className = 'hint';
-    legend.textContent = '上方句子中標紅的字，是沒被聽到、或發音需要加強的部分。';
-    el.feedback.append(t, legend);
+    if (typeof data?.score === 'number') {
+      const overall = document.createElement('div');
+      overall.className = 'overall';
+      overall.innerHTML =
+        `<span class="overall__value">${data.score}</span>` +
+        `<span class="overall__max">/ 100</span>` +
+        `<span class="overall__label">參考分數</span>`;
+      const disclaimer = document.createElement('p');
+      disclaimer.className = 'hint';
+      disclaimer.textContent =
+        '這是 AI 的主觀評估，僅供參考，不是標準化測驗分數。設定 Azure 之後會換成客觀的逐音素評分。';
+      el.feedback.append(overall, disclaimer);
+    }
+    if (data?.transcript) {
+      const t = document.createElement('p');
+      t.className = 'hint';
+      t.textContent = `AI 聽到的內容：${data.transcript}`;
+      el.feedback.append(t);
+    }
   }
 
   const body = document.createElement('p');
-  body.style.whiteSpace = 'pre-wrap';
+  body.className = 'coach';
   body.textContent = data?.feedback_zh ?? '（沒有收到講評內容）';
   el.feedback.append(body);
+
+  if (data?.narrationSource === 'local') {
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.textContent = '（上面的講評由本地摘要產生，未使用 Gemini）';
+    el.feedback.append(note);
+  }
 
   el.feedbackCard.hidden = false;
 }

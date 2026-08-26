@@ -10,6 +10,7 @@
   --danger-bg: #fdecea;
   --ok: #1a7f4b;
   --warn-bg: #fff6e5;
+  --warn-text: #9a6700;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(16, 22, 26, 0.06), 0 4px 16px rgba(16, 22, 26, 0.04);
 }
@@ -27,6 +28,7 @@
     --danger-bg: #3a2320;
     --ok: #6cc48f;
     --warn-bg: #3a3222;
+    --warn-text: #e0b341;
   }
 }
 
@@ -110,12 +112,111 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* 階段 4：transcript 比對後標色 */
-.sentence .word--miss {
-  background: var(--danger-bg);
-  color: var(--danger);
+/* 逐字標色 —— Azure 給每個字準確度，Gemini 退路只有「有沒有對上」 */
+.word {
   border-radius: 4px;
   padding: 0 2px;
+}
+.word--good { color: var(--ok); }
+.word--ok   { background: var(--warn-bg); color: var(--warn-text); }
+.word--bad  { background: var(--danger-bg); color: var(--danger); }
+.word--na   { color: var(--text-muted); }
+.word--omitted { text-decoration: line-through; opacity: 0.7; }
+
+/* 總分 */
+.overall {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+.overall__value {
+  font-size: 2.6rem;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.overall__max { color: var(--text-muted); font-size: 0.95rem; }
+.overall__label {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* 四個面向的分數 */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+.tile {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.4rem;
+  text-align: center;
+  background: var(--surface);
+}
+.tile__value { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
+.tile__label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
+.tile--good { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+.tile--good .tile__value { color: var(--ok); }
+.tile--ok   { border-color: color-mix(in srgb, var(--warn-text) 45%, var(--border)); }
+.tile--ok .tile__value { color: var(--warn-text); }
+.tile--bad  { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.tile--bad .tile__value { color: var(--danger); }
+
+/* 需要加強的字 */
+.worddetail {
+  margin: 0.9rem 0;
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+}
+.worddetail__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.worddetail__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+.worddetail__word { font-weight: 600; }
+.worddetail__word--good { color: var(--ok); }
+.worddetail__word--ok   { color: var(--warn-text); }
+.worddetail__word--bad  { color: var(--danger); }
+.worddetail__meta { font-size: 0.82rem; color: var(--text-muted); }
+
+.phonemes { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; margin-left: auto; }
+.phoneme {
+  font-size: 0.75rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.phoneme--bad {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.phoneme--ok {
+  border-color: color-mix(in srgb, var(--warn-text) 40%, transparent);
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+/* 教練建議 */
+.coach {
+  white-space: pre-wrap;
+  margin: 0.6rem 0 0;
 }
 
 .row {

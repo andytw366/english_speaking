@@ -1,6 +1,7 @@
 import { h, clear } from '../lib/dom.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings } from '../lib/settings.js';
+import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
 
 export const meta = { id: 'translation', label: '中翻英', icon: '✍️' };
 
@@ -40,70 +41,6 @@ function next() {
   checked = null;
   showHint = false;
   render();
-}
-
-// ─── 比對 ────────────────────────────────────────────────────────────────
-function normalize(s) {
-  return String(s)
-    .toLowerCase()
-    .replace(/[’']/g, "'")
-    .replace(/[.,!?;:"“”]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function tokens(s) {
-  return normalize(s).split(' ').filter(Boolean);
-}
-
-/**
- * 整句翻譯很難精確自動批改 —— 同一個意思有很多種講法。
- * 所以分三級：完全相符、關鍵字都有（算通過但提示參考答案）、差太多。
- */
-function grade(item, input) {
-  const got = normalize(input);
-  if (!got) return { level: 'empty' };
-
-  const exact = item.accept.some((a) => normalize(a) === got);
-  if (exact) return { level: 'exact' };
-
-  if (item.type === 'cloze') {
-    return { level: 'wrong' };
-  }
-
-  const gotTokens = new Set(tokens(input));
-  const missing = (item.keywords ?? []).filter(
-    (kw) => !tokens(kw).every((t) => gotTokens.has(t))
-  );
-  if (missing.length === 0) return { level: 'close' };
-  return { level: 'wrong', missing };
-}
-
-/** 逐字比對使用者的答案與參考答案，標出差異 */
-function diffView(userText, referenceText) {
-  const a = tokens(userText);
-  const b = tokens(referenceText);
-  const setB = new Set(b);
-  const setA = new Set(a);
-
-  const userWords = userText.trim().split(/\s+/);
-  return h('div', { class: 'diff' },
-    h('p', { class: 'diff__label' }, '你的答案'),
-    h('p', { class: 'diff__line' },
-      userWords.map((w, i) => {
-        const ok = setB.has(normalize(w));
-        return [h('span', { class: ok ? 'dword' : 'dword dword--extra' }, w),
-                i < userWords.length - 1 ? ' ' : ''];
-      })),
-    h('p', { class: 'diff__label' }, '參考答案'),
-    h('p', { class: 'diff__line' },
-      referenceText.split(/\s+/).map((w, i) => {
-        const hit = setA.has(normalize(w));
-        return [h('span', { class: hit ? 'dword' : 'dword dword--missing' }, w),
-                i < referenceText.split(/\s+/).length - 1 ? ' ' : ''];
-      })),
-    h('p', { class: 'hint' }, '紅色＝參考答案有但你沒寫到；灰色底＝你多寫的。意思對就好，用字不必完全一樣。'),
-  );
 }
 
 // ─── 畫面 ────────────────────────────────────────────────────────────────
@@ -183,13 +120,7 @@ function resultCard() {
   const { level, missing } = checked.result;
   const input = checked.input;
 
-  const HEAD = {
-    exact: ['✅ 完全正確！', 'ok'],
-    close: ['🟡 意思對了', 'close'],
-    wrong: ['❌ 再想想', 'bad'],
-    empty: ['請先寫下答案', 'bad'],
-  };
-  const [title, tone] = HEAD[level];
+  const [title, tone] = RESULT_HEAD[level];
 
   const card = h('div', { class: `card result--${tone}` },
     h('p', { class: 'result__title' }, title),
@@ -248,7 +179,7 @@ function onEnter(e) {
 function check() {
   const el = root?.querySelector('#answer');
   const input = el?.value ?? '';
-  checked = { input, result: grade(current, input) };
+  checked = { input, result: grade({ ...current, strict: current.type === 'cloze' }, input) };
   render();
 }
 

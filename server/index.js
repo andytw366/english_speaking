@@ -48,6 +48,7 @@ const CONTENT_FILES = {
   vocabulary: 'vocabulary.json',
   listening: 'listening.json',
   translation: 'translation.json',
+  dialogues: 'dialogues.json',
 };
 
 app.get('/api/content/:name', (req, res, next) => {

@@ -7,6 +7,7 @@
 | 🗂️ **單字卡** | 40 張單字卡，Leitner 間隔重複排程 |
 | 🎧 **聽力** | 10 組情境短文 + 28 道英文理解測驗，用瀏覽器 TTS 朗讀 |
 | ✍️ **中翻英** | 20 題，10 題句中填空 + 10 題整句翻譯 |
+| 💬 **情境對話** | 6 段角色扮演，19 句你的台詞；對方由 TTS 扮演 |
 | 🗣️ **跟讀** | 27 句練習句，聽示範 → 錄音 → 比對；可選用 AI 發音評分 |
 | ⚙️ **設定** | API 金鑰、練習範圍篩選、語音與語速、學習資料管理 |
 
@@ -177,7 +178,8 @@ english_speaking/
 │   ├── sentences.json    # 27 句跟讀練習句
 │   ├── vocabulary.json   # 40 張單字卡
 │   ├── listening.json    # 10 組聽力題（題目與選項為英文，解析為中文）
-│   └── translation.json  # 20 題中翻英（填空 + 整句）
+│   ├── translation.json  # 20 題中翻英（填空 + 整句）
+│   └── dialogues.json    # 6 段情境對話
 ├── server/
 │   ├── index.js          # Express、路由、本地摘要 fallback
 │   ├── settings.js       # 讀寫 .env 的金鑰設定（僅接受 localhost 請求）
@@ -193,11 +195,13 @@ english_speaking/
     │   ├── recorder.js   # 錄音、格式挑選、麥克風錯誤訊息
     │   ├── wav-encoder.js  # 錄音 → 16 kHz 單聲道 WAV
     │   ├── storage.js    # localStorage：SRS 排程、練習紀錄
-    │   └── settings.js   # localStorage：偏好設定與內容篩選
+    │   ├── settings.js   # localStorage：偏好設定與內容篩選
+    │   └── grade.js      # 自由作答的比對與逐字對照（中翻英／情境對話共用）
     └── modes/
         ├── vocabulary.js
         ├── listening.js
         ├── translation.js
+        ├── dialogue.js
         ├── shadowing.js
         ├── settings.js
         └── assessment-view.js  # 發音評估結果的呈現
@@ -214,10 +218,28 @@ english_speaking/
 **聽力** 用瀏覽器內建的 `speechSynthesis` 朗讀短文，作答後才顯示正解與解析；
 聽不出來也可以先看原文。
 
-**中翻英** 有兩種題型。**填空**只考一個關鍵字，答錯就是答錯。**整句翻譯**沒辦法精確
-自動批改（同一個意思有很多種講法），所以分三級：完全相符、關鍵字都有（算通過，
-但列出參考答案）、差太多。作答後會逐字比對，紅色是參考答案有但你沒寫到的字，
-灰底是你多寫的 —— 但會明講「意思對就好，用字不必完全一樣」。
+**中翻英** 有兩種題型。**填空**只考一個關鍵字，答錯就是答錯。**整句翻譯**用下面說的三級批改。
+
+### 自由作答怎麼批改
+
+中翻英的整句題與情境對話都是自由作答，沒辦法精確自動批改 —— 同一個意思有很多種講法，
+逐字比對一定會誤判。所以 `lib/grade.js` 只分三級：
+
+| 判定 | 條件 |
+|---|---|
+| ✅ 完全正確 | 與某個可接受答案完全相符（忽略大小寫與標點）|
+| 🟡 意思對了 | 關鍵字都有，說法不同 —— 算通過，但列出參考答案 |
+| ❌ 再想想 | 少了關鍵字，並指出少了哪些 |
+
+作答後會逐字對照：紅色是參考答案有但你沒寫到的字，灰底是你多寫的。
+比對是**位置無關**的（集合比對），因為換句話說時語序本來就會變 ——
+標出來的是「有沒有用到這個字」而不是「位置對不對」，UI 上也明講
+「意思對就好，用字不必完全一樣」。語序這類問題交給每題附的中文說明。
+
+**情境對話** 是角色扮演。對方的台詞由 TTS 唸出來，輪到你時只給**中文意圖**
+（例如「點一杯中杯拿鐵，外帶」），你要自己用英文說出來 —— 這跟中翻英的差別在於
+有上下文，你得接得上前一句。作答後才顯示參考說法與用法說明，並可以把那句錄下來練發音。
+已經進行過的對話會像聊天記錄一樣留在上面，沒過關的句子會附上參考說法。
 
 **跟讀** 是原本的口說練習。發音評分現在是次要按鈕（「🎯 檢查我的發音（選用）」），
 沒設定金鑰也能正常練 —— 聽示範、錄音、自己比對本來就有用。
@@ -230,7 +252,7 @@ english_speaking/
 | 方法 | 路徑 | 說明 |
 |---|---|---|
 | GET | `/api/health` | 回 `{ ok, azureConfigured, geminiConfigured }` |
-| GET | `/api/content/:name` | `sentences` / `vocabulary` / `listening` / `translation` |
+| GET | `/api/content/:name` | `sentences` / `vocabulary` / `listening` / `translation` / `dialogues` |
 | GET | `/api/settings` | 金鑰設定狀態（**遮蔽過**，只回是否已設定與末四碼）|
 | POST | `/api/settings` | 更新金鑰，寫進 `.env` |
 | GET | `/api/sentences` | 舊路徑，307 轉址到 `/api/content/sentences` |
@@ -366,7 +388,7 @@ WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏�
 
 ## 接下來
 
-- **情境對話**（獨立功能，還沒做）—— 多輪對話狀態，是四個模式裡最複雜的
 - 練習紀錄的檢視畫面（`storage.js` 已經在記錄跟讀的每次嘗試，但還沒有 UI）
+- 情境對話的進度也存進 `localStorage`（目前重新整理就重來）
 - 例句／單字依情境與難度篩選（資料已經有 `category` 與 `difficulty` 欄位）
 - 錄音波形視覺化（`AnalyserNode`）

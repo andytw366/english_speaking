@@ -694,3 +694,78 @@ body {
   border-radius: 8px;
   margin-top: 0.6rem;
 }
+
+/* ─── 情境對話 ─────────────────────────────────────────────────────────── */
+.dlg__setting {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.dlg__line {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
+.dlg__intent {
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.9rem;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+.dlg__record {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--border);
+}
+.dlg__record audio { max-width: 100%; height: 34px; }
+
+.dlg { display: flex; flex-direction: column; gap: 0.7rem; }
+
+.bubble {
+  position: relative;
+  max-width: 85%;
+  padding: 0.6rem 0.9rem;
+  border-radius: 14px;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.bubble--them {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  border-bottom-left-radius: 4px;
+  padding-right: 2.4rem;
+}
+.bubble--you {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-bottom-right-radius: 4px;
+}
+.bubble__who {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+}
+.bubble__text { margin: 0; }
+.bubble__ref {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-top: 1px solid color-mix(in srgb, var(--text-muted) 25%, transparent);
+  padding-top: 0.3rem;
+}
+.bubble__play {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  opacity: 0.55;
+  padding: 0.1rem;
+}
+.bubble__play:hover { opacity: 1; }

@@ -940,5 +940,2278 @@
         "explain_zh": "took a course in the evenings, built a few projects，說明轉職準備的具體行動，面試談轉職時很受用的講法。"
       }
     ]
+  },
+  {
+    "id": 25,
+    "title": "Pharmacy instructions",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "Right, so take one tablet twice a day, once in the morning and once in the evening, and always with food. Finish the whole course even if you start feeling better after a few days. If you get any rash or swelling, stop taking them and come straight back to us.",
+    "questions": [
+      {
+        "question": "How often should the tablets be taken?",
+        "options": [
+          "Once a day",
+          "Twice a day",
+          "Three times a day",
+          "Only when needed"
+        ],
+        "answer": 1,
+        "explain_zh": "one tablet twice a day，twice a day 是一天兩次。"
+      },
+      {
+        "question": "What should you do if you feel better early?",
+        "options": [
+          "Stop taking them",
+          "Finish the whole course",
+          "Halve the dose",
+          "Ask for more"
+        ],
+        "answer": 1,
+        "explain_zh": "Finish the whole course，course 在這裡指整個療程，不是課程。"
+      },
+      {
+        "question": "What should you do if a rash appears?",
+        "options": [
+          "Take more water",
+          "Stop and return to the pharmacy",
+          "Wait a few days",
+          "Reduce the dose"
+        ],
+        "answer": 1,
+        "explain_zh": "stop taking them and come straight back，straight back 是「立刻回來」。"
+      }
+    ]
+  },
+  {
+    "id": 26,
+    "title": "A neighbour asking a favour",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "Hey, sorry to bother you. We're away next week and I was wondering if you'd mind feeding the cat. It's just once a day, and the food's all in the cupboard by the door. I'd ask my sister but she's working nights at the moment.",
+    "questions": [
+      {
+        "question": "What is the favour?",
+        "options": [
+          "Watering plants",
+          "Feeding a cat",
+          "Collecting post",
+          "Walking a dog"
+        ],
+        "answer": 1,
+        "explain_zh": "if you'd mind feeding the cat，Would you mind + V-ing 是禮貌的請求句型。"
+      },
+      {
+        "question": "How often does it need doing?",
+        "options": [
+          "Twice a day",
+          "Once a day",
+          "Every other day",
+          "Once a week"
+        ],
+        "answer": 1,
+        "explain_zh": "It's just once a day，just 用來淡化要求的份量。"
+      },
+      {
+        "question": "Why can't the sister help?",
+        "options": [
+          "She lives far away",
+          "She's working nights",
+          "She doesn't like cats",
+          "She's also away"
+        ],
+        "answer": 1,
+        "explain_zh": "she's working nights，work nights 是上夜班。"
+      }
+    ]
+  },
+  {
+    "id": 27,
+    "title": "Sprint planning discussion",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "Looking at what's left in the backlog, I think we're being a bit optimistic. We've got the search rewrite, the notification bug, and the reporting dashboard, and only two of us for most of next week since Anna's on leave. My suggestion is we drop the dashboard to the following sprint.",
+    "questions": [
+      {
+        "question": "How many items are in the backlog discussion?",
+        "options": [
+          "Two",
+          "Three",
+          "Four",
+          "Five"
+        ],
+        "answer": 1,
+        "explain_zh": "search rewrite、notification bug、reporting dashboard 共三項。"
+      },
+      {
+        "question": "Why is capacity limited?",
+        "options": [
+          "Budget cuts",
+          "Anna is on leave",
+          "A holiday week",
+          "Hiring freeze"
+        ],
+        "answer": 1,
+        "explain_zh": "only two of us for most of next week since Anna's on leave，on leave 是請假中。"
+      },
+      {
+        "question": "What does the speaker suggest?",
+        "options": [
+          "Working overtime",
+          "Dropping the dashboard to next sprint",
+          "Hiring a contractor",
+          "Cancelling the sprint"
+        ],
+        "answer": 1,
+        "explain_zh": "we drop the dashboard to the following sprint，drop something to 是延到下期。"
+      }
+    ]
+  },
+  {
+    "id": 28,
+    "title": "Declining a meeting invite",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "Thanks for including me, but I'm not sure I'd add much value in this one. It looks like it's mostly about the frontend architecture, which isn't really my area. If there's a specific bit you want my input on, I'm happy to join for that part, or you could just send me the notes afterwards.",
+    "questions": [
+      {
+        "question": "Why is the speaker declining?",
+        "options": [
+          "They're too busy",
+          "The topic isn't their area",
+          "They dislike meetings",
+          "They weren't given notice"
+        ],
+        "answer": 1,
+        "explain_zh": "which isn't really my area，area 在這裡指專業領域。"
+      },
+      {
+        "question": "What alternative do they offer?",
+        "options": [
+          "Joining for part of it or reading notes",
+          "Rescheduling",
+          "Sending a colleague",
+          "Nothing"
+        ],
+        "answer": 0,
+        "explain_zh": "join for that part, or you could just send me the notes afterwards，提供兩個替代方案。"
+      },
+      {
+        "question": "What does 'add much value' suggest?",
+        "options": [
+          "Make the meeting longer",
+          "Contribute usefully",
+          "Pay for something",
+          "Take notes"
+        ],
+        "answer": 1,
+        "explain_zh": "add value 是「帶來實質貢獻」，婉拒時用它顯得是為團隊著想。"
+      }
+    ]
+  },
+  {
+    "id": 29,
+    "title": "Interview: why this company",
+    "category": "interview",
+    "difficulty": "medium",
+    "transcript": "I've been following what you've built for a couple of years, actually. What stood out to me was the decision to open source the core library last year. That told me something about how the team thinks about the wider community. And from a personal angle, the problems you're solving are ones I've run into myself.",
+    "questions": [
+      {
+        "question": "How long has the speaker followed the company?",
+        "options": [
+          "A few months",
+          "A couple of years",
+          "Since last week",
+          "Ten years"
+        ],
+        "answer": 1,
+        "explain_zh": "for a couple of years，a couple of 通常指兩個左右。"
+      },
+      {
+        "question": "What impressed the speaker most?",
+        "options": [
+          "The salary",
+          "Open sourcing the core library",
+          "The office",
+          "The size of the team"
+        ],
+        "answer": 1,
+        "explain_zh": "What stood out to me was the decision to open source，stand out 是「特別突出」。"
+      },
+      {
+        "question": "What is the personal reason given?",
+        "options": [
+          "A friend works there",
+          "They've faced the same problems",
+          "It's close to home",
+          "They need a job"
+        ],
+        "answer": 1,
+        "explain_zh": "the problems you're solving are ones I've run into myself，run into 是遇到。"
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "title": "Museum audio guide intro",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "Welcome to the National Gallery. This guide will take approximately ninety minutes if you follow the full route. Press the number shown beside each artwork to hear the commentary. Photography without flash is permitted throughout, except in the special exhibition on the lower floor.",
+    "questions": [
+      {
+        "question": "How long is the full route?",
+        "options": [
+          "Nineteen minutes",
+          "Ninety minutes",
+          "Sixty minutes",
+          "Half a day"
+        ],
+        "answer": 1,
+        "explain_zh": "approximately ninety minutes。注意 ninety（90）和 nineteen（19）的發音差異。"
+      },
+      {
+        "question": "Where is photography not allowed?",
+        "options": [
+          "Throughout the gallery",
+          "The special exhibition downstairs",
+          "The entrance hall",
+          "The gift shop"
+        ],
+        "answer": 1,
+        "explain_zh": "except in the special exhibition on the lower floor，except 標示出例外。"
+      }
+    ]
+  },
+  {
+    "id": 31,
+    "title": "Bank fraud alert call",
+    "category": "travel",
+    "difficulty": "hard",
+    "transcript": "We're calling about some activity on your account that our system has flagged. There were two attempted transactions this morning, both from an overseas merchant, totalling around four hundred. We've blocked the card as a precaution. I should say that we'll never ask you for your PIN or full password over the phone.",
+    "questions": [
+      {
+        "question": "How many transactions were flagged?",
+        "options": [
+          "One",
+          "Two",
+          "Four",
+          "Four hundred"
+        ],
+        "answer": 1,
+        "explain_zh": "two attempted transactions this morning。四百是金額不是筆數。"
+      },
+      {
+        "question": "What action has the bank taken?",
+        "options": [
+          "Closed the account",
+          "Blocked the card",
+          "Refunded the money",
+          "Nothing yet"
+        ],
+        "answer": 1,
+        "explain_zh": "We've blocked the card as a precaution，as a precaution 是「以防萬一」。"
+      },
+      {
+        "question": "What does the caller emphasise at the end?",
+        "options": [
+          "They'll never ask for a PIN or password",
+          "The card is cancelled",
+          "A new card is coming",
+          "The account is closed"
+        ],
+        "answer": 0,
+        "explain_zh": "這是真銀行的標準做法。反過來說，會問密碼的就是詐騙。"
+      }
+    ]
+  },
+  {
+    "id": 32,
+    "title": "Restaurant booking by phone",
+    "category": "travel",
+    "difficulty": "easy",
+    "transcript": "Good evening, thanks for calling. Unfortunately we're fully booked at seven, but we do have a table at eight fifteen, or we could squeeze you in at six if that's not too early. How many are in your party?",
+    "questions": [
+      {
+        "question": "What times are available?",
+        "options": [
+          "Seven or eight",
+          "Six or eight fifteen",
+          "Only six",
+          "Only eight fifteen"
+        ],
+        "answer": 1,
+        "explain_zh": "a table at eight fifteen, or we could squeeze you in at six。squeeze someone in 是「勉強擠出位子」。"
+      },
+      {
+        "question": "What does 'fully booked' mean?",
+        "options": [
+          "No tables available",
+          "The kitchen is closed",
+          "Reservations are free",
+          "The restaurant is small"
+        ],
+        "answer": 0,
+        "explain_zh": "fully booked 是「訂滿了」，訂位時最常聽到的回應之一。"
+      },
+      {
+        "question": "What does the staff member ask at the end?",
+        "options": [
+          "The customer's name",
+          "The number of people",
+          "A phone number",
+          "A card number"
+        ],
+        "answer": 1,
+        "explain_zh": "How many are in your party? party 在餐廳指同行人數。"
+      }
+    ]
+  },
+  {
+    "id": 33,
+    "title": "Train ticket machine trouble",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "Excuse me, the machine's taken my card payment but it hasn't printed a ticket. I've got the confirmation on my phone here, you can see the amount went through. My train leaves in about twelve minutes so I'm a bit stuck.",
+    "questions": [
+      {
+        "question": "What is the problem?",
+        "options": [
+          "The card was declined",
+          "Payment went through but no ticket",
+          "The machine is out of order",
+          "The ticket is the wrong type"
+        ],
+        "answer": 1,
+        "explain_zh": "taken my card payment but it hasn't printed a ticket，注意 but 之後才是問題所在。"
+      },
+      {
+        "question": "What proof does the speaker have?",
+        "options": [
+          "A paper receipt",
+          "A confirmation on their phone",
+          "A witness",
+          "Nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "I've got the confirmation on my phone，confirmation 指付款成功的通知，是爭議時最有力的證據。"
+      },
+      {
+        "question": "How urgent is it?",
+        "options": [
+          "Not urgent",
+          "Train leaves in about twelve minutes",
+          "Train left already",
+          "Train is tomorrow"
+        ],
+        "answer": 1,
+        "explain_zh": "My train leaves in about twelve minutes，說明急迫性有助於得到優先處理。"
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "title": "Returning a faulty item",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "I bought this kettle about three weeks ago and it's stopped heating up properly. I've got the receipt here. I'd prefer a replacement rather than a refund if you have the same model in stock. If not, then I suppose a refund would have to do.",
+    "questions": [
+      {
+        "question": "What's wrong with the kettle?",
+        "options": [
+          "It leaks",
+          "It doesn't heat properly",
+          "It's the wrong colour",
+          "It was damaged in the box"
+        ],
+        "answer": 1,
+        "explain_zh": "it's stopped heating up properly，stop + V-ing 表示某功能停止運作。"
+      },
+      {
+        "question": "What does the customer prefer?",
+        "options": [
+          "A refund",
+          "A replacement",
+          "A discount",
+          "Store credit"
+        ],
+        "answer": 1,
+        "explain_zh": "prefer A rather than B 是「寧可 A 也不要 B」，退換貨時先講偏好比較有機會如願。"
+      },
+      {
+        "question": "What would they accept otherwise?",
+        "options": [
+          "A repair",
+          "A refund",
+          "A different model",
+          "Nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "a refund would have to do，have to do 是「只好將就」。"
+      }
+    ]
+  },
+  {
+    "id": 35,
+    "title": "Explaining a process to a new hire",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "So whenever you push a change, it goes through automated tests first. If those pass, it gets deployed to staging automatically. Someone from the team then needs to approve it before it reaches production. That approval step is the one people forget, so just give someone a nudge if it's sitting there.",
+    "questions": [
+      {
+        "question": "What happens first after pushing a change?",
+        "options": [
+          "It goes to production",
+          "Automated tests run",
+          "A manager reviews it",
+          "Nothing until Friday"
+        ],
+        "answer": 1,
+        "explain_zh": "it goes through automated tests first，go through 在這裡是「經過某個流程」。"
+      },
+      {
+        "question": "What is needed before production?",
+        "options": [
+          "A team member's approval",
+          "A customer sign-off",
+          "A security scan",
+          "A backup"
+        ],
+        "answer": 0,
+        "explain_zh": "Someone from the team then needs to approve it，approve 是核准放行。"
+      },
+      {
+        "question": "What does 'give someone a nudge' mean?",
+        "options": [
+          "Push them physically",
+          "Remind them gently",
+          "Report them",
+          "Skip the step"
+        ],
+        "answer": 1,
+        "explain_zh": "nudge 是輕推，引申為「提醒一下」，職場很常用。"
+      }
+    ]
+  },
+  {
+    "id": 36,
+    "title": "Hotel wake-up call request",
+    "category": "travel",
+    "difficulty": "easy",
+    "transcript": "Hi, this is room three-one-seven. Could I book a wake-up call for five thirty tomorrow morning? I've got an early flight. And would it be possible to arrange a taxi for around six fifteen as well?",
+    "questions": [
+      {
+        "question": "What time is the wake-up call?",
+        "options": [
+          "Five thirty",
+          "Six fifteen",
+          "Three seventeen",
+          "Six thirty"
+        ],
+        "answer": 0,
+        "explain_zh": "a wake-up call for five thirty，wake-up call 是飯店的晨喚服務。"
+      },
+      {
+        "question": "What else does the guest request?",
+        "options": [
+          "Breakfast in the room",
+          "A taxi",
+          "A late checkout",
+          "An extra pillow"
+        ],
+        "answer": 1,
+        "explain_zh": "arrange a taxi 是請櫃檯代叫車，arrange 比 call 更適合請人代辦。"
+      }
+    ]
+  },
+  {
+    "id": 37,
+    "title": "Describing a flatmate situation",
+    "category": "daily",
+    "difficulty": "hard",
+    "transcript": "It's mostly fine, honestly. He keeps to himself, pays rent on time, that sort of thing. The only friction is the kitchen. He'll cook something elaborate and then leave everything in the sink for two days. I've mentioned it once but I didn't want to come across as nagging.",
+    "questions": [
+      {
+        "question": "What is the main issue?",
+        "options": [
+          "Late rent",
+          "Noise at night",
+          "Dishes left in the sink",
+          "Having guests over"
+        ],
+        "answer": 2,
+        "explain_zh": "leave everything in the sink for two days，friction 在這裡指摩擦、小衝突。"
+      },
+      {
+        "question": "How has the speaker handled it?",
+        "options": [
+          "Said nothing",
+          "Mentioned it once",
+          "Complained to the landlord",
+          "Moved out"
+        ],
+        "answer": 1,
+        "explain_zh": "I've mentioned it once，用現在完成式表示提過但沒再追究。"
+      },
+      {
+        "question": "What does 'come across as nagging' mean?",
+        "options": [
+          "Seem like they're nagging",
+          "Actually nag",
+          "Be misunderstood",
+          "Give up"
+        ],
+        "answer": 0,
+        "explain_zh": "come across as 是「給人某種印象」，不一定是事實。"
+      }
+    ]
+  },
+  {
+    "id": 38,
+    "title": "Asking about a bill",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "Sorry, could I just check something on the bill? There's a charge here for eighteen that I don't recognise. We had the two mains, one starter, and two soft drinks. I think the starter might have been counted twice, but I could be wrong.",
+    "questions": [
+      {
+        "question": "What is the customer questioning?",
+        "options": [
+          "The service charge",
+          "An unrecognised charge",
+          "The tip amount",
+          "The exchange rate"
+        ],
+        "answer": 1,
+        "explain_zh": "a charge that I don't recognise，charge 是帳單上的收費項目。"
+      },
+      {
+        "question": "What does the customer suspect?",
+        "options": [
+          "The starter was charged twice",
+          "They were charged for drinks",
+          "The tax is wrong",
+          "The mains were overpriced"
+        ],
+        "answer": 0,
+        "explain_zh": "might have been counted twice 是「可能被算了兩次」，用推測語氣避免直接指控。"
+      },
+      {
+        "question": "How does the customer phrase the complaint?",
+        "options": [
+          "Aggressively",
+          "Tentatively, allowing they might be wrong",
+          "Formally in writing",
+          "By refusing to pay"
+        ],
+        "answer": 1,
+        "explain_zh": "but I could be wrong 留了台階，是處理帳單爭議時很有效的說法。"
+      }
+    ]
+  },
+  {
+    "id": 39,
+    "title": "Salary expectations",
+    "category": "interview",
+    "difficulty": "hard",
+    "transcript": "I'd rather understand the full picture before naming a number, if that's alright. Beyond base salary there's the bonus structure, equity, and how you handle progression. That said, based on what I've seen for similar roles in this market, I'd expect somewhere in the region of eighty to ninety.",
+    "questions": [
+      {
+        "question": "What does the speaker want first?",
+        "options": [
+          "A written offer",
+          "To understand the full package",
+          "A second interview",
+          "A start date"
+        ],
+        "answer": 1,
+        "explain_zh": "understand the full picture before naming a number，full picture 指整體條件。"
+      },
+      {
+        "question": "What three things are mentioned besides base salary?",
+        "options": [
+          "Bonus, equity, progression",
+          "Holiday, hours, location",
+          "Pension, insurance, parking",
+          "Title, team, tools"
+        ],
+        "answer": 0,
+        "explain_zh": "bonus structure（獎金制度）、equity（股權）、progression（升遷），這三項合起來才是完整的待遇。"
+      },
+      {
+        "question": "What range does the speaker give?",
+        "options": [
+          "Eighteen to nineteen",
+          "Eighty to ninety",
+          "Eight to nine",
+          "Refuses to give one"
+        ],
+        "answer": 1,
+        "explain_zh": "in the region of eighty to ninety，in the region of 是「大約在…範圍」。"
+      }
+    ]
+  },
+  {
+    "id": 40,
+    "title": "Cinema listings",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "We've got showings at two forty, five ten, and eight thirty. The eight thirty is nearly sold out, only the front two rows left. Two forty and five ten both have plenty of seats. Tickets are twelve fifty, or nine fifty if you've got a student card.",
+    "questions": [
+      {
+        "question": "Which showing is nearly sold out?",
+        "options": [
+          "Two forty",
+          "Five ten",
+          "Eight thirty",
+          "All of them"
+        ],
+        "answer": 2,
+        "explain_zh": "The eight thirty is nearly sold out，sold out 是售完，nearly 表示快要。"
+      },
+      {
+        "question": "How much is a student ticket?",
+        "options": [
+          "Twelve fifty",
+          "Nine fifty",
+          "Two forty",
+          "Five ten"
+        ],
+        "answer": 1,
+        "explain_zh": "nine fifty if you've got a student card，student card 是學生證，很多場所有優惠。"
+      }
+    ]
+  },
+  {
+    "id": 41,
+    "title": "A colleague leaving",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "So I wanted you to hear it from me first. I've accepted an offer elsewhere and my last day will be the end of the month. It wasn't an easy decision, this team's been great. I'll make sure everything's documented properly and I'm happy to help with handover after I go if anything comes up.",
+    "questions": [
+      {
+        "question": "When is the last day?",
+        "options": [
+          "End of the week",
+          "End of the month",
+          "Tomorrow",
+          "Not decided"
+        ],
+        "answer": 1,
+        "explain_zh": "my last day will be the end of the month，last day 指最後上班日。"
+      },
+      {
+        "question": "What does the speaker promise?",
+        "options": [
+          "To stay longer",
+          "Proper documentation and handover help",
+          "To find a replacement",
+          "To stay in touch socially"
+        ],
+        "answer": 1,
+        "explain_zh": "make sure everything's documented properly，handover 是交接。"
+      },
+      {
+        "question": "Why did the speaker tell this person first?",
+        "options": [
+          "They are the manager",
+          "As a courtesy",
+          "They asked",
+          "It was announced"
+        ],
+        "answer": 1,
+        "explain_zh": "I wanted you to hear it from me first 是一種禮貌，避免對方從別處聽說。"
+      }
+    ]
+  },
+  {
+    "id": 42,
+    "title": "Dealing with a difficult customer",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "I completely understand why you're frustrated, and you're right that this shouldn't have happened. What I can do right now is refund the delivery charge and get a replacement sent out on next-day service. What I can't do is guarantee it arrives before the weekend, because that depends on the courier.",
+    "questions": [
+      {
+        "question": "What does the speaker offer?",
+        "options": [
+          "A full refund",
+          "Refund of delivery plus next-day replacement",
+          "A discount voucher",
+          "An apology only"
+        ],
+        "answer": 1,
+        "explain_zh": "明確講出能做的兩件事：退運費、隔日到貨換貨，比空泛道歉有用得多。"
+      },
+      {
+        "question": "What can't they guarantee?",
+        "options": [
+          "The replacement",
+          "Weekend arrival",
+          "The refund",
+          "The quality"
+        ],
+        "answer": 1,
+        "explain_zh": "What I can't do is… 明確劃出界線，避免給出做不到的承諾。"
+      },
+      {
+        "question": "What technique is the speaker using?",
+        "options": [
+          "Denying responsibility",
+          "Acknowledging then stating what is and isn't possible",
+          "Escalating to a manager",
+          "Offering nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "先認同情緒、再明確區分能做與不能做的事，是客服的標準做法。"
+      }
+    ]
+  },
+  {
+    "id": 43,
+    "title": "Planning a trip with a friend",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "So if we fly out on the Thursday evening, that gives us three full days plus the Monday morning. Flights are about two hundred each at the moment, but they'll go up closer to the date. Accommodation-wise, I found a place near the old town that works out cheaper than the hostel once you split it.",
+    "questions": [
+      {
+        "question": "How many full days would they have?",
+        "options": [
+          "Two",
+          "Three",
+          "Four",
+          "A week"
+        ],
+        "answer": 1,
+        "explain_zh": "three full days plus the Monday morning，full day 是完整的一天，不含頭尾的零碎時間。"
+      },
+      {
+        "question": "What is said about flight prices?",
+        "options": [
+          "They'll drop",
+          "They'll rise closer to the date",
+          "They're fixed",
+          "They're already too high"
+        ],
+        "answer": 1,
+        "explain_zh": "they'll go up closer to the date，closer to the date 是「越接近日期」。"
+      },
+      {
+        "question": "Why is the accommodation a good deal?",
+        "options": [
+          "It's free",
+          "Cheaper than the hostel when split",
+          "It includes meals",
+          "It's in the city centre"
+        ],
+        "answer": 1,
+        "explain_zh": "works out cheaper than the hostel once you split it，work out 是「算起來」。"
+      }
+    ]
+  },
+  {
+    "id": 44,
+    "title": "Library opening hours",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "The library is open from nine until eight Monday to Friday, and ten until five at weekends. The study rooms need to be booked in advance through the website. Please note that the third floor is closed for refurbishment until the end of March.",
+    "questions": [
+      {
+        "question": "When does the library close on Saturdays?",
+        "options": [
+          "Five",
+          "Eight",
+          "Nine",
+          "Ten"
+        ],
+        "answer": 0,
+        "explain_zh": "週末是 ten until five，所以五點關門。at weekends 是英式說法，美式說 on weekends。"
+      },
+      {
+        "question": "How do you get a study room?",
+        "options": [
+          "First come first served",
+          "Book online in advance",
+          "Ask at the desk",
+          "They're not available"
+        ],
+        "answer": 1,
+        "explain_zh": "booked in advance through the website，in advance 是事先。"
+      },
+      {
+        "question": "What is happening on the third floor?",
+        "options": [
+          "It's being refurbished",
+          "It's a quiet zone",
+          "It's members only",
+          "It's closed permanently"
+        ],
+        "answer": 0,
+        "explain_zh": "refurbishment 是整修，動詞是 refurbish，公告常見字。"
+      }
+    ]
+  },
+  {
+    "id": 45,
+    "title": "Booking a haircut",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "We could fit you in on Wednesday at four, or if you'd rather come at the weekend, Saturday morning has a slot at ten thirty. Do you have a preference for a particular stylist? Rachel's fully booked this week but Tom has good availability.",
+    "questions": [
+      {
+        "question": "What are the two time options?",
+        "options": [
+          "Wednesday four, Saturday ten thirty",
+          "Wednesday ten, Saturday four",
+          "Only Wednesday",
+          "Only Saturday"
+        ],
+        "answer": 0,
+        "explain_zh": "fit you in on Wednesday at four 或 Saturday morning… ten thirty。fit someone in 是「安插時間」。"
+      },
+      {
+        "question": "Which stylist is available?",
+        "options": [
+          "Rachel",
+          "Tom",
+          "Both",
+          "Neither"
+        ],
+        "answer": 1,
+        "explain_zh": "Rachel's fully booked… but Tom has good availability。availability 是可預約的空檔。"
+      }
+    ]
+  },
+  {
+    "id": 46,
+    "title": "Complaining about a delivery",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "The order arrived this morning but two of the items are missing. The invoice lists all five, and I've been charged for all five, but there were only three in the box. I've taken a photo of everything that arrived if that helps.",
+    "questions": [
+      {
+        "question": "How many items arrived?",
+        "options": [
+          "Two",
+          "Three",
+          "Five",
+          "None"
+        ],
+        "answer": 1,
+        "explain_zh": "there were only three in the box。要注意 two are missing 指的是短少的數量，不是收到的數量。"
+      },
+      {
+        "question": "What does the invoice show?",
+        "options": [
+          "Three items",
+          "Five items",
+          "Two items",
+          "Nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "The invoice lists all five。invoice 是發票或請款單。"
+      },
+      {
+        "question": "What evidence does the speaker have?",
+        "options": [
+          "A video",
+          "A photo of what arrived",
+          "A witness",
+          "The packaging"
+        ],
+        "answer": 1,
+        "explain_zh": "I've taken a photo of everything that arrived。申訴時提供證據能加快處理。"
+      }
+    ]
+  },
+  {
+    "id": 47,
+    "title": "Gym class booking",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "The six o'clock spin class is full but there's a waiting list, and people do drop out fairly often. Alternatively the seven fifteen yoga still has spaces. Just remember if you book and don't turn up, that counts as a no-show and three of those means a temporary suspension.",
+    "questions": [
+      {
+        "question": "What is the situation with the spin class?",
+        "options": [
+          "Cancelled",
+          "Full with a waiting list",
+          "Plenty of space",
+          "Moved to seven"
+        ],
+        "answer": 1,
+        "explain_zh": "full but there's a waiting list。waiting list 是候補名單。"
+      },
+      {
+        "question": "What happens after three no-shows?",
+        "options": [
+          "A fine",
+          "Temporary suspension",
+          "Nothing",
+          "Account closure"
+        ],
+        "answer": 1,
+        "explain_zh": "three of those means a temporary suspension。no-show 是訂了卻沒出現。"
+      }
+    ]
+  },
+  {
+    "id": 48,
+    "title": "Explaining a technical issue",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "So the reason the page is slow isn't the database, which is what we assumed at first. It's actually that we're loading all the images at full resolution even when they're displayed as thumbnails. The fix itself is straightforward, maybe half a day, but we should check whether it affects the mobile app too.",
+    "questions": [
+      {
+        "question": "What was the original assumption?",
+        "options": [
+          "The database was the problem",
+          "The images were the problem",
+          "The network was slow",
+          "The server was overloaded"
+        ],
+        "answer": 0,
+        "explain_zh": "isn't the database, which is what we assumed at first。which 引導的子句補充說明前面的整件事。"
+      },
+      {
+        "question": "What is the actual cause?",
+        "options": [
+          "Too many requests",
+          "Full-resolution images used as thumbnails",
+          "Old hardware",
+          "A memory leak"
+        ],
+        "answer": 1,
+        "explain_zh": "full resolution 是原始解析度，thumbnail 是縮圖 —— 用原圖當縮圖顯示就是這裡效能差的原因。"
+      },
+      {
+        "question": "How long is the fix estimated to take?",
+        "options": [
+          "An hour",
+          "Half a day",
+          "Two days",
+          "A week"
+        ],
+        "answer": 1,
+        "explain_zh": "maybe half a day。straightforward 是「直接了當、不複雜」。"
+      }
+    ]
+  },
+  {
+    "id": 49,
+    "title": "Onboarding first week",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "For the first week don't worry about being productive. Spend the time reading through the architecture docs, sit in on as many meetings as you can, and pair with someone whenever you get the chance. If you're still finding your feet after two weeks, that's completely normal.",
+    "questions": [
+      {
+        "question": "What is the advice for week one?",
+        "options": [
+          "Ship code quickly",
+          "Focus on learning rather than output",
+          "Work overtime",
+          "Avoid meetings"
+        ],
+        "answer": 1,
+        "explain_zh": "don't worry about being productive，重點放在熟悉環境而非產出。"
+      },
+      {
+        "question": "What does 'sit in on meetings' mean?",
+        "options": [
+          "Lead the meetings",
+          "Attend as an observer",
+          "Skip them",
+          "Take minutes"
+        ],
+        "answer": 1,
+        "explain_zh": "sit in on 是旁聽、列席，不主動發言。"
+      },
+      {
+        "question": "What does 'finding your feet' mean?",
+        "options": [
+          "Getting lost",
+          "Still adjusting",
+          "Being promoted",
+          "Leaving"
+        ],
+        "answer": 1,
+        "explain_zh": "find one's feet 是「站穩腳步、進入狀況」，常用於新環境。"
+      }
+    ]
+  },
+  {
+    "id": 50,
+    "title": "Chasing an overdue reply",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "I'm just following up on the email I sent last Tuesday about the contract amendments. I appreciate things are busy at your end. If it would be easier to talk it through rather than go back and forth over email, I'm free most of Thursday afternoon.",
+    "questions": [
+      {
+        "question": "What is the speaker following up on?",
+        "options": [
+          "An invoice",
+          "Contract amendments",
+          "A meeting invite",
+          "A job application"
+        ],
+        "answer": 1,
+        "explain_zh": "the email I sent last Tuesday about the contract amendments。amendment 是修訂條款。"
+      },
+      {
+        "question": "What does the speaker offer?",
+        "options": [
+          "To cancel the contract",
+          "A phone or in-person discussion",
+          "A deadline extension",
+          "A discount"
+        ],
+        "answer": 1,
+        "explain_zh": "talk it through rather than go back and forth over email。go back and forth 是「來回往返」。"
+      },
+      {
+        "question": "How would you describe the tone?",
+        "options": [
+          "Aggressive",
+          "Patient and accommodating",
+          "Threatening",
+          "Indifferent"
+        ],
+        "answer": 1,
+        "explain_zh": "I appreciate things are busy at your end 先體諒對方，是催進度不傷關係的關鍵句。"
+      }
+    ]
+  },
+  {
+    "id": 51,
+    "title": "Presenting results to stakeholders",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "The headline is that conversion improved by eleven percent. But I want to be careful about the interpretation. We ran this over the holiday period, which historically skews higher anyway. My recommendation is that we run it again in February before we commit to rolling it out everywhere.",
+    "questions": [
+      {
+        "question": "What was the headline result?",
+        "options": [
+          "Eleven percent improvement",
+          "Eleven percent decline",
+          "No change",
+          "Fifty percent improvement"
+        ],
+        "answer": 0,
+        "explain_zh": "conversion improved by eleven percent。headline 在這裡指「最主要的數字」。"
+      },
+      {
+        "question": "What is the concern?",
+        "options": [
+          "The sample was too small",
+          "The holiday period skews results",
+          "The data was corrupted",
+          "The test was too short"
+        ],
+        "answer": 1,
+        "explain_zh": "the holiday period, which historically skews higher anyway。skew 是使數據偏斜。"
+      },
+      {
+        "question": "What does the speaker recommend?",
+        "options": [
+          "Roll it out now",
+          "Re-run the test in February",
+          "Abandon the idea",
+          "Increase the budget"
+        ],
+        "answer": 1,
+        "explain_zh": "run it again in February before we commit to rolling it out。commit to 是「正式投入」。"
+      }
+    ]
+  },
+  {
+    "id": 52,
+    "title": "Airport security",
+    "category": "travel",
+    "difficulty": "easy",
+    "transcript": "Please remove any laptops and tablets from your bag and place them in a separate tray. Liquids must be in containers of one hundred millilitres or less, all inside a single clear plastic bag. Belts and jackets off, but you can keep your shoes on today.",
+    "questions": [
+      {
+        "question": "What must go in a separate tray?",
+        "options": [
+          "Shoes",
+          "Laptops and tablets",
+          "Belts",
+          "Boarding passes"
+        ],
+        "answer": 1,
+        "explain_zh": "remove any laptops and tablets… place them in a separate tray。tray 是安檢的置物盤。"
+      },
+      {
+        "question": "What is the liquid limit?",
+        "options": [
+          "One hundred millilitres or less",
+          "One litre",
+          "Five hundred millilitres",
+          "No liquids allowed"
+        ],
+        "answer": 0,
+        "explain_zh": "containers of one hundred millilitres or less。這是國際通用的隨身液體限制。"
+      },
+      {
+        "question": "What can passengers keep on?",
+        "options": [
+          "Belts",
+          "Jackets",
+          "Shoes",
+          "Watches"
+        ],
+        "answer": 2,
+        "explain_zh": "you can keep your shoes on today。keep something on 是「保持穿著」。"
+      }
+    ]
+  },
+  {
+    "id": 53,
+    "title": "Currency exchange",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "Today's rate is one point zero eight, and we charge a flat fee of three fifty rather than a percentage commission. So for two hundred you'd receive around two hundred and thirteen after the fee. Rates do change through the day, so this is only valid right now.",
+    "questions": [
+      {
+        "question": "How is the fee structured?",
+        "options": [
+          "A percentage",
+          "A flat fee of three fifty",
+          "No fee",
+          "Based on amount"
+        ],
+        "answer": 1,
+        "explain_zh": "a flat fee of three fifty rather than a percentage commission。flat fee 是固定金額，不隨兌換金額變動。"
+      },
+      {
+        "question": "How long is the quoted rate valid?",
+        "options": [
+          "All day",
+          "Only right now",
+          "One hour",
+          "Until tomorrow"
+        ],
+        "answer": 1,
+        "explain_zh": "this is only valid right now。匯率隨時波動，這是換匯常見的提醒。"
+      }
+    ]
+  },
+  {
+    "id": 54,
+    "title": "Asking a local for a recommendation",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "If you want somewhere touristy, the places along the main square are fine but you'll pay for the location. Honestly, walk about ten minutes north and there's a street with three or four family-run places. The one with the green awning does the best seafood I've had here.",
+    "questions": [
+      {
+        "question": "What's the issue with the main square restaurants?",
+        "options": [
+          "Bad food",
+          "You pay extra for the location",
+          "They're closed",
+          "They're too far"
+        ],
+        "answer": 1,
+        "explain_zh": "you'll pay for the location，意思是地點好所以價格比較高。touristy 是「觀光客取向的」。"
+      },
+      {
+        "question": "What is recommended instead?",
+        "options": [
+          "A hotel restaurant",
+          "Family-run places ten minutes north",
+          "A food market",
+          "Cooking at home"
+        ],
+        "answer": 1,
+        "explain_zh": "walk about ten minutes north，方向用 north/south 比 left/right 更明確。family-run 是家庭經營的。"
+      },
+      {
+        "question": "How is the best place identified?",
+        "options": [
+          "By its name",
+          "By a green awning",
+          "By the queue",
+          "By a sign"
+        ],
+        "answer": 1,
+        "explain_zh": "The one with the green awning。awning 是店門口的遮陽篷。"
+      }
+    ]
+  },
+  {
+    "id": 55,
+    "title": "Missed connection",
+    "category": "travel",
+    "difficulty": "hard",
+    "transcript": "Because your inbound flight was delayed and both legs were booked on the same ticket, we'll rebook you at no extra cost. The next available service is at six twenty tomorrow morning. We can provide a hotel voucher for tonight, but I'd need you to collect your checked bag first.",
+    "questions": [
+      {
+        "question": "Why is the rebooking free?",
+        "options": [
+          "A goodwill gesture",
+          "Both legs were on the same ticket",
+          "The passenger complained",
+          "It's company policy for all delays"
+        ],
+        "answer": 1,
+        "explain_zh": "both legs were booked on the same ticket。leg 指行程的一段，同一張票航空公司才有義務負責。"
+      },
+      {
+        "question": "When is the next flight?",
+        "options": [
+          "Tonight",
+          "Six twenty tomorrow morning",
+          "Two twenty tomorrow",
+          "In three days"
+        ],
+        "answer": 1,
+        "explain_zh": "six twenty tomorrow morning，注意 the next available service 指的是最近一班還有位子的班次。"
+      },
+      {
+        "question": "What must the passenger do first?",
+        "options": [
+          "Pay a fee",
+          "Collect their checked bag",
+          "Get a new passport",
+          "Call the airline"
+        ],
+        "answer": 1,
+        "explain_zh": "I'd need you to collect your checked bag first。checked bag 是託運行李。"
+      }
+    ]
+  },
+  {
+    "id": 56,
+    "title": "Interview: handling disagreement",
+    "category": "interview",
+    "difficulty": "hard",
+    "transcript": "There was a case where I thought we were over-engineering a feature. Rather than pushing back in the meeting, I put together a rough prototype of the simpler version so we had something concrete to compare. In the end we went with a middle ground, which I think was better than either original idea.",
+    "questions": [
+      {
+        "question": "What was the disagreement about?",
+        "options": [
+          "Budget",
+          "Over-engineering a feature",
+          "Deadlines",
+          "Team structure"
+        ],
+        "answer": 1,
+        "explain_zh": "I thought we were over-engineering a feature。over-engineer 是「把東西做得比需要的複雜」。"
+      },
+      {
+        "question": "How did the speaker handle it?",
+        "options": [
+          "Argued in the meeting",
+          "Built a prototype to compare",
+          "Escalated to a manager",
+          "Said nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "put together a rough prototype… so we had something concrete to compare。用實物代替爭論。"
+      },
+      {
+        "question": "What was the outcome?",
+        "options": [
+          "The speaker's version won",
+          "A middle ground",
+          "The original plan",
+          "The project was cancelled"
+        ],
+        "answer": 1,
+        "explain_zh": "we went with a middle ground。middle ground 是折衷方案。"
+      }
+    ]
+  },
+  {
+    "id": 57,
+    "title": "Interview: describing your working style",
+    "category": "interview",
+    "difficulty": "medium",
+    "transcript": "I work best when I've got a clear goal but some freedom in how I get there. I'm quite structured about planning at the start, then I like to check in regularly rather than disappear for two weeks. And I'd always rather ask a question early than waste a day guessing.",
+    "questions": [
+      {
+        "question": "What conditions does the speaker prefer?",
+        "options": [
+          "Detailed instructions",
+          "Clear goal with freedom in approach",
+          "No supervision at all",
+          "Working alone"
+        ],
+        "answer": 1,
+        "explain_zh": "a clear goal but some freedom in how I get there，這句話同時表達了「要方向」也「要空間」。"
+      },
+      {
+        "question": "What is their approach to communication?",
+        "options": [
+          "Regular check-ins",
+          "Weekly reports only",
+          "Minimal contact",
+          "Daily meetings"
+        ],
+        "answer": 0,
+        "explain_zh": "check in regularly rather than disappear for two weeks。check in 是簡短回報進度。"
+      },
+      {
+        "question": "What do they say about asking questions?",
+        "options": [
+          "Avoid asking",
+          "Ask early rather than guess",
+          "Ask only the manager",
+          "Figure it out alone"
+        ],
+        "answer": 1,
+        "explain_zh": "rather ask a question early than waste a day guessing。would rather A than B 是「寧可 A 也不要 B」。"
+      }
+    ]
+  },
+  {
+    "id": 58,
+    "title": "Setting up a new phone plan",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "The twenty pound plan gives you unlimited calls and texts plus twenty gigabytes of data. If you go over, it's charged at three pounds per gigabyte, or you can set a cap so it just stops instead. There's no contract, so you can leave with thirty days' notice.",
+    "questions": [
+      {
+        "question": "How much data is included?",
+        "options": [
+          "Three gigabytes",
+          "Twenty gigabytes",
+          "Unlimited",
+          "Thirty gigabytes"
+        ],
+        "answer": 1,
+        "explain_zh": "twenty gigabytes of data。注意 twenty pound 是價格，twenty gigabytes 是流量。"
+      },
+      {
+        "question": "What are the options for going over?",
+        "options": [
+          "Extra charges or a cap",
+          "Automatic disconnection",
+          "Nothing happens",
+          "Contract upgrade"
+        ],
+        "answer": 0,
+        "explain_zh": "charged at three pounds per gigabyte, or you can set a cap。cap 是上限。"
+      },
+      {
+        "question": "How much notice is needed to leave?",
+        "options": [
+          "None",
+          "Thirty days",
+          "Twelve months",
+          "Ninety days"
+        ],
+        "answer": 1,
+        "explain_zh": "you can leave with thirty days' notice。notice 是預告期。"
+      }
+    ]
+  },
+  {
+    "id": 59,
+    "title": "A parcel collection point",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "Your parcel's at the collection point on Mill Street, open until seven on weekdays. You'll need the barcode from the text message and some form of photo ID. If nobody collects it within ten days it goes back to the sender automatically.",
+    "questions": [
+      {
+        "question": "What do you need to collect the parcel?",
+        "options": [
+          "Just the barcode",
+          "Barcode and photo ID",
+          "Only photo ID",
+          "A signature"
+        ],
+        "answer": 1,
+        "explain_zh": "the barcode from the text message and some form of photo ID。some form of 是「某種形式的」。"
+      },
+      {
+        "question": "What happens after ten days?",
+        "options": [
+          "It's destroyed",
+          "Returned to sender",
+          "Redelivered",
+          "Donated"
+        ],
+        "answer": 1,
+        "explain_zh": "it goes back to the sender automatically。sender 是寄件人。"
+      }
+    ]
+  },
+  {
+    "id": 60,
+    "title": "Discussing remote work",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "The current arrangement is two days in the office, but which days is up to each team. Ours has settled on Tuesday and Thursday so we overlap for planning. If you need to be fully remote for a period, that's usually fine with a bit of notice, especially outside of release weeks.",
+    "questions": [
+      {
+        "question": "How many office days are required?",
+        "options": [
+          "One",
+          "Two",
+          "Three",
+          "Five"
+        ],
+        "answer": 1,
+        "explain_zh": "two days in the office。which days is up to each team 表示由團隊自訂哪兩天。"
+      },
+      {
+        "question": "Why did the team pick Tuesday and Thursday?",
+        "options": [
+          "Cheaper travel",
+          "To overlap for planning",
+          "Management chose them",
+          "Random"
+        ],
+        "answer": 1,
+        "explain_zh": "so we overlap for planning。overlap 是時間重疊。"
+      },
+      {
+        "question": "When is full remote harder?",
+        "options": [
+          "During release weeks",
+          "In summer",
+          "On Mondays",
+          "Never"
+        ],
+        "answer": 0,
+        "explain_zh": "especially outside of release weeks 暗示 release week 期間比較不方便。"
+      }
+    ]
+  },
+  {
+    "id": 61,
+    "title": "Vet appointment",
+    "category": "daily",
+    "difficulty": "hard",
+    "transcript": "She's been off her food for about four days now and she's drinking a lot more than usual. She's normally very active but she's been sleeping most of the day. No vomiting, and as far as I can tell she hasn't eaten anything she shouldn't have.",
+    "questions": [
+      {
+        "question": "What are the main symptoms?",
+        "options": [
+          "Vomiting and coughing",
+          "Not eating and drinking more",
+          "Limping",
+          "Scratching"
+        ],
+        "answer": 1,
+        "explain_zh": "off her food… drinking a lot more than usual。be off one's food 是「食慾不振」。"
+      },
+      {
+        "question": "How long has this been going on?",
+        "options": [
+          "One day",
+          "About four days",
+          "Two weeks",
+          "A month"
+        ],
+        "answer": 1,
+        "explain_zh": "for about four days now。句尾的 now 強調持續到現在。"
+      },
+      {
+        "question": "What does 'as far as I can tell' mean?",
+        "options": [
+          "Definitely",
+          "As far as the speaker knows",
+          "Someone told them",
+          "It's confirmed"
+        ],
+        "answer": 1,
+        "explain_zh": "as far as I can tell 是「就我所知」，表示不完全確定。"
+      }
+    ]
+  },
+  {
+    "id": 62,
+    "title": "A rental viewing",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "The flat's available from the first of next month. The rent's twelve hundred including water but not electricity. There's a communal bike store downstairs and one parking permit comes with the property. The current tenants are moving out because they've bought somewhere.",
+    "questions": [
+      {
+        "question": "What is included in the rent?",
+        "options": [
+          "Water",
+          "Electricity",
+          "Both",
+          "Neither"
+        ],
+        "answer": 0,
+        "explain_zh": "including water but not electricity。including 與 excluding 是租屋合約的關鍵字。"
+      },
+      {
+        "question": "What comes with the property?",
+        "options": [
+          "Furniture",
+          "One parking permit",
+          "Free internet",
+          "A cleaner"
+        ],
+        "answer": 1,
+        "explain_zh": "one parking permit comes with the property。permit 是許可證。"
+      },
+      {
+        "question": "Why are the current tenants leaving?",
+        "options": [
+          "The rent increased",
+          "They bought a property",
+          "A dispute",
+          "Job relocation"
+        ],
+        "answer": 1,
+        "explain_zh": "they've bought somewhere。somewhere 在這裡指房子，口語省略了 a place。"
+      }
+    ]
+  },
+  {
+    "id": 63,
+    "title": "Booking a table for a group",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "For parties of eight or more we do ask for a deposit of ten per head, which comes off the final bill. We'd also need to take a pre-order for mains at least forty-eight hours beforehand. Is it a set occasion, or just a general get-together?",
+    "questions": [
+      {
+        "question": "When is a deposit required?",
+        "options": [
+          "Always",
+          "For eight or more people",
+          "Only at weekends",
+          "Never"
+        ],
+        "answer": 1,
+        "explain_zh": "parties of eight or more。per head 是「每人」，餐廳與活動報價常用。"
+      },
+      {
+        "question": "What happens to the deposit?",
+        "options": [
+          "It's non-refundable",
+          "It comes off the final bill",
+          "It's a service charge",
+          "It's returned in cash"
+        ],
+        "answer": 1,
+        "explain_zh": "comes off the final bill 是「從最後帳單扣掉」，不是額外收費。"
+      },
+      {
+        "question": "How far ahead is the pre-order needed?",
+        "options": [
+          "Twenty-four hours",
+          "Forty-eight hours",
+          "A week",
+          "On the day"
+        ],
+        "answer": 1,
+        "explain_zh": "at least forty-eight hours beforehand。beforehand 是「事先」。"
+      }
+    ]
+  },
+  {
+    "id": 64,
+    "title": "Explaining sick leave policy",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "For anything up to three days you can self-certify, so just let your manager know and log it in the system. Beyond that we'd need a doctor's note. Sick days don't come out of your annual leave, and there's no expectation that you make the hours up afterwards.",
+    "questions": [
+      {
+        "question": "When is a doctor's note needed?",
+        "options": [
+          "Always",
+          "After three days",
+          "After a week",
+          "Never"
+        ],
+        "answer": 1,
+        "explain_zh": "Beyond that we'd need a doctor's note，that 指前面的 three days。self-certify 是自行申報。"
+      },
+      {
+        "question": "Do sick days reduce annual leave?",
+        "options": [
+          "Yes",
+          "No",
+          "Only after a week",
+          "Depends on the manager"
+        ],
+        "answer": 1,
+        "explain_zh": "Sick days don't come out of your annual leave。come out of 是「從…扣除」。"
+      },
+      {
+        "question": "Must the hours be made up later?",
+        "options": [
+          "Yes, all of them",
+          "Half of them",
+          "No",
+          "Only if urgent"
+        ],
+        "answer": 2,
+        "explain_zh": "no expectation that you make the hours up。make up hours 是補足工時。"
+      }
+    ]
+  },
+  {
+    "id": 65,
+    "title": "Bike repair shop",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "The gears just need indexing, that's a quick job. The rear tyre though is pretty worn — I'd replace it rather than patch it. If you're happy for me to do both, it'd be about forty-five all in and ready by tomorrow lunchtime.",
+    "questions": [
+      {
+        "question": "What is wrong with the gears?",
+        "options": [
+          "They're broken",
+          "They need indexing",
+          "They're missing",
+          "Nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "The gears just need indexing。indexing 是調整變速定位，just 表示是小事。"
+      },
+      {
+        "question": "What does the mechanic recommend for the tyre?",
+        "options": [
+          "Patching it",
+          "Replacing it",
+          "Leaving it",
+          "Inflating it"
+        ],
+        "answer": 1,
+        "explain_zh": "I'd replace it rather than patch it。patch 是補胎。"
+      },
+      {
+        "question": "What does 'all in' mean?",
+        "options": [
+          "Total price including everything",
+          "Deposit only",
+          "Excluding parts",
+          "Per item"
+        ],
+        "answer": 0,
+        "explain_zh": "all in 是「全部含在內」的口語說法。"
+      }
+    ]
+  },
+  {
+    "id": 66,
+    "title": "Discussing a book",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "I nearly gave up about a third of the way in, honestly. The first section is very slow. But it does pick up, and by the end I understood why the beginning had to be like that. I'd say stick with it past the hundred page mark and then decide.",
+    "questions": [
+      {
+        "question": "What nearly happened?",
+        "options": [
+          "The speaker gave up on the book",
+          "The book was lost",
+          "The speaker finished in one sitting",
+          "The book was recommended"
+        ],
+        "answer": 0,
+        "explain_zh": "I nearly gave up。nearly 表示差一點但沒有真的發生。"
+      },
+      {
+        "question": "What does 'it does pick up' mean?",
+        "options": [
+          "It gets better",
+          "It gets collected",
+          "It gets shorter",
+          "It ends"
+        ],
+        "answer": 0,
+        "explain_zh": "pick up 在這裡是「變得精彩起來」，does 用來加強語氣。"
+      },
+      {
+        "question": "What is the advice?",
+        "options": [
+          "Skip the beginning",
+          "Read past page one hundred then decide",
+          "Don't read it",
+          "Read the ending first"
+        ],
+        "answer": 1,
+        "explain_zh": "stick with it past the hundred page mark。stick with 是「堅持下去」。"
+      }
+    ]
+  },
+  {
+    "id": 67,
+    "title": "Booking an interpreter",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "For a two-hour meeting we'd normally recommend two interpreters working in shifts, because concentration drops significantly after about thirty minutes. If the budget only allows one, we'd suggest building in a proper break halfway through. What's the subject matter, out of interest?",
+    "questions": [
+      {
+        "question": "Why are two interpreters recommended?",
+        "options": [
+          "Two languages needed",
+          "Concentration drops after thirty minutes",
+          "It's cheaper",
+          "Company policy"
+        ],
+        "answer": 1,
+        "explain_zh": "concentration drops significantly after about thirty minutes。significantly 是「明顯地」。"
+      },
+      {
+        "question": "What's the alternative with one interpreter?",
+        "options": [
+          "A shorter meeting",
+          "A proper break halfway",
+          "Recording it",
+          "Using software"
+        ],
+        "answer": 1,
+        "explain_zh": "building in a proper break halfway through。build in 是「安排進去」。"
+      }
+    ]
+  },
+  {
+    "id": 68,
+    "title": "University open day",
+    "category": "interview",
+    "difficulty": "medium",
+    "transcript": "Applications close in January but we'd encourage you to submit earlier if you can, partly because it spreads out the workload for you. Entry requirements are on the website, though we do look at the whole application rather than just grades. There's a personal statement and one reference needed.",
+    "questions": [
+      {
+        "question": "When do applications close?",
+        "options": [
+          "January",
+          "September",
+          "Anytime",
+          "December"
+        ],
+        "answer": 0,
+        "explain_zh": "Applications close in January。close 在這裡是「截止」。"
+      },
+      {
+        "question": "What is emphasised about assessment?",
+        "options": [
+          "Only grades matter",
+          "The whole application is considered",
+          "Interviews are decisive",
+          "References matter most"
+        ],
+        "answer": 1,
+        "explain_zh": "we do look at the whole application rather than just grades。do 用來強調。"
+      },
+      {
+        "question": "What documents are needed?",
+        "options": [
+          "A personal statement and one reference",
+          "Two references only",
+          "A portfolio",
+          "A medical certificate"
+        ],
+        "answer": 0,
+        "explain_zh": "a personal statement and one reference。reference 在這裡是推薦信。"
+      }
+    ]
+  },
+  {
+    "id": 69,
+    "title": "Car service reminder",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "Your vehicle is due for its annual service next month. We've got availability on the fourteenth and the twenty-second. A courtesy car is included at no charge if you need one, but we do need to know in advance as we only have three.",
+    "questions": [
+      {
+        "question": "What dates are available?",
+        "options": [
+          "Fourteenth and twenty-second",
+          "Fourth and twenty-second",
+          "Fourteenth only",
+          "Next week"
+        ],
+        "answer": 0,
+        "explain_zh": "the fourteenth and the twenty-second。注意 fourteenth（14）與 fourth（4）容易聽混。"
+      },
+      {
+        "question": "What is said about the courtesy car?",
+        "options": [
+          "It costs extra",
+          "Free but must be requested in advance",
+          "Not available",
+          "Only for long services"
+        ],
+        "answer": 1,
+        "explain_zh": "included at no charge… but we do need to know in advance。courtesy car 是維修期間的代步車。"
+      }
+    ]
+  },
+  {
+    "id": 70,
+    "title": "Handling an interruption in a meeting",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "Sorry, if I could just finish this point — I think it's relevant to what you're about to say. So the concern is that we're measuring the wrong thing entirely. Right, go ahead, I'm interested in where you were going with that.",
+    "questions": [
+      {
+        "question": "What does the speaker do?",
+        "options": [
+          "Gives up the floor immediately",
+          "Asks to finish, then hands over",
+          "Ignores the interruption",
+          "Leaves the meeting"
+        ],
+        "answer": 1,
+        "explain_zh": "if I could just finish this point 先要求說完，說完後再 go ahead 交還發言權。"
+      },
+      {
+        "question": "What is the speaker's concern?",
+        "options": [
+          "The budget",
+          "They're measuring the wrong thing",
+          "The timeline",
+          "The team size"
+        ],
+        "answer": 1,
+        "explain_zh": "we're measuring the wrong thing entirely。entirely 加強語氣。"
+      },
+      {
+        "question": "How does the speaker end?",
+        "options": [
+          "Dismissively",
+          "By inviting the other person to continue",
+          "By repeating themselves",
+          "By closing the meeting"
+        ],
+        "answer": 1,
+        "explain_zh": "I'm interested in where you were going with that，把發言權交回去且表達興趣，不會顯得霸道。"
+      }
+    ]
+  },
+  {
+    "id": 71,
+    "title": "Ordering at a bakery",
+    "category": "travel",
+    "difficulty": "easy",
+    "transcript": "The sourdough's just out of the oven so it's still warm. We've got two left of the walnut loaf, and the croissants are half price after four if you can come back. Anything to drink with that?",
+    "questions": [
+      {
+        "question": "What is still warm?",
+        "options": [
+          "The croissants",
+          "The sourdough",
+          "The walnut loaf",
+          "The coffee"
+        ],
+        "answer": 1,
+        "explain_zh": "The sourdough's just out of the oven so it's still warm。just out of the oven 是剛出爐。"
+      },
+      {
+        "question": "When are croissants half price?",
+        "options": [
+          "All day",
+          "After four",
+          "Before four",
+          "On weekends"
+        ],
+        "answer": 1,
+        "explain_zh": "half price after four。half price 是半價。"
+      }
+    ]
+  },
+  {
+    "id": 72,
+    "title": "Explaining a bug to support",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "It happens every time I try to upload a file over about ten megabytes. Smaller files are fine. The progress bar gets to around eighty percent and then it just resets to zero with no error message. I've tried two different browsers and it's the same in both.",
+    "questions": [
+      {
+        "question": "When does the problem occur?",
+        "options": [
+          "With all uploads",
+          "With files over ten megabytes",
+          "Only on mobile",
+          "Randomly"
+        ],
+        "answer": 1,
+        "explain_zh": "every time I try to upload a file over about ten megabytes。every time 表示可穩定重現。"
+      },
+      {
+        "question": "What happens at eighty percent?",
+        "options": [
+          "An error appears",
+          "It resets to zero silently",
+          "It completes",
+          "It slows down"
+        ],
+        "answer": 1,
+        "explain_zh": "resets to zero with no error message。no error message 是回報 bug 的重要細節。"
+      },
+      {
+        "question": "What has the user already tried?",
+        "options": [
+          "Two browsers",
+          "Restarting the computer",
+          "A different account",
+          "Nothing"
+        ],
+        "answer": 0,
+        "explain_zh": "I've tried two different browsers。先講已排除的可能性能節省來回。"
+      }
+    ]
+  },
+  {
+    "id": 73,
+    "title": "Interview: explaining a gap",
+    "category": "interview",
+    "difficulty": "hard",
+    "transcript": "There's a nine-month gap on my CV and I'd rather address it directly. I took time out to care for a family member. During that period I did keep my skills current — I completed two certifications and contributed to a couple of open source projects. I've been ready to come back for a while now.",
+    "questions": [
+      {
+        "question": "How long is the gap?",
+        "options": [
+          "Nine months",
+          "Two years",
+          "Three months",
+          "A year"
+        ],
+        "answer": 0,
+        "explain_zh": "a nine-month gap on my CV。CV 是履歷，美式常說 resume。"
+      },
+      {
+        "question": "What was the reason?",
+        "options": [
+          "Travel",
+          "Caring for a family member",
+          "Illness",
+          "Redundancy"
+        ],
+        "answer": 1,
+        "explain_zh": "I took time out to care for a family member。take time out 是「暫時離開工作」。"
+      },
+      {
+        "question": "What did the speaker do during that time?",
+        "options": [
+          "Nothing",
+          "Certifications and open source work",
+          "Started a business",
+          "Studied full time"
+        ],
+        "answer": 1,
+        "explain_zh": "keep my skills current 是「保持技能不生疏」，是解釋空窗期最有力的說法。"
+      }
+    ]
+  },
+  {
+    "id": 74,
+    "title": "Public transport announcement",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "Due to engineering works this weekend there will be no service between Central and Northgate. A replacement bus will operate from outside the station, running every fifteen minutes. Journey times will be extended by approximately twenty-five minutes, so please allow extra time.",
+    "questions": [
+      {
+        "question": "Why is there no service?",
+        "options": [
+          "A strike",
+          "Engineering works",
+          "An accident",
+          "Bad weather"
+        ],
+        "answer": 1,
+        "explain_zh": "Due to engineering works。engineering works 是軌道維修工程，英國鐵路公告常見。"
+      },
+      {
+        "question": "How often does the replacement bus run?",
+        "options": [
+          "Every five minutes",
+          "Every fifteen minutes",
+          "Every twenty-five minutes",
+          "Hourly"
+        ],
+        "answer": 1,
+        "explain_zh": "running every fifteen minutes。注意跟後面的 twenty-five minutes 區分，那是延誤時間。"
+      },
+      {
+        "question": "How much extra time should passengers allow?",
+        "options": [
+          "Fifteen minutes",
+          "About twenty-five minutes",
+          "An hour",
+          "None"
+        ],
+        "answer": 1,
+        "explain_zh": "extended by approximately twenty-five minutes。allow extra time 是「多預留時間」。"
+      }
+    ]
+  },
+  {
+    "id": 75,
+    "title": "Negotiating a freelance rate",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "My standard day rate is five fifty. For a longer engagement like this I'd be willing to come down to five hundred, on the basis that it's booked as a block rather than ad hoc days. What I would ask is that invoices are settled within fourteen days rather than thirty.",
+    "questions": [
+      {
+        "question": "What is the standard rate?",
+        "options": [
+          "Five hundred",
+          "Five fifty",
+          "Fourteen hundred",
+          "Thirty"
+        ],
+        "answer": 1,
+        "explain_zh": "My standard day rate is five fifty。day rate 是日薪報價。"
+      },
+      {
+        "question": "What condition is attached to the lower rate?",
+        "options": [
+          "Booked as a block",
+          "Paid upfront",
+          "A longer contract",
+          "Working weekends"
+        ],
+        "answer": 0,
+        "explain_zh": "on the basis that it's booked as a block rather than ad hoc days。ad hoc 是臨時、不固定的。"
+      },
+      {
+        "question": "What does the speaker ask for in return?",
+        "options": [
+          "Faster payment terms",
+          "More holiday",
+          "Equipment",
+          "A bonus"
+        ],
+        "answer": 0,
+        "explain_zh": "invoices are settled within fourteen days rather than thirty。settle an invoice 是付清帳款。"
+      }
+    ]
+  },
+  {
+    "id": 76,
+    "title": "Weather warning",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "A yellow warning for wind is in place from six this evening until nine tomorrow morning. Gusts of up to seventy miles per hour are expected along the coast. Some disruption to ferry services is likely and there may be delays on exposed sections of road.",
+    "questions": [
+      {
+        "question": "When does the warning end?",
+        "options": [
+          "Six this evening",
+          "Nine tomorrow morning",
+          "Seventy hours",
+          "Midnight"
+        ],
+        "answer": 1,
+        "explain_zh": "from six this evening until nine tomorrow morning，from…until 界定時間範圍。"
+      },
+      {
+        "question": "What is most affected?",
+        "options": [
+          "Ferry services",
+          "Air travel",
+          "Trains only",
+          "Nothing"
+        ],
+        "answer": 0,
+        "explain_zh": "Some disruption to ferry services is likely。disruption 是「中斷、擾亂」。"
+      }
+    ]
+  },
+  {
+    "id": 77,
+    "title": "Estate agent phone call",
+    "category": "travel",
+    "difficulty": "hard",
+    "transcript": "I'm calling about the two-bed on Alder Road. I should be upfront that there's already been an offer, slightly under asking. The vendor hasn't accepted yet, so if you wanted to view it I'd suggest doing that today or tomorrow rather than waiting for the weekend.",
+    "questions": [
+      {
+        "question": "What is the situation with the property?",
+        "options": [
+          "It's sold",
+          "There's an offer, not yet accepted",
+          "It's just been listed",
+          "It's been withdrawn"
+        ],
+        "answer": 1,
+        "explain_zh": "there's already been an offer… The vendor hasn't accepted yet。vendor 在房地產指賣方。"
+      },
+      {
+        "question": "What does 'under asking' mean?",
+        "options": [
+          "Below the asking price",
+          "Above the asking price",
+          "Exactly the asking price",
+          "Price not disclosed"
+        ],
+        "answer": 0,
+        "explain_zh": "asking price 是開價，under asking 就是出價低於開價。"
+      },
+      {
+        "question": "What is the agent advising?",
+        "options": [
+          "Wait for the weekend",
+          "View it today or tomorrow",
+          "Make a higher offer immediately",
+          "Look elsewhere"
+        ],
+        "answer": 1,
+        "explain_zh": "rather than waiting 表示「而不是等待」，仲介在暗示這間搶手，要盡快看。"
+      }
+    ]
+  },
+  {
+    "id": 78,
+    "title": "Course enrolment",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "The evening course runs for twelve weeks starting in September, one session a week from seven till nine. There's no formal assessment, but attendance matters — if you miss more than three sessions you won't get the certificate. The fee covers all materials.",
+    "questions": [
+      {
+        "question": "How long is the course?",
+        "options": [
+          "Nine weeks",
+          "Twelve weeks",
+          "Seven weeks",
+          "A term"
+        ],
+        "answer": 1,
+        "explain_zh": "runs for twelve weeks。run 在這裡是「持續進行」。"
+      },
+      {
+        "question": "What affects getting the certificate?",
+        "options": [
+          "Exam results",
+          "Attendance",
+          "An essay",
+          "A project"
+        ],
+        "answer": 1,
+        "explain_zh": "miss more than three sessions 就拿不到證書，attendance 是出席率。"
+      },
+      {
+        "question": "What does the fee include?",
+        "options": [
+          "Materials",
+          "Meals",
+          "A textbook only",
+          "Parking"
+        ],
+        "answer": 0,
+        "explain_zh": "The fee covers all materials。cover 在這裡是「涵蓋、包含」。"
+      }
+    ]
+  },
+  {
+    "id": 79,
+    "title": "Reporting a workplace issue",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "I've thought about whether to raise this and I've decided I should. In the last few team meetings, whenever Sam suggests something it gets picked up, but when Priya says essentially the same thing ten minutes earlier it doesn't. I'm not saying it's deliberate, but I think it's worth someone noticing.",
+    "questions": [
+      {
+        "question": "What pattern is described?",
+        "options": [
+          "Meetings run too long",
+          "One person's ideas are credited, another's overlooked",
+          "Nobody speaks up",
+          "Decisions are delayed"
+        ],
+        "answer": 1,
+        "explain_zh": "同樣的想法由不同人提出卻有不同待遇，這就是所謂的 credit 分配不均。"
+      },
+      {
+        "question": "How does the speaker frame it?",
+        "options": [
+          "As a formal complaint",
+          "As something worth noticing, not necessarily deliberate",
+          "As a resignation",
+          "As a joke"
+        ],
+        "answer": 1,
+        "explain_zh": "I'm not saying it's deliberate 先排除指控意圖，讓對方比較聽得進去。"
+      },
+      {
+        "question": "What does 'gets picked up' mean here?",
+        "options": [
+          "Is collected",
+          "Is taken seriously and acted on",
+          "Is written down",
+          "Is rejected"
+        ],
+        "answer": 1,
+        "explain_zh": "pick up an idea 是「接下、採納某個想法」。"
+      }
+    ]
+  },
+  {
+    "id": 80,
+    "title": "Insurance claim call",
+    "category": "travel",
+    "difficulty": "hard",
+    "transcript": "To process this I'll need the crime reference number from the police report, receipts or proof of purchase for the items, and photos if you have them. Once that's all submitted the assessment usually takes ten working days. I should mention there's an excess of one hundred and fifty on this policy.",
+    "questions": [
+      {
+        "question": "What three things are needed?",
+        "options": [
+          "Crime reference, proof of purchase, photos",
+          "Passport, receipts, address",
+          "Bank details, ID, photos",
+          "Nothing"
+        ],
+        "answer": 0,
+        "explain_zh": "crime reference number 是報案編號，proof of purchase 是購買證明，理賠三要件缺一不可。"
+      },
+      {
+        "question": "How long does assessment take?",
+        "options": [
+          "Ten working days",
+          "Ten days including weekends",
+          "One day",
+          "A month"
+        ],
+        "answer": 0,
+        "explain_zh": "ten working days，working days 不含週末與假日，跟 calendar days 不同。"
+      },
+      {
+        "question": "What is an 'excess'?",
+        "options": [
+          "Extra payout",
+          "Amount the policyholder pays themselves",
+          "A bonus",
+          "A late fee"
+        ],
+        "answer": 1,
+        "explain_zh": "excess 是自負額，理賠時要自己先負擔的金額，美式稱 deductible。"
+      }
+    ]
+  },
+  {
+    "id": 81,
+    "title": "Discussing childcare arrangements",
+    "category": "daily",
+    "difficulty": "hard",
+    "transcript": "The nursery does eight till six, which covers us most days, but the problem is Thursdays when I've got the late meeting. My mum can do the pickup if we ask, though I don't want to make a habit of it. The other option is the after-school club, which runs until seven.",
+    "questions": [
+      {
+        "question": "What is the problem day?",
+        "options": [
+          "Monday",
+          "Thursday",
+          "Friday",
+          "Weekends"
+        ],
+        "answer": 1,
+        "explain_zh": "the problem is Thursdays，說話者先講出唯一有問題的那天。"
+      },
+      {
+        "question": "What is the speaker's reservation about their mum helping?",
+        "options": [
+          "She lives far away",
+          "Not wanting to rely on it regularly",
+          "She's unavailable",
+          "She refuses"
+        ],
+        "answer": 1,
+        "explain_zh": "I don't want to make a habit of it。make a habit of something 是「養成習慣、變成常態」。"
+      },
+      {
+        "question": "What is the other option?",
+        "options": [
+          "A nanny",
+          "The after-school club until seven",
+          "Working from home",
+          "Changing the meeting"
+        ],
+        "answer": 1,
+        "explain_zh": "after-school club 是校內的課後照顧，runs until seven 指營運到七點。"
+      }
+    ]
   }
 ]

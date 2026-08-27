@@ -419,6 +419,28 @@ WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏�
 
 ---
 
+## 擴充題庫
+
+聽力、中翻英、情境對話沒有現成資料集可用，所以提供一個**建置期**的生成腳本。
+產出會併進 `content/`，App 執行時仍然只讀靜態檔 —— 不會在使用者按下按鈕時呼叫 AI。
+
+```bash
+node scripts/generate-content.mjs listening   --count 20
+node scripts/generate-content.mjs translation --count 40
+node scripts/generate-content.mjs dialogue    --count 10 --category work
+node scripts/generate-content.mjs listening   --count 5 --dry-run   # 只看不寫
+```
+
+需要 `.env` 裡的 `GEMINI_API_KEY`（或先用設定頁填好）。
+
+**每一筆都要通過與現有內容相同的結構檢查才會被寫入**，不合格的直接丟掉並在結尾
+統計退件原因。檢查項目包括：題目與選項必須是英文、解析必須有實質中文（擋掉
+「把英文原句抄一遍」這種等於沒解析的內容）、選項正好四個且不重複、正解索引在範圍內、
+`accept` 必須包含 `answer`、`keywords` 必須真的出現在 `answer` 裡、
+對話的使用者台詞至少兩句、`intent_zh` 不能直接寫成英文（那就沒得練了）。
+
+寧可少幾題，也不要把壞資料寫進題庫。現有的手寫內容也全部通過同一套檢查。
+
 ## 接下來
 
 - 練習紀錄的檢視畫面（`storage.js` 已經在記錄跟讀的每次嘗試，但還沒有 UI）

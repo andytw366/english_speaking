@@ -6,8 +6,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import multer from 'multer';
 
-import { getPronunciationFeedback, narrateAssessment, GeminiError, hasApiKey } from './gemini.js';
+import { getPronunciationFeedback, narrateAssessment, GeminiError, hasApiKey, resetClient as resetGeminiClient } from './gemini.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
+import { readSettings, writeSettings, assertLocalRequest, SettingsError } from './settings.js';
 
 // 專案根目錄（server/ 的上一層）。
 // .env 放在專案根目錄。這裡明確指定路徑而不是靠 dotenv 的預設值，
@@ -46,6 +47,7 @@ const CONTENT_FILES = {
   sentences: 'sentences.json',
   vocabulary: 'vocabulary.json',
   listening: 'listening.json',
+  translation: 'translation.json',
 };
 
 app.get('/api/content/:name', (req, res, next) => {
@@ -64,6 +66,40 @@ app.get('/api/content/:name', (req, res, next) => {
 
 // 舊路徑保留，避免既有連結壞掉
 app.get('/api/sentences', (req, res) => res.redirect(307, '/api/content/sentences'));
+
+// ─── 設定 ────────────────────────────────────────────────────────────────
+// 只允許本機請求：這個端點會寫入伺服器的 .env。詳見 server/settings.js。
+app.get('/api/settings', (req, res) => {
+  try {
+    assertLocalRequest(req);
+    res.json(readSettings());
+  } catch (err) {
+    handleSettingsError(err, res);
+  }
+});
+
+app.post('/api/settings', (req, res) => {
+  try {
+    assertLocalRequest(req);
+    const updated = writeSettings(ROOT, req.body ?? {});
+    if (updated.includes('GEMINI_API_KEY')) resetGeminiClient();
+    console.log(`[settings] 已更新：${updated.join(', ')}`);
+    res.json({ ok: true, updated, settings: readSettings() });
+  } catch (err) {
+    handleSettingsError(err, res);
+  }
+});
+
+function handleSettingsError(err, res) {
+  if (err instanceof SettingsError) {
+    return res.status(err.httpStatus).json({ error: 'settings', message: err.userMessage });
+  }
+  console.error('[settings]', err);
+  res.status(500).json({
+    error: 'settings_failed',
+    message: '寫入設定失敗。請確認專案根目錄可寫入，詳細原因請看伺服器 console。',
+  });
+}
 
 app.post(
   '/api/pronunciation-feedback',

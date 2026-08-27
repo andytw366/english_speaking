@@ -11,6 +11,10 @@
   --ok: #1a7f4b;
   --warn-bg: #fff6e5;
   --warn-text: #9a6700;
+  /* 音標字體：等寬字型的 IPA 字符覆蓋率通常很差，改用有完整 IPA 覆蓋的字型。
+     Charis/Doulos/Gentium 是 SIL 專為音標設計的；沒裝的話退到覆蓋率較好的系統字型。 */
+  --font-ipa: "Charis SIL", "Doulos SIL", "Gentium Plus", "Segoe UI",
+    "Lucida Sans Unicode", "DejaVu Sans", "Noto Sans", sans-serif;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(16, 22, 26, 0.06), 0 4px 16px rgba(16, 22, 26, 0.04);
 }
@@ -195,9 +199,10 @@ body {
 
 .phonemes { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; margin-left: auto; }
 .phoneme {
-  font-size: 0.75rem;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  padding: 0.1rem 0.4rem;
+  font-size: 0.9rem;
+  font-family: var(--font-ipa);
+  line-height: 1.5;
+  padding: 0.1rem 0.5rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -447,10 +452,21 @@ body {
   letter-spacing: -0.02em;
 }
 .vocab__ipa {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
   margin: 0 0 1rem;
+}
+.vocab__phonetic {
+  font-family: var(--font-ipa);
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+.vocab__pos {
+  font-size: 0.85rem;
+  font-style: italic;
   color: var(--text-muted);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.95rem;
 }
 .vocab__back {
   margin-top: 1.1rem;
@@ -548,3 +564,133 @@ body {
   border-top: 1px solid var(--border);
 }
 .result__score { margin: 0 0 0.8rem; font-size: 1.15rem; font-weight: 600; }
+
+/* ─── 中翻英 ───────────────────────────────────────────────────────────── */
+.trans__zh {
+  margin: 0 0 1.1rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.55;
+}
+.trans__cloze {
+  margin: 0 0 1.1rem;
+  font-size: 1.2rem;
+  line-height: 2.1;
+}
+.trans__blank {
+  font: inherit;
+  font-size: 1.1rem;
+  width: 8.5rem;
+  padding: 0.15rem 0.5rem;
+  margin: 0 0.15rem;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  color: var(--text);
+  border-radius: 4px 4px 0 0;
+  text-align: center;
+}
+.trans__blank:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.trans__blank:disabled { border-bottom-color: var(--border); background: none; }
+
+.trans__input {
+  font: inherit;
+  font-size: 1.05rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  margin-bottom: 0.9rem;
+}
+.trans__input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+
+.trans__hint {
+  margin: 0.7rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+.trans__answer {
+  margin: 0.6rem 0;
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.result__title { margin: 0 0 0.5rem; font-size: 1.15rem; font-weight: 600; }
+.result--ok .result__title { color: var(--ok); }
+.result--close .result__title { color: var(--warn-text); }
+.result--bad .result__title { color: var(--danger); }
+
+.diff { margin: 0.8rem 0; }
+.diff__label {
+  margin: 0.7rem 0 0.2rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.diff__line { margin: 0; font-size: 1.02rem; line-height: 1.8; }
+.dword { padding: 0 2px; border-radius: 3px; }
+.dword--missing { background: var(--danger-bg); color: var(--danger); font-weight: 500; }
+.dword--extra { background: color-mix(in srgb, var(--text-muted) 18%, transparent); }
+
+.explain--neutral {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text);
+  margin-top: 0.8rem;
+}
+
+/* ─── 設定 ─────────────────────────────────────────────────────────────── */
+.field { margin-bottom: 1.1rem; }
+.field__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.field__input {
+  font: inherit;
+  font-size: 0.95rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.field__input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.field__range { width: 100%; accent-color: var(--accent); }
+.field .hint { margin-top: 0.3rem; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.togglechip {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.togglechip:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.togglechip--on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.hint--ok { color: var(--ok); }
+.hint--error { color: var(--danger); }
+.hint--warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  margin-top: 0.6rem;
+}

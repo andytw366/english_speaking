@@ -77,6 +77,11 @@ export class GeminiError extends Error {
   }
 }
 
+/** 金鑰換掉之後要重建 client，否則還會用舊的。 */
+export function resetClient() {
+  client = null;
+}
+
 export function hasApiKey() {
   return Boolean(process.env.GEMINI_API_KEY?.trim());
 }

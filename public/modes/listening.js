@@ -1,4 +1,5 @@
 import { h, clear } from '../lib/dom.js';
+import { filterBySettings } from '../lib/settings.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 
 export const meta = { id: 'listening', label: '聽力', icon: '🎧' };
@@ -17,7 +18,9 @@ export async function mount(container) {
   root = container;
   const res = await fetch('/api/content/listening');
   if (!res.ok) throw new Error(`讀取聽力題失敗（HTTP ${res.status}）`);
-  items = await res.json();
+  const raw = await res.json();
+  items = filterBySettings(raw);
+  if (items.length === 0) items = raw;
   pick(items[Math.floor(Math.random() * items.length)]);
   return () => { stopTts(); root = null; };
 }
@@ -85,7 +88,7 @@ function render() {
 
     qCard.append(
       h('div', { class: 'question' },
-        h('p', { class: 'question__text' }, `${qi + 1}. ${q.q_zh}`),
+        h('p', { class: 'question__text' }, `${qi + 1}. ${q.question}`),
         h('div', { class: 'options' }, opts),
         submitted && h('p', {
           class: `explain ${answers[qi] === q.answer ? 'explain--correct' : 'explain--wrong'}`,

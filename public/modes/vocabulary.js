@@ -1,6 +1,7 @@
 import { h, clear } from '../lib/dom.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { buildQueue, recordAnswer, srsSummary, getCardState, resetSrs } from '../lib/storage.js';
+import { filterBySettings, getSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
 
@@ -19,11 +20,15 @@ export async function mount(container) {
   if (!res.ok) throw new Error(`讀取單字卡失敗（HTTP ${res.status}）`);
   cards = await res.json();
   startSession();
-  return () => { root = null; };
+  window.addEventListener('settings-changed', startSession);
+  return () => { window.removeEventListener('settings-changed', startSession); root = null; };
 }
 
 function startSession() {
-  queue = buildQueue(cards);
+  const pool = filterBySettings(cards);
+  const { sessionLimit } = getSettings();
+  queue = buildQueue(pool.length ? pool : cards);
+  if (sessionLimit > 0) queue = queue.slice(0, sessionLimit);
   index = 0;
   revealed = false;
   render();
@@ -33,7 +38,8 @@ function render() {
   if (!root) return;
   clear(root);
 
-  const summary = srsSummary(cards);
+  const pool = filterBySettings(cards);
+  const summary = srsSummary(pool.length ? pool : cards);
 
   root.append(
     h('div', { class: 'card' },
@@ -82,7 +88,10 @@ function render() {
       ),
 
       h('p', { class: 'vocab__word' }, card.word),
-      h('p', { class: 'vocab__ipa' }, `${card.ipa}　${card.pos}`),
+      h('p', { class: 'vocab__ipa' },
+        h('span', { class: 'vocab__phonetic' }, card.ipa),
+        h('span', { class: 'vocab__pos' }, card.pos),
+      ),
 
       h('div', { class: 'row' },
         ttsSupported() && h('button', {

@@ -2,6 +2,8 @@
 // 經典雷：getVoices() 第一次呼叫常常回空陣列，voice 清單是非同步載入的。
 // 同時監聽 voiceschanged 並做 polling 重試，兩邊誰先到就用誰。
 
+import { getSettings } from './settings.js';
+
 let cached = null;
 
 export function loadVoices(timeoutMs = 2000) {
@@ -42,7 +44,10 @@ export function isSupported() {
  * 唸出一段英文。
  * @returns {Promise<void>} 唸完才 resolve；失敗時 reject 帶中文訊息
  */
-export async function speak(text, { rate = 0.9 } = {}) {
+export async function speak(text, { rate, voiceName } = {}) {
+  const settings = getSettings();
+  const wantRate = rate ?? settings.ttsRate;
+  const wantVoice = voiceName ?? settings.ttsVoice;
   if (!isSupported()) {
     throw new Error('這個瀏覽器不支援語音合成，無法播放示範發音。建議改用 Chrome 或 Edge。');
   }
@@ -58,13 +63,17 @@ export async function speak(text, { rate = 0.9 } = {}) {
     throw new Error('系統裡找不到英語語音，請到作業系統的語音設定安裝英語語音包。');
   }
 
-  const voice = english.find((v) => v.lang === 'en-US') ?? english[0];
+  // 優先用設定裡指定的聲音；找不到就退回 en-US，再退回任何英語語音
+  const voice =
+    (wantVoice && english.find((v) => v.name === wantVoice)) ??
+    english.find((v) => v.lang === 'en-US') ??
+    english[0];
 
   return new Promise((resolve, reject) => {
     const u = new SpeechSynthesisUtterance(text);
     u.voice = voice;
     u.lang = voice.lang;
-    u.rate = rate;
+    u.rate = wantRate;
     u.onend = () => resolve();
     u.onerror = (e) => {
       // 使用者自己中斷不算錯誤

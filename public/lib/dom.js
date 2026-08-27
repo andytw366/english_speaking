@@ -23,7 +23,9 @@ export function h(tag, props = {}, ...children) {
     }
   }
 
-  for (const child of children.flat()) {
+  // 深層攤平：map() 回傳巢狀陣列（例如 [元素, ' '] 的清單）時，
+  // 只攤一層會讓內層陣列被當成文字，印出 [object HTMLSpanElement]。
+  for (const child of children.flat(Infinity)) {
     if (child == null || child === false) continue;
     el.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }

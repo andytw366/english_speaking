@@ -1,4 +1,5 @@
 import { h, clear } from '../lib/dom.js';
+import { filterBySettings } from '../lib/settings.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { Recorder, isSupported as recSupported, unsupportedReason, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
 import { addAttempt } from '../lib/storage.js';
@@ -21,7 +22,9 @@ export async function mount(container) {
   root = container;
   const res = await fetch('/api/content/sentences');
   if (!res.ok) throw new Error(`讀取練習句失敗（HTTP ${res.status}）`);
-  sentences = await res.json();
+  const raw = await res.json();
+  sentences = filterBySettings(raw);
+  if (sentences.length === 0) sentences = raw;
   nextSentence();
   return cleanup;
 }

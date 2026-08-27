@@ -5,8 +5,10 @@
 | 模式 | 內容 |
 |---|---|
 | 🗂️ **單字卡** | 40 張單字卡，Leitner 間隔重複排程 |
-| 🎧 **聽力** | 10 組情境短文 + 28 道理解測驗，用瀏覽器 TTS 朗讀 |
+| 🎧 **聽力** | 10 組情境短文 + 28 道英文理解測驗，用瀏覽器 TTS 朗讀 |
+| ✍️ **中翻英** | 20 題，10 題句中填空 + 10 題整句翻譯 |
 | 🗣️ **跟讀** | 27 句練習句，聽示範 → 錄音 → 比對；可選用 AI 發音評分 |
+| ⚙️ **設定** | API 金鑰、練習範圍篩選、語音與語速、學習資料管理 |
 
 **題目與例句都是預先寫好的靜態檔**（`content/`），執行期不做 AI 生成 ——
 少一個失敗點，也不必為了出題付 API 費用。
@@ -105,6 +107,20 @@ dotenv.config({ path: path.join(ROOT, '.env') });
 `.env` 已列在 `.gitignore`，不會被 commit。前端程式碼裡沒有任何金鑰 ——
 Azure 與 Gemini 的呼叫都在後端，錄音是 POST 到自己的伺服器再轉送出去。
 
+### 從設定頁填金鑰 —— 安全邊界
+
+設定頁可以直接填金鑰，伺服器會寫進 `.env`（檔案權限設成 `600`），並立即套用，
+不用重啟。前端永遠拿不到完整金鑰 —— `GET /api/settings` 只回「是否已設定」與末四碼。
+
+**`/api/settings` 只接受來自 loopback（`127.0.0.1` / `::1`）的請求**，其他來源一律 403。
+這是因為「讓網頁寫入伺服器的 .env」在公開網路上非常危險。
+
+> ⚠️ **如果之後要把這個 App 部署到雲端，必須先移除 `/api/settings` 這兩個端點，
+> 或加上真正的身分驗證。** loopback 檢查擋得住區網，但擋不住反向代理背後的請求
+> （那時所有請求看起來都來自本機）。
+
+不想用設定頁的話，直接手動編輯 `.env` 也完全可以。
+
 ---
 
 ## 錯誤處理
@@ -160,9 +176,11 @@ english_speaking/
 ├── content/              # 靜態學習內容（開發時寫好，非執行期生成）
 │   ├── sentences.json    # 27 句跟讀練習句
 │   ├── vocabulary.json   # 40 張單字卡
-│   └── listening.json    # 10 組聽力題
+│   ├── listening.json    # 10 組聽力題（題目與選項為英文，解析為中文）
+│   └── translation.json  # 20 題中翻英（填空 + 整句）
 ├── server/
 │   ├── index.js          # Express、路由、本地摘要 fallback
+│   ├── settings.js       # 讀寫 .env 的金鑰設定（僅接受 localhost 請求）
 │   ├── azure-pronunciation.js  # Azure Speech 發音評估 + 錯誤分類
 │   └── gemini.js         # Gemini：中文講評（主要）、主觀評分（無 Azure 時的退路）
 └── public/
@@ -174,11 +192,14 @@ english_speaking/
     │   ├── tts.js        # speechSynthesis（處理 getVoices 非同步的雷）
     │   ├── recorder.js   # 錄音、格式挑選、麥克風錯誤訊息
     │   ├── wav-encoder.js  # 錄音 → 16 kHz 單聲道 WAV
-    │   └── storage.js    # localStorage：SRS 排程、練習紀錄
+    │   ├── storage.js    # localStorage：SRS 排程、練習紀錄
+    │   └── settings.js   # localStorage：偏好設定與內容篩選
     └── modes/
         ├── vocabulary.js
         ├── listening.js
+        ├── translation.js
         ├── shadowing.js
+        ├── settings.js
         └── assessment-view.js  # 發音評估結果的呈現
 ```
 
@@ -193,15 +214,25 @@ english_speaking/
 **聽力** 用瀏覽器內建的 `speechSynthesis` 朗讀短文，作答後才顯示正解與解析；
 聽不出來也可以先看原文。
 
+**中翻英** 有兩種題型。**填空**只考一個關鍵字，答錯就是答錯。**整句翻譯**沒辦法精確
+自動批改（同一個意思有很多種講法），所以分三級：完全相符、關鍵字都有（算通過，
+但列出參考答案）、差太多。作答後會逐字比對，紅色是參考答案有但你沒寫到的字，
+灰底是你多寫的 —— 但會明講「意思對就好，用字不必完全一樣」。
+
 **跟讀** 是原本的口說練習。發音評分現在是次要按鈕（「🎯 檢查我的發音（選用）」），
 沒設定金鑰也能正常練 —— 聽示範、錄音、自己比對本來就有用。
+
+**設定** 可以直接在網頁上填 API 金鑰（寫進伺服器的 `.env`，見下方安全說明）、
+篩選練習的情境與難度、選示範發音的聲音與語速、清除學習資料。
 
 ### API
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
 | GET | `/api/health` | 回 `{ ok, azureConfigured, geminiConfigured }` |
-| GET | `/api/content/:name` | `sentences` / `vocabulary` / `listening`，回對應的 JSON |
+| GET | `/api/content/:name` | `sentences` / `vocabulary` / `listening` / `translation` |
+| GET | `/api/settings` | 金鑰設定狀態（**遮蔽過**，只回是否已設定與末四碼）|
+| POST | `/api/settings` | 更新金鑰，寫進 `.env` |
 | GET | `/api/sentences` | 舊路徑，307 轉址到 `/api/content/sentences` |
 | POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV 檔）+ `sentence`（目標句） |
 

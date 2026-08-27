@@ -1393,5 +1393,1874 @@
         "en": "Standard is twenty-two, express is forty-eight. Both include tracking."
       }
     ]
+  },
+  {
+    "id": 21,
+    "title": "在藥局買成藥",
+    "category": "daily",
+    "difficulty": "medium",
+    "setting_zh": "你感冒了，到藥局想買點藥。",
+    "your_role_zh": "顧客",
+    "partner_role_zh": "藥師",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Hi, can I help you find anything?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你喉嚨痛、有點咳嗽，想找不會想睡的藥",
+        "answer": "I have a sore throat and a bit of a cough. Do you have anything non-drowsy?",
+        "accept": [
+          "I have a sore throat and a bit of a cough. Do you have anything non-drowsy?",
+          "I've got a sore throat and a cough. Something that won't make me sleepy?"
+        ],
+        "keywords": [
+          "sore throat",
+          "cough"
+        ],
+        "note_zh": "non-drowsy 是「不會想睡的」，藥品包裝常見的標示。"
+      },
+      {
+        "speaker": "partner",
+        "en": "These lozenges are fine during the day. Are you taking any other medication at the moment?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說沒有，但你對青黴素過敏",
+        "answer": "No, but I'm allergic to penicillin.",
+        "accept": [
+          "No, but I'm allergic to penicillin.",
+          "Nothing else, though I do have a penicillin allergy."
+        ],
+        "keywords": [
+          "allergic",
+          "penicillin"
+        ],
+        "note_zh": "be allergic to 後面接過敏原。買藥時一定要主動說。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's fine, there's no penicillin in these. Take one every four hours as needed."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "問如果三天後沒好轉該怎麼辦",
+        "answer": "What should I do if it hasn't improved in three days?",
+        "accept": [
+          "What should I do if it hasn't improved in three days?",
+          "And if it's no better after three days?"
+        ],
+        "keywords": [
+          "what should",
+          "three days"
+        ],
+        "note_zh": "improve 是好轉；問後續處置是就醫問診的好習慣。"
+      },
+      {
+        "speaker": "partner",
+        "en": "If there's no improvement by then, or if you develop a fever, see your GP."
+      }
+    ]
+  },
+  {
+    "id": 22,
+    "title": "跟房東報修",
+    "category": "daily",
+    "difficulty": "medium",
+    "setting_zh": "你租的房子熱水器壞了，打電話給房東。",
+    "your_role_zh": "房客",
+    "partner_role_zh": "房東",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Hello?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你是租客，熱水器從昨天開始沒有熱水",
+        "answer": "Hi, it's your tenant at flat three. There's been no hot water since yesterday.",
+        "accept": [
+          "Hi, it's your tenant at flat three. There's been no hot water since yesterday.",
+          "Hi, this is your tenant. We haven't had hot water since yesterday."
+        ],
+        "keywords": [
+          "tenant",
+          "hot water"
+        ],
+        "note_zh": "tenant 是房客，landlord 是房東。since yesterday 用現在完成式。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Oh dear. Is the boiler making any noise, or showing an error code?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說螢幕上顯示 E1，你試過重開但沒用",
+        "answer": "It's showing E1 on the display. I tried restarting it but it didn't help.",
+        "accept": [
+          "It's showing E1 on the display. I tried restarting it but it didn't help.",
+          "There's an E1 error code. Restarting it made no difference."
+        ],
+        "keywords": [
+          "E1",
+          "restarting"
+        ],
+        "note_zh": "先說明已經試過什麼，能省掉對方重複問。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Right, that usually means low pressure. I'll get an engineer out. When are you in?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說平日下午三點後都在，週末整天都可以",
+        "answer": "I'm in after three on weekdays, and all day at weekends.",
+        "accept": [
+          "I'm in after three on weekdays, and all day at weekends.",
+          "Weekdays after three, or any time at the weekend."
+        ],
+        "keywords": [
+          "after three",
+          "weekends"
+        ],
+        "note_zh": "be in 是「人在家」，跟 be at home 同義但更口語。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I'll aim for Saturday morning then. I'll text you once it's confirmed."
+      }
+    ]
+  },
+  {
+    "id": 23,
+    "title": "退掉訂閱服務",
+    "category": "daily",
+    "difficulty": "hard",
+    "setting_zh": "你打電話取消一個每月訂閱，客服試著挽留你。",
+    "your_role_zh": "用戶",
+    "partner_role_zh": "客服",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Thanks for holding. How can I help today?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你想取消訂閱",
+        "answer": "I'd like to cancel my subscription, please.",
+        "accept": [
+          "I'd like to cancel my subscription, please.",
+          "I want to cancel my membership."
+        ],
+        "keywords": [
+          "cancel",
+          "subscription"
+        ],
+        "note_zh": "直接講目的，不要繞圈子，否則對話會被引導到別的地方。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I'm sorry to hear that. May I ask what's prompted the decision?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你最近幾乎沒用到，不值得這個價錢",
+        "answer": "I've barely used it recently, so it's not worth the cost for me.",
+        "accept": [
+          "I've barely used it recently, so it's not worth the cost for me.",
+          "I hardly use it these days, so it doesn't justify the price."
+        ],
+        "keywords": [
+          "barely",
+          "worth"
+        ],
+        "note_zh": "barely 是「幾乎沒有」；worth the cost 是「值這個價」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I understand. I can offer you three months at half price if that would help?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "婉拒，並說還是請他們幫你取消",
+        "answer": "Thanks, but I'd still like to go ahead and cancel.",
+        "accept": [
+          "Thanks, but I'd still like to go ahead and cancel.",
+          "I appreciate the offer, but please go ahead and cancel it."
+        ],
+        "keywords": [
+          "cancel"
+        ],
+        "note_zh": "go ahead and 是「就這樣做吧」，語氣堅定但不失禮。"
+      },
+      {
+        "speaker": "partner",
+        "en": "No problem at all. I've processed that, and you'll have access until the end of the current billing period."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "請對方寄一封確認信給你",
+        "answer": "Could you send me a confirmation email?",
+        "accept": [
+          "Could you send me a confirmation email?",
+          "Can I get that confirmed in writing?"
+        ],
+        "keywords": [
+          "confirmation"
+        ],
+        "note_zh": "取消服務一定要留書面證據，in writing 是「以書面形式」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Already on its way. You should have it within a few minutes."
+      }
+    ]
+  },
+  {
+    "id": 24,
+    "title": "跟朋友借錢",
+    "category": "daily",
+    "difficulty": "hard",
+    "setting_zh": "你臨時需要一筆錢，開口跟朋友商量。",
+    "your_role_zh": "你",
+    "partner_role_zh": "朋友",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Hey, you said there was something you wanted to talk about?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說有點不好意思，但想問能不能借一筆錢",
+        "answer": "This is a bit awkward, but I wanted to ask if I could borrow some money.",
+        "accept": [
+          "This is a bit awkward, but I wanted to ask if I could borrow some money.",
+          "It's a bit uncomfortable to ask, but could I borrow some money?"
+        ],
+        "keywords": [
+          "borrow",
+          "money"
+        ],
+        "note_zh": "先承認尷尬反而讓對方比較好接話。borrow 是借入。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Oh. How much are we talking about?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說大概五百，下個月發薪就還",
+        "answer": "Around five hundred. I'd pay you back when I get paid next month.",
+        "accept": [
+          "Around five hundred. I'd pay you back when I get paid next month.",
+          "About five hundred, and I could repay you after next month's payday."
+        ],
+        "keywords": [
+          "five hundred",
+          "pay you back"
+        ],
+        "note_zh": "pay someone back 是還錢。主動說出還款時間很重要。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I can do that. Is everything okay, though? You don't have to tell me."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說車子突然要修，保險不理賠",
+        "answer": "The car needed unexpected repairs and the insurance won't cover it.",
+        "accept": [
+          "The car needed unexpected repairs and the insurance won't cover it.",
+          "My car needed emergency repairs and insurance isn't covering it."
+        ],
+        "keywords": [
+          "repairs",
+          "insurance"
+        ],
+        "note_zh": "cover 在保險語境是「理賠、涵蓋」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's rough. I'll transfer it tonight. And genuinely, don't stress about paying it back immediately."
+      }
+    ]
+  },
+  {
+    "id": 25,
+    "title": "開會時提出反對意見",
+    "category": "work",
+    "difficulty": "hard",
+    "setting_zh": "團隊正要決定一個技術方向，你不同意但想好好表達。",
+    "your_role_zh": "工程師",
+    "partner_role_zh": "技術主管",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "So unless anyone objects, we'll go with rewriting the whole module."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你有不同看法，想先確認你理解得對不對",
+        "answer": "I see it a bit differently. Can I check I've understood the plan correctly first?",
+        "accept": [
+          "I see it a bit differently. Can I check I've understood the plan correctly first?",
+          "I have a different view. Could I first make sure I've understood correctly?"
+        ],
+        "keywords": [
+          "differently",
+          "understood"
+        ],
+        "note_zh": "先確認理解再反對，可以避免因為誤會而爭論。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Go ahead."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說如果全部重寫要花三個月，而問題其實集中在一個檔案",
+        "answer": "A full rewrite would take about three months, but the problems seem concentrated in one file.",
+        "accept": [
+          "A full rewrite would take about three months, but the problems seem concentrated in one file.",
+          "Rewriting everything is roughly three months, yet the issues are mostly in a single file."
+        ],
+        "keywords": [
+          "rewrite",
+          "concentrated"
+        ],
+        "note_zh": "用具體數字與觀察來支持論點，比說「我覺得不好」有力得多。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's fair. But that file has been patched so many times it's barely readable."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "提議先只重寫那個檔案，兩週後再看要不要繼續",
+        "answer": "Could we rewrite just that file first and reassess in two weeks?",
+        "accept": [
+          "Could we rewrite just that file first and reassess in two weeks?",
+          "What if we start with that file and review in two weeks?"
+        ],
+        "keywords": [
+          "rewrite",
+          "two weeks"
+        ],
+        "note_zh": "提出可逆的小步驟，比全盤否定對方的提案更容易被接受。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I can live with that. Let's timebox it and see where we are."
+      }
+    ]
+  },
+  {
+    "id": 26,
+    "title": "跟客戶說明超出範圍",
+    "category": "work",
+    "difficulty": "hard",
+    "setting_zh": "客戶臨時追加需求，你需要說明這超出原本的合約範圍。",
+    "your_role_zh": "專案負責人",
+    "partner_role_zh": "客戶",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "While you're at it, could you also add a reporting dashboard? Shouldn't be much extra."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說這個做得到，但不在原本的範圍內",
+        "answer": "That's certainly possible, but it's outside the original scope.",
+        "accept": [
+          "That's certainly possible, but it's outside the original scope.",
+          "We can definitely do that, though it wasn't part of the agreed scope."
+        ],
+        "keywords": [
+          "possible",
+          "scope"
+        ],
+        "note_zh": "先肯定可行性再說明限制，比直接說 no 好談。scope 是合約範圍。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Right. How much are we talking, roughly?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說大概要多兩週，你可以先出一份估價",
+        "answer": "Roughly two additional weeks. I can put together a quote for you.",
+        "accept": [
+          "Roughly two additional weeks. I can put together a quote for you.",
+          "About two extra weeks. I'll prepare a quote."
+        ],
+        "keywords": [
+          "two",
+          "weeks",
+          "quote"
+        ],
+        "note_zh": "quote 是報價；put together 是「整理出、擬出」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "And that wouldn't push back the original delivery date?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說如果要維持原本的交期，就得分成兩階段交付",
+        "answer": "To keep the original date, we'd need to deliver it in two phases.",
+        "accept": [
+          "To keep the original date, we'd need to deliver it in two phases.",
+          "If the original date is fixed, we'd have to split delivery into two phases."
+        ],
+        "keywords": [
+          "original date",
+          "phases"
+        ],
+        "note_zh": "提出「不是不行，但要換一種做法」比單純說不可能更專業。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Two phases works. Send me the quote and I'll get it approved this week."
+      }
+    ]
+  },
+  {
+    "id": 27,
+    "title": "跟主管回報壞消息",
+    "category": "work",
+    "difficulty": "hard",
+    "setting_zh": "你發現一個上線後才出現的重大問題，要向主管回報。",
+    "your_role_zh": "工程師",
+    "partner_role_zh": "主管",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "You said it was urgent?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說昨天上線的功能造成部分使用者無法登入",
+        "answer": "The release yesterday is stopping some users from logging in.",
+        "accept": [
+          "The release yesterday is stopping some users from logging in.",
+          "Yesterday's release is preventing some users from signing in."
+        ],
+        "keywords": [
+          "release",
+          "logging in"
+        ],
+        "note_zh": "壞消息先講結論再講細節，不要鋪陳。"
+      },
+      {
+        "speaker": "partner",
+        "en": "How many users are we talking about?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說大約百分之五，都是用舊版 App 的人",
+        "answer": "Around five percent, all of them on the older app version.",
+        "accept": [
+          "Around five percent, all of them on the older app version.",
+          "About five percent, specifically users on the old app version."
+        ],
+        "keywords": [
+          "five percent",
+          "older"
+        ],
+        "note_zh": "能界定影響範圍，主管才有辦法判斷嚴重程度。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Do we roll back, or can you fix forward?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你建議先回退，修好再重新上線",
+        "answer": "I'd recommend rolling back first, then re-releasing once it's fixed.",
+        "accept": [
+          "I'd recommend rolling back first, then re-releasing once it's fixed.",
+          "My recommendation is to roll back now and re-release after the fix."
+        ],
+        "keywords": [
+          "rolling back",
+          "fixed"
+        ],
+        "note_zh": "roll back 是版本回退；fix forward 是直接往前修。給出明確建議而不是丟問題。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Agreed. Roll it back now and let's do a proper post-mortem tomorrow."
+      }
+    ]
+  },
+  {
+    "id": 28,
+    "title": "視訊會議技術問題",
+    "category": "work",
+    "difficulty": "medium",
+    "setting_zh": "線上會議進行到一半，對方的聲音斷斷續續。",
+    "your_role_zh": "與會者",
+    "partner_role_zh": "同事",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "...and so the numbers for Q3 show... hello? Can you still hear me?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你聽得到但聲音斷斷續續，剛剛最後一句沒聽清楚",
+        "answer": "I can hear you but you're breaking up. I missed the last part.",
+        "accept": [
+          "I can hear you but you're breaking up. I missed the last part.",
+          "You're cutting out a bit. I didn't catch the last sentence."
+        ],
+        "keywords": [
+          "breaking up",
+          "missed"
+        ],
+        "note_zh": "break up 或 cut out 都指訊號斷續，視訊會議必備說法。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Sorry, my connection's been flaky all morning. Is it better now?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說好多了，並請對方從第三季的數字再說一次",
+        "answer": "Much better. Could you go back to the Q3 numbers?",
+        "accept": [
+          "Much better. Could you go back to the Q3 numbers?",
+          "That's clearer. Could you repeat the part about Q3?"
+        ],
+        "keywords": [
+          "better",
+          "Q3"
+        ],
+        "note_zh": "go back to 是「回到剛才的部分」，比 say again 更精確。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Sure. Revenue was up nine percent but margin was flat."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "確認你聽到的是營收成長九趴、利潤率持平",
+        "answer": "Just to confirm, revenue up nine percent and margin flat?",
+        "accept": [
+          "Just to confirm, revenue up nine percent and margin flat?",
+          "So that's nine percent revenue growth with flat margin?"
+        ],
+        "keywords": [
+          "confirm",
+          "nine percent"
+        ],
+        "note_zh": "訊號不好時複述數字確認，是很值得養成的習慣。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's right. I'll drop the slides in the chat so you've got them either way."
+      }
+    ]
+  },
+  {
+    "id": 29,
+    "title": "機場報到與行李",
+    "category": "travel",
+    "difficulty": "medium",
+    "setting_zh": "你在機場櫃檯辦理登機，行李有點超重。",
+    "your_role_zh": "旅客",
+    "partner_role_zh": "地勤",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Good morning. Passport, please. Just the one bag to check in?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說是的，一件託運，一件隨身",
+        "answer": "Yes, one to check in and one carry-on.",
+        "accept": [
+          "Yes, one to check in and one carry-on.",
+          "Just one checked bag and this hand luggage."
+        ],
+        "keywords": [
+          "check in",
+          "carry-on"
+        ],
+        "note_zh": "carry-on 是美式的隨身行李，英式說 hand luggage。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's twenty-four kilos, I'm afraid the limit is twenty-three."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "問可以把東西移到隨身行李嗎",
+        "answer": "Could I move something into my carry-on?",
+        "accept": [
+          "Could I move something into my carry-on?",
+          "Can I transfer a few things to my hand luggage?"
+        ],
+        "keywords": [
+          "move",
+          "carry-on"
+        ],
+        "note_zh": "超重時先問能不能自己調整，通常比直接付費划算。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Of course, take your time. There's a bench just there."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "重新秤過之後問靠走道的位子還有嗎",
+        "answer": "That should do it. Are there any aisle seats left?",
+        "accept": [
+          "That should do it. Are there any aisle seats left?",
+          "Hopefully that's under now. Any aisle seats available?"
+        ],
+        "keywords": [
+          "aisle seats"
+        ],
+        "note_zh": "That should do it 是「這樣應該就可以了」，處理完事情時的口語。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Twenty-two point eight, perfect. And yes, I can put you in 24C."
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "title": "在餐廳點餐並詢問食材",
+    "category": "travel",
+    "difficulty": "medium",
+    "setting_zh": "你在一家不熟悉的餐廳點餐，有飲食限制。",
+    "your_role_zh": "顧客",
+    "partner_role_zh": "服務生",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Are you ready to order, or would you like a few more minutes?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說想先問一下，海鮮燉飯裡面有沒有奶製品",
+        "answer": "Could I ask first, does the seafood risotto contain any dairy?",
+        "accept": [
+          "Could I ask first, does the seafood risotto contain any dairy?",
+          "Before I order, is there dairy in the seafood risotto?"
+        ],
+        "keywords": [
+          "contain",
+          "dairy"
+        ],
+        "note_zh": "dairy 是奶製品的統稱；contain 是「含有」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "It does, there's butter and parmesan. Is it an allergy or a preference?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說是過敏，問有沒有可以做成無奶的餐點",
+        "answer": "It's an allergy. Is there anything that can be made without dairy?",
+        "accept": [
+          "It's an allergy. Is there anything that can be made without dairy?",
+          "It's an allergy, so are there any dairy-free options?"
+        ],
+        "keywords": [
+          "allergy",
+          "without dairy"
+        ],
+        "note_zh": "講明是過敏而非偏好，廚房才會認真處理交叉污染。"
+      },
+      {
+        "speaker": "partner",
+        "en": "The grilled sea bass can be done without butter, and the tomato pasta is dairy-free as standard."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "點鱸魚，並問配菜是什麼",
+        "answer": "I'll go with the sea bass. What does it come with?",
+        "accept": [
+          "I'll go with the sea bass. What does it come with?",
+          "I'll have the sea bass, please. What are the sides?"
+        ],
+        "keywords": [
+          "sea bass",
+          "come with"
+        ],
+        "note_zh": "come with 是「附什麼」；sides 是配菜。"
+      },
+      {
+        "speaker": "partner",
+        "en": "It comes with new potatoes and green beans. I'll flag the allergy with the kitchen."
+      }
+    ]
+  },
+  {
+    "id": 31,
+    "title": "問路並確認方向",
+    "category": "travel",
+    "difficulty": "easy",
+    "setting_zh": "你在街上迷路，想找一間書店。",
+    "your_role_zh": "遊客",
+    "partner_role_zh": "路人",
+    "turns": [
+      {
+        "speaker": "you",
+        "intent_zh": "禮貌地問對方知不知道 Foyles 書店怎麼走",
+        "answer": "Excuse me, do you know how to get to Foyles bookshop?",
+        "accept": [
+          "Excuse me, do you know how to get to Foyles bookshop?",
+          "Sorry to bother you, do you know the way to Foyles?"
+        ],
+        "keywords": [
+          "excuse me",
+          "how to get"
+        ],
+        "note_zh": "Do you know…? 開頭比直接問路更客氣。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Foyles? Yes, carry on down here, take the second left, and it's on your right."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "複述確認：一直走、第二個左轉、在右手邊",
+        "answer": "So straight on, second left, and it's on the right?",
+        "accept": [
+          "So straight on, second left, and it's on the right?",
+          "Carry on, second left, then on my right — is that right?"
+        ],
+        "keywords": [
+          "second left",
+          "right"
+        ],
+        "note_zh": "複述一次確認，比事後迷路再問一次省事。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's it. It's about a five-minute walk, you can't miss it, it's a big blue sign."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "道謝並問附近有沒有咖啡店",
+        "answer": "Thanks so much. Is there a coffee shop nearby too?",
+        "accept": [
+          "Thanks so much. Is there a coffee shop nearby too?",
+          "Thank you. Any coffee shops around there?"
+        ],
+        "keywords": [
+          "thanks",
+          "coffee shop"
+        ],
+        "note_zh": "nearby 是「附近」，比 near here 精簡。"
+      },
+      {
+        "speaker": "partner",
+        "en": "There's one right next door, actually. Same building."
+      }
+    ]
+  },
+  {
+    "id": 32,
+    "title": "面試：談離職原因",
+    "category": "interview",
+    "difficulty": "hard",
+    "setting_zh": "面試官問你為什麼想離開現在的公司。",
+    "your_role_zh": "求職者",
+    "partner_role_zh": "面試官",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "So what's making you look to move on from your current role?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你在那裡學了很多，但已經沒有成長空間了",
+        "answer": "I've learned a lot there, but I've reached a point where there isn't much room to grow.",
+        "accept": [
+          "I've learned a lot there, but I've reached a point where there isn't much room to grow.",
+          "It's been a great learning experience, but there's limited room for growth now."
+        ],
+        "keywords": [
+          "learned",
+          "room to grow"
+        ],
+        "note_zh": "先肯定現職再說明原因，避免給人愛抱怨的印象。room to grow 是成長空間。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Have you raised that internally?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說有，但團隊規模小，短期內沒有相應的職缺",
+        "answer": "I have, but the team is small and there isn't a suitable role available in the near term.",
+        "accept": [
+          "I have, but the team is small and there isn't a suitable role available in the near term.",
+          "Yes, but it's a small team and no suitable position is opening up soon."
+        ],
+        "keywords": [
+          "team",
+          "role"
+        ],
+        "note_zh": "說明你已經先嘗試內部解決，顯示你不是遇到事情就跳槽。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's understandable. What would make this role different?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說這裡的產品規模更大，你想累積那種經驗",
+        "answer": "The scale here is much larger, and that's the kind of experience I want to build.",
+        "accept": [
+          "The scale here is much larger, and that's the kind of experience I want to build.",
+          "This product operates at a much bigger scale, which is exactly what I want to learn."
+        ],
+        "keywords": [
+          "scale",
+          "experience"
+        ],
+        "note_zh": "把離職原因連結到「這家公司能給什麼」，比單純抱怨舊東家有說服力。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Good answer. Scale is definitely the thing that would stretch you here."
+      }
+    ]
+  },
+  {
+    "id": 33,
+    "title": "面試：技術問題答不出來",
+    "category": "interview",
+    "difficulty": "hard",
+    "setting_zh": "面試官問了一個你不熟悉的技術問題。",
+    "your_role_zh": "求職者",
+    "partner_role_zh": "面試官",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "How would you approach optimising a query that's scanning millions of rows?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "坦白說你在這方面經驗有限，但可以說說你會怎麼著手",
+        "answer": "I'll be honest, my experience here is limited, but I can talk through how I'd approach it.",
+        "accept": [
+          "I'll be honest, my experience here is limited, but I can talk through how I'd approach it.",
+          "I haven't done much of this, but let me explain how I'd start."
+        ],
+        "keywords": [
+          "honest",
+          "approach"
+        ],
+        "note_zh": "承認不熟但展示思路，遠比硬掰或直接說不會好。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Please do, that's what I'm interested in."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你會先看執行計畫，找出哪一步最花時間",
+        "answer": "I'd start by looking at the execution plan to see which step is most expensive.",
+        "accept": [
+          "I'd start by looking at the execution plan to see which step is most expensive.",
+          "First I'd check the query plan to find the slowest step."
+        ],
+        "keywords": [
+          "execution plan",
+          "step"
+        ],
+        "note_zh": "expensive 在效能討論裡指「耗費資源」，不是價格貴。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Good. And if it turned out to be a missing index?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說會加索引，但也要考慮寫入變慢的代價",
+        "answer": "I'd add one, but I'd also weigh up the cost to write performance.",
+        "accept": [
+          "I'd add one, but I'd also weigh up the cost to write performance.",
+          "Add an index, though it would need balancing against slower writes."
+        ],
+        "keywords": [
+          "add",
+          "write performance"
+        ],
+        "note_zh": "weigh up 是權衡；能主動指出取捨代表你想過實務問題。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's exactly the trade-off I wanted you to mention. Thanks."
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "title": "跟同事討論分工",
+    "category": "work",
+    "difficulty": "medium",
+    "setting_zh": "新專案開始，你跟同事討論怎麼分工。",
+    "your_role_zh": "你",
+    "partner_role_zh": "同事",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "So how do you want to split this up?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "提議你做後端，對方做前端，介面規格一起先定好",
+        "answer": "How about I take the backend and you take the frontend, and we agree the interface together first?",
+        "accept": [
+          "How about I take the backend and you take the frontend, and we agree the interface together first?",
+          "I could do backend, you do frontend, and we define the interface together upfront."
+        ],
+        "keywords": [
+          "backend",
+          "frontend",
+          "interface"
+        ],
+        "note_zh": "How about + 子句 是提議的輕鬆句型。upfront 是「一開始就」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Works for me. Should we write the API contract before either of us starts?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "同意，並說這樣兩邊可以同時進行",
+        "answer": "Yes, that way we can work in parallel.",
+        "accept": [
+          "Yes, that way we can work in parallel.",
+          "Agreed, then we're not blocking each other."
+        ],
+        "keywords": [
+          "parallel"
+        ],
+        "note_zh": "work in parallel 是同時進行；block someone 是擋住別人的進度。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Great. I'll draft it this afternoon and share it with you."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你會在明天中午前給回饋",
+        "answer": "I'll get you comments by midday tomorrow.",
+        "accept": [
+          "I'll get you comments by midday tomorrow.",
+          "I'll review it and comment before noon tomorrow."
+        ],
+        "keywords": [
+          "comments",
+          "tomorrow"
+        ],
+        "note_zh": "主動承諾具體時間，協作起來對方比較好安排。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Perfect. Then we can both start properly on Thursday."
+      }
+    ]
+  },
+  {
+    "id": 35,
+    "title": "郵局寄掛號",
+    "category": "travel",
+    "difficulty": "easy",
+    "setting_zh": "你要寄一份重要文件，需要掛號。",
+    "your_role_zh": "寄件人",
+    "partner_role_zh": "櫃檯人員",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Next please. What can I do for you?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你要用掛號寄這份文件",
+        "answer": "I'd like to send this by recorded delivery, please.",
+        "accept": [
+          "I'd like to send this by recorded delivery, please.",
+          "Could I send this as registered post?"
+        ],
+        "keywords": [
+          "send",
+          "delivery"
+        ],
+        "note_zh": "英式 recorded delivery，美式 certified mail，都是可追蹤的掛號。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Certainly. Does it need to arrive by a particular date?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說必須在星期五之前送到",
+        "answer": "It needs to get there before Friday.",
+        "accept": [
+          "It needs to get there before Friday.",
+          "It has to arrive by Friday at the latest."
+        ],
+        "keywords": [
+          "Friday"
+        ],
+        "note_zh": "at the latest 是「最晚」，強調期限時很好用。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Next-day guaranteed would cover that. It's eight fifty."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說可以，並問怎麼追蹤",
+        "answer": "That's fine. How do I track it?",
+        "accept": [
+          "That's fine. How do I track it?",
+          "Sounds good. How can I track the delivery?"
+        ],
+        "keywords": [
+          "track"
+        ],
+        "note_zh": "track 是追蹤包裹；tracking number 是查詢編號。"
+      },
+      {
+        "speaker": "partner",
+        "en": "There's a reference on your receipt. Just enter that on our website."
+      }
+    ]
+  },
+  {
+    "id": 36,
+    "title": "跟教練討論訓練計畫",
+    "category": "daily",
+    "difficulty": "medium",
+    "setting_zh": "你第一次到健身房，跟教練討論目標。",
+    "your_role_zh": "學員",
+    "partner_role_zh": "教練",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "So what are you hoping to get out of this?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你主要想改善體力，不是想練肌肉",
+        "answer": "Mainly I want to build up my stamina rather than bulk up.",
+        "accept": [
+          "Mainly I want to build up my stamina rather than bulk up.",
+          "I'm more interested in fitness than building muscle."
+        ],
+        "keywords": [
+          "stamina"
+        ],
+        "note_zh": "stamina 是耐力；bulk up 是增肌，兩個目標的訓練方式差很多。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Good to know. How many days a week can you realistically commit to?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說平日大概三次，每次一小時",
+        "answer": "Realistically three times a week, about an hour each time.",
+        "accept": [
+          "Realistically three times a week, about an hour each time.",
+          "Probably three sessions a week, an hour each."
+        ],
+        "keywords": [
+          "three times",
+          "hour"
+        ],
+        "note_zh": "realistically 是「實際上做得到的」，講計畫時比 ideally 誠實。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's plenty. Any injuries or conditions I should know about?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你左邊膝蓋以前受過傷，蹲的時候會痛",
+        "answer": "I injured my left knee a while back, and it hurts when I squat.",
+        "accept": [
+          "I injured my left knee a while back, and it hurts when I squat.",
+          "I had a left knee injury before, and squatting still hurts."
+        ],
+        "keywords": [
+          "knee",
+          "squat"
+        ],
+        "note_zh": "a while back 是「之前一段時間」；受傷史一定要主動說。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Right, we'll avoid deep squats and work on that gradually. Let's start light."
+      }
+    ]
+  },
+  {
+    "id": 37,
+    "title": "孩子學校老師面談",
+    "category": "daily",
+    "difficulty": "hard",
+    "setting_zh": "你參加孩子的家長會，跟老師談。",
+    "your_role_zh": "家長",
+    "partner_role_zh": "老師",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Thanks for coming in. Overall she's doing well, particularly in maths."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說很高興聽到，但你擔心她的閱讀",
+        "answer": "That's good to hear. I'm a bit concerned about her reading, though.",
+        "accept": [
+          "That's good to hear. I'm a bit concerned about her reading, though.",
+          "Glad to hear it. I do worry about her reading though."
+        ],
+        "keywords": [
+          "concerned",
+          "reading"
+        ],
+        "note_zh": "be concerned about 比 worry about 冷靜一點，適合正式場合。"
+      },
+      {
+        "speaker": "partner",
+        "en": "You're right that it's her weaker area. She's about six months behind where I'd expect."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "問在家裡可以怎麼幫她",
+        "answer": "What can we do at home to support her?",
+        "accept": [
+          "What can we do at home to support her?",
+          "How can we help her at home?"
+        ],
+        "keywords": [
+          "home",
+          "support"
+        ],
+        "note_zh": "support 在教育語境是「協助、支持」，比 help 正式。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Twenty minutes of reading together every day makes a big difference. Let her choose the book."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "問要不要考慮額外的補救教學",
+        "answer": "Would it be worth arranging some extra support as well?",
+        "accept": [
+          "Would it be worth arranging some extra support as well?",
+          "Should we consider additional tutoring too?"
+        ],
+        "keywords": [
+          "worth",
+          "support"
+        ],
+        "note_zh": "Would it be worth…? 是徵詢建議時很得體的句型。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Let's try the daily reading first and review at the end of term."
+      }
+    ]
+  },
+  {
+    "id": 38,
+    "title": "跟客服爭取退款",
+    "category": "daily",
+    "difficulty": "hard",
+    "setting_zh": "你買的線上課程內容跟描述不符，想申請退款。",
+    "your_role_zh": "顧客",
+    "partner_role_zh": "客服",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "I can see your order here. What seems to be the issue?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說課程內容跟網頁上寫的不一樣，缺少實作單元",
+        "answer": "The course doesn't match the description. The practical modules that were advertised aren't there.",
+        "accept": [
+          "The course doesn't match the description. The practical modules that were advertised aren't there.",
+          "The content differs from what was advertised. The hands-on modules are missing."
+        ],
+        "keywords": [
+          "match",
+          "description"
+        ],
+        "note_zh": "doesn't match the description 是消費爭議的關鍵句，advertised 是「廣告上宣稱的」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I see. Unfortunately our policy is no refunds after fourteen days."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你理解政策，但這是內容與描述不符，不是你改變心意",
+        "answer": "I understand the policy, but this isn't a change of mind — the product isn't as described.",
+        "accept": [
+          "I understand the policy, but this isn't a change of mind — the product isn't as described.",
+          "I appreciate the policy, but the issue is misdescription, not buyer's remorse."
+        ],
+        "keywords": [
+          "policy",
+          "described"
+        ],
+        "note_zh": "區分「反悔」與「貨不對版」，是爭取退款最有力的角度。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Let me check with my supervisor. Could you point to which modules are missing?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你已經把網頁截圖和課程目錄寄過去了",
+        "answer": "I've already emailed screenshots of the sales page alongside the actual syllabus.",
+        "accept": [
+          "I've already emailed screenshots of the sales page alongside the actual syllabus.",
+          "I sent over screenshots comparing the advert with the real course outline."
+        ],
+        "keywords": [
+          "screenshots",
+          "syllabus"
+        ],
+        "note_zh": "alongside 是「與…並列」；提供對照證據能大幅提高成功率。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's very helpful. Given the discrepancy, I can authorise a full refund."
+      }
+    ]
+  },
+  {
+    "id": 39,
+    "title": "第一次帶新人",
+    "category": "work",
+    "difficulty": "medium",
+    "setting_zh": "你負責帶一位新進同事，第一次一對一。",
+    "your_role_zh": "資深同事",
+    "partner_role_zh": "新人",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Thanks for taking the time. I'm still trying to work out where to start."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說第一週不用急著產出，先熟悉環境就好",
+        "answer": "Don't worry about output in the first week. Just focus on getting familiar with things.",
+        "accept": [
+          "Don't worry about output in the first week. Just focus on getting familiar with things.",
+          "There's no pressure to deliver in week one. Focus on finding your feet."
+        ],
+        "keywords": [
+          "first week",
+          "familiar"
+        ],
+        "note_zh": "find your feet 是「進入狀況」，帶新人時很常說。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That helps. Is there anything I should read first?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "建議先看架構文件，其他等實際碰到再查",
+        "answer": "Start with the architecture doc. The rest you can look up when you actually hit it.",
+        "accept": [
+          "Start with the architecture doc. The rest you can look up when you actually hit it.",
+          "Read the architecture overview first; look up the rest as you need it."
+        ],
+        "keywords": [
+          "architecture",
+          "look up"
+        ],
+        "note_zh": "look something up 是查資料；hit 在這裡是「實際遇到」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Got it. And if I get stuck, how long should I try before asking?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說卡超過三十分鐘就直接問，不要自己撐",
+        "answer": "If you're stuck for more than thirty minutes, just ask. Don't struggle on alone.",
+        "accept": [
+          "If you're stuck for more than thirty minutes, just ask. Don't struggle on alone.",
+          "Anything over thirty minutes stuck, come and ask. No need to suffer through it."
+        ],
+        "keywords": [
+          "stuck",
+          "thirty minutes"
+        ],
+        "note_zh": "給出明確的時間界線，新人才不會不敢問或問太快。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's really useful, thanks. I'll take you up on that."
+      }
+    ]
+  },
+  {
+    "id": 40,
+    "title": "專案回顧會議",
+    "category": "work",
+    "difficulty": "hard",
+    "setting_zh": "專案結束後的檢討會議，主持人請大家發言。",
+    "your_role_zh": "團隊成員",
+    "partner_role_zh": "主持人",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Let's start with what went well. Anyone want to kick off?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說每日站會很有效，問題都能很快浮現",
+        "answer": "The daily standups worked well. Problems surfaced much earlier than usual.",
+        "accept": [
+          "The daily standups worked well. Problems surfaced much earlier than usual.",
+          "Standups were effective — issues came up early rather than late."
+        ],
+        "keywords": [
+          "standups",
+          "earlier"
+        ],
+        "note_zh": "surface 當動詞是「浮現」，講問題被發現時很貼切。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Good. And what didn't go so well?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說需求變動太頻繁，而且沒有正式的記錄",
+        "answer": "Requirements changed too often, and the changes weren't formally recorded.",
+        "accept": [
+          "Requirements changed too often, and the changes weren't formally recorded.",
+          "The requirements kept shifting and there was no formal record of the changes."
+        ],
+        "keywords": [
+          "requirements",
+          "recorded"
+        ],
+        "note_zh": "檢討時對事不對人，講「流程沒有記錄」而不是「某某人一直改」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That came up from others too. What would you change next time?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "提議任何需求變動都要寫進單子並重新估時",
+        "answer": "Any change should go into a ticket and trigger a re-estimate.",
+        "accept": [
+          "Any change should go into a ticket and trigger a re-estimate.",
+          "Changes should be ticketed and the estimate revisited each time."
+        ],
+        "keywords": [
+          "change",
+          "ticket"
+        ],
+        "note_zh": "trigger 在這裡是「觸發某個流程」；提出可執行的做法比抱怨有用。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I'll write that up as an action. Thanks, that's concrete."
+      }
+    ]
+  },
+  {
+    "id": 41,
+    "title": "跟廠商討價還價",
+    "category": "work",
+    "difficulty": "hard",
+    "setting_zh": "你在跟一家供應商談年度合約價格。",
+    "your_role_zh": "採購",
+    "partner_role_zh": "業務",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "So the quote comes to forty-eight thousand for the year."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說這超出你們的預算不少",
+        "answer": "That's some way above the budget we've set aside.",
+        "accept": [
+          "That's some way above the budget we've set aside.",
+          "That's considerably more than we've budgeted for."
+        ],
+        "keywords": [
+          "above",
+          "budget"
+        ],
+        "note_zh": "some way above 是「高出不少」，比 too expensive 專業。set aside 是預留。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I appreciate that. What figure were you working towards?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說四萬左右，並問如果簽兩年有沒有空間",
+        "answer": "Around forty. Is there any flexibility if we commit to two years?",
+        "accept": [
+          "Around forty. Is there any flexibility if we commit to two years?",
+          "Closer to forty. Would a two-year commitment change anything?"
+        ],
+        "keywords": [
+          "flexibility",
+          "two years"
+        ],
+        "note_zh": "flexibility 是「有沒有談的空間」；用長約換折扣是常見手法。"
+      },
+      {
+        "speaker": "partner",
+        "en": "A two-year deal I could probably do at forty-three. Not forty, I'm afraid."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說四十三可以考慮，但希望包含教育訓練",
+        "answer": "Forty-three could work if training is included.",
+        "accept": [
+          "Forty-three could work if training is included.",
+          "I could accept forty-three provided training comes with it."
+        ],
+        "keywords": [
+          "work",
+          "training"
+        ],
+        "note_zh": "價格談不下來就談附加價值，這是談判的基本功。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Two training days included. Let's shake on that and I'll draft the contract."
+      }
+    ]
+  },
+  {
+    "id": 42,
+    "title": "訂租車",
+    "category": "travel",
+    "difficulty": "medium",
+    "setting_zh": "你在租車櫃檯辦理取車。",
+    "your_role_zh": "租車人",
+    "partner_role_zh": "櫃檯人員",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Morning. Do you have your booking reference and driving licence?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說都帶了，並確認保險是不是已經含在裡面",
+        "answer": "Yes, both here. Can I check whether insurance is already included?",
+        "accept": [
+          "Yes, both here. Can I check whether insurance is already included?",
+          "Here you go. Is the insurance included in the booking?"
+        ],
+        "keywords": [
+          "insurance",
+          "included"
+        ],
+        "note_zh": "租車最容易吃虧的就是保險，一定要當場問清楚。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Basic cover is included, but the excess is twelve hundred. You can reduce that for fifteen a day."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說先不用，並問油箱的規則是什麼",
+        "answer": "I'll leave it, thanks. What's the fuel policy?",
+        "accept": [
+          "I'll leave it, thanks. What's the fuel policy?",
+          "No thanks. How does the fuel policy work?"
+        ],
+        "keywords": [
+          "fuel policy"
+        ],
+        "note_zh": "fuel policy 是油箱規則，full-to-full 是滿油取車滿油還車。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Full to full. Bring it back with a full tank or we charge at our own rate."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "問還車晚一點會怎麼樣",
+        "answer": "What happens if I return it slightly late?",
+        "accept": [
+          "What happens if I return it slightly late?",
+          "Is there a grace period for returning it late?"
+        ],
+        "keywords": [
+          "return",
+          "late"
+        ],
+        "note_zh": "grace period 是寬限時間，租車、繳費都會用到。"
+      },
+      {
+        "speaker": "partner",
+        "en": "There's a thirty-minute grace period, after that it's charged as an extra day."
+      }
+    ]
+  },
+  {
+    "id": 43,
+    "title": "在國外看急診",
+    "category": "travel",
+    "difficulty": "hard",
+    "setting_zh": "你在旅途中扭傷腳踝，到急診室掛號。",
+    "your_role_zh": "病人",
+    "partner_role_zh": "護理師",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Take a seat. Can you tell me what happened?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你大概一小時前走樓梯時扭到右腳踝",
+        "answer": "I twisted my right ankle on some stairs about an hour ago.",
+        "accept": [
+          "I twisted my right ankle on some stairs about an hour ago.",
+          "I rolled my right ankle going down stairs roughly an hour ago."
+        ],
+        "keywords": [
+          "twisted",
+          "ankle"
+        ],
+        "note_zh": "twist an ankle 是扭到腳踝；美式口語也說 roll an ankle。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Can you put any weight on it?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說可以站但很痛，而且腫起來了",
+        "answer": "I can stand, but it's very painful and it's swollen.",
+        "accept": [
+          "I can stand, but it's very painful and it's swollen.",
+          "I can put some weight on it, but it hurts a lot and there's swelling."
+        ],
+        "keywords": [
+          "painful",
+          "swollen"
+        ],
+        "note_zh": "swollen 是腫脹的形容詞，名詞是 swelling。put weight on 是「用力踩」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "We'll need an X-ray to rule out a fracture. Do you have travel insurance?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說有，保單號碼在手機裡，問要不要現在提供",
+        "answer": "Yes, I have the policy number on my phone. Do you need it now?",
+        "accept": [
+          "Yes, I have the policy number on my phone. Do you need it now?",
+          "I do — the policy number's on my phone. Shall I give it to you now?"
+        ],
+        "keywords": [
+          "policy number"
+        ],
+        "note_zh": "policy number 是保單號碼；出國前務必存在手機裡。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Please, and any emergency contact number as well. Then we'll get you booked in for the X-ray."
+      }
+    ]
+  },
+  {
+    "id": 44,
+    "title": "面試：談團隊衝突",
+    "category": "interview",
+    "difficulty": "hard",
+    "setting_zh": "面試官問你怎麼處理團隊裡的意見不合。",
+    "your_role_zh": "求職者",
+    "partner_role_zh": "面試官",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Tell me about a time you disagreed with a colleague. How did you handle it?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你曾經跟同事對測試策略有不同看法",
+        "answer": "A colleague and I disagreed about our testing strategy.",
+        "accept": [
+          "A colleague and I disagreed about our testing strategy.",
+          "I had a disagreement with a teammate over how we should approach testing."
+        ],
+        "keywords": [
+          "disagreed",
+          "testing"
+        ],
+        "note_zh": "先講清楚爭議是「什麼事」，不要一開始就講人。"
+      },
+      {
+        "speaker": "partner",
+        "en": "What was the substance of the disagreement?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說他想要完整的端對端測試，你認為單元測試投報率更高",
+        "answer": "He wanted full end-to-end coverage, and I thought unit tests gave better value for the effort.",
+        "accept": [
+          "He wanted full end-to-end coverage, and I thought unit tests gave better value for the effort.",
+          "He preferred end-to-end tests; I felt unit tests were a better return on effort."
+        ],
+        "keywords": [
+          "end-to-end",
+          "unit tests"
+        ],
+        "note_zh": "value for the effort 是投報率的口語說法。"
+      },
+      {
+        "speaker": "partner",
+        "en": "And how was it resolved?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你們挑一個模組兩種都試，用數據決定",
+        "answer": "We picked one module, tried both approaches, and let the data decide.",
+        "accept": [
+          "We picked one module, tried both approaches, and let the data decide.",
+          "We trialled both on a single module and used the results to decide."
+        ],
+        "keywords": [
+          "both",
+          "data"
+        ],
+        "note_zh": "let the data decide 是用證據取代爭辯，面試官很喜歡這種答案。"
+      },
+      {
+        "speaker": "partner",
+        "en": "That's a mature way to handle it. What did the data show, out of curiosity?"
+      }
+    ]
+  },
+  {
+    "id": 45,
+    "title": "面試：談加班文化",
+    "category": "interview",
+    "difficulty": "hard",
+    "setting_zh": "面試進入反問階段，你想了解工作與生活的平衡。",
+    "your_role_zh": "求職者",
+    "partner_role_zh": "面試官",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Anything else you'd like to know?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "問團隊平常的工作時間大概是什麼樣子",
+        "answer": "Could you tell me what the typical working hours look like for the team?",
+        "accept": [
+          "Could you tell me what the typical working hours look like for the team?",
+          "What do working hours usually look like here?"
+        ],
+        "keywords": [
+          "working hours",
+          "team"
+        ],
+        "note_zh": "用 typical 而非 how much overtime，語氣比較中性，不像在防備。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Most people are nine to six. It gets busier close to releases, I won't pretend otherwise."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "問那種比較忙的期間大概多久發生一次",
+        "answer": "How often do those busier periods come around?",
+        "accept": [
+          "How often do those busier periods come around?",
+          "And how frequently does that happen?"
+        ],
+        "keywords": [
+          "how often"
+        ],
+        "note_zh": "come around 是「週期性出現」，追問頻率才知道那是常態還是偶爾。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Roughly every six weeks, and usually just the final few days."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說這聽起來合理，並問那段期間之後有沒有調整時間",
+        "answer": "That sounds reasonable. Is there any time off in lieu afterwards?",
+        "accept": [
+          "That sounds reasonable. Is there any time off in lieu afterwards?",
+          "That seems fair. Do people take time back afterwards?"
+        ],
+        "keywords": [
+          "reasonable",
+          "time off"
+        ],
+        "note_zh": "time off in lieu（TOIL）是加班後的補休，英國職場常見說法。"
+      },
+      {
+        "speaker": "partner",
+        "en": "We're fairly relaxed about people taking a day back the week after. It's not formally tracked."
+      }
+    ]
+  },
+  {
+    "id": 46,
+    "title": "跟同事約午餐",
+    "category": "work",
+    "difficulty": "easy",
+    "setting_zh": "你想約同事一起吃午餐。",
+    "your_role_zh": "你",
+    "partner_role_zh": "同事",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Morning! You look like you need a coffee."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "笑著同意，並問對方中午有沒有空一起吃飯",
+        "answer": "Definitely. Are you free for lunch later?",
+        "accept": [
+          "Definitely. Are you free for lunch later?",
+          "I really do. Fancy grabbing lunch later?"
+        ],
+        "keywords": [
+          "free",
+          "lunch"
+        ],
+        "note_zh": "Fancy + V-ing 是英式的邀約說法，很自然。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I've got a call at twelve thirty, but I could do one o'clock?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說一點可以，問想吃什麼",
+        "answer": "One works for me. Anywhere you fancy?",
+        "accept": [
+          "One works for me. Anywhere you fancy?",
+          "One o'clock's fine. Where do you fancy going?"
+        ],
+        "keywords": [
+          "works",
+          "fancy"
+        ],
+        "note_zh": "That works for me 是同意安排；fancy 當動詞是「想要」。"
+      },
+      {
+        "speaker": "partner",
+        "en": "There's a new noodle place two streets over. Supposed to be good."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說聽起來不錯，約在一樓大廳碰面",
+        "answer": "Sounds good. Shall we meet in the lobby?",
+        "accept": [
+          "Sounds good. Shall we meet in the lobby?",
+          "Great, let's meet downstairs in the lobby."
+        ],
+        "keywords": [
+          "meet",
+          "lobby"
+        ],
+        "note_zh": "Shall we…? 是提議一起做某事的英式說法。"
+      },
+      {
+        "speaker": "partner",
+        "en": "See you there at one."
+      }
+    ]
+  },
+  {
+    "id": 47,
+    "title": "投訴飯店房間問題",
+    "category": "travel",
+    "difficulty": "medium",
+    "setting_zh": "你入住後發現房間有問題，到櫃檯反映。",
+    "your_role_zh": "房客",
+    "partner_role_zh": "櫃檯人員",
+    "turns": [
+      {
+        "speaker": "partner",
+        "en": "Good evening, how can I help?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說你住 512 房，冷氣好像不會冷",
+        "answer": "I'm in room five one two, and the air conditioning doesn't seem to be cooling.",
+        "accept": [
+          "I'm in room five one two, and the air conditioning doesn't seem to be cooling.",
+          "Room five twelve — the air con isn't cooling properly."
+        ],
+        "keywords": [
+          "air conditioning",
+          "cooling"
+        ],
+        "note_zh": "doesn't seem to be 語氣比 is broken 委婉，留了對方解釋的空間。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I'm sorry about that. Have you tried adjusting it on the wall panel?"
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說試過了，設到最低還是沒有變化",
+        "answer": "I have — I set it to the lowest and nothing changed.",
+        "accept": [
+          "I have — I set it to the lowest and nothing changed.",
+          "Yes, I turned it all the way down but it made no difference."
+        ],
+        "keywords": [
+          "lowest",
+          "changed"
+        ],
+        "note_zh": "先講已經試過什麼，可以避免對方再叫你做一次。"
+      },
+      {
+        "speaker": "partner",
+        "en": "I'll send maintenance up. If they can't fix it we'll move you."
+      },
+      {
+        "speaker": "you",
+        "intent_zh": "說如果要換房，希望是同樣安靜的樓層",
+        "answer": "If we do move, could it be on a similarly quiet floor?",
+        "accept": [
+          "If we do move, could it be on a similarly quiet floor?",
+          "If you move us, I'd prefer a similarly quiet floor."
+        ],
+        "keywords": [
+          "move",
+          "quiet"
+        ],
+        "note_zh": "先提出條件，比換完房才抱怨有效率。"
+      },
+      {
+        "speaker": "partner",
+        "en": "Noted. I'll make sure it's away from the lifts and the road."
+      }
+    ]
   }
 ]

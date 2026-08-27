@@ -4,7 +4,7 @@
 
 | 模式 | 內容 |
 |---|---|
-| 🗂️ **單字卡** | 40 張單字卡，Leitner 間隔重複排程 |
+| 🗂️ **單字卡** | **10,040 字** —— 40 張手寫精選（含例句）+ 10,000 字依詞頻分成 10 個級距 |
 | 🎧 **聽力** | 10 組情境短文 + 28 道英文理解測驗，用瀏覽器 TTS 朗讀 |
 | ✍️ **中翻英** | 20 題，10 題句中填空 + 10 題整句翻譯 |
 | 💬 **情境對話** | 6 段角色扮演，19 句你的台詞；對方由 TTS 扮演 |
@@ -176,7 +176,10 @@ english_speaking/
 ├── package.json
 ├── content/              # 靜態學習內容（開發時寫好，非執行期生成）
 │   ├── sentences.json    # 27 句跟讀練習句
-│   ├── vocabulary.json   # 40 張單字卡
+│   ├── vocabulary/       # 單字庫（拆檔，App 只載入目前練的那組）
+│   │   ├── index.json    # 牌組目錄
+│   │   ├── curated.json  # 40 張手寫精選（含例句與發音提示）
+│   │   └── band-01…10.json  # 依詞頻分級，各 1,000 字
 │   ├── listening.json    # 10 組聽力題（題目與選項為英文，解析為中文）
 │   ├── translation.json  # 20 題中翻英（填空 + 整句）
 │   └── dialogues.json    # 6 段情境對話
@@ -210,6 +213,35 @@ english_speaking/
 模式是動態 `import()` 進來的，切到哪個才載入哪個。
 
 ### 三種模式
+
+### 單字庫怎麼來的
+
+10,000 字不是手寫的 —— 手寫到那個量級品質一定會崩。改成用
+[ECDICT](https://github.com/skywind3000/ECDICT)（MIT 授權，約 77 萬筆英漢詞條，
+含 IPA、中文釋義、詞性與語料庫詞頻）在**建置期**產生：
+
+```bash
+npm run build:vocabulary          # 自動下載 63 MB 原始資料
+npm run build:vocabulary -- --total 3000 --band 500   # 也可以改字數與級距大小
+```
+
+`scripts/build-vocabulary.mjs` 做的事，每一項都是實際比對資料後才加上去的：
+
+- **簡體轉台灣正體**（`opencc-js` 的 `twp`，會一併轉詞彙，例如 想象→想像）
+- **音標正規化** —— ECDICT 混用了非 IPA 字元：`ә` 是西里爾字母不是 IPA schwa、
+  `^` 其實是 `ɡ`（`exactly=/i^'zæktli/`）、`\` 是 `ɜ`、`'`→`ˈ`、`:`→`ː`、`.`→`ˌ`；
+  `;` 分隔的英美讀法只取第一種
+- **去掉釋義開頭重複的詞性**（詞性另有欄位顯示）
+- **難度依詞頻分級**，考試標籤只用來把國高中詞往下調 ——
+  一開始讓標籤蓋過詞頻，結果 `poster` 被標成 hard，明顯不合理
+- **濾掉功能詞與介系詞** —— `the / of / in / to` 當單字卡沒有學習價值，
+  卻會占掉最前面幾十張
+
+> **關於 10,000 這個數字：** 詞彙覆蓋率的研究大致是 2,000–3,000 個詞族
+> 就覆蓋日常口語約 95%、5,000 約 98%。以「能進行日常對話」為目標的話，
+> 2,000–3,000 才是對應的量，10,000 已接近母語者的閱讀詞彙量。
+> 所以單字庫**依詞頻排序並分成 10 個級距**，從第一級距練起就是最有效率的路徑；
+> 想縮小範圍也可以用 `--total 3000` 重新產生。
 
 **單字卡** 用 Leitner 盒子制做間隔重複：答對往上一盒、間隔拉長（1 → 3 → 7 → 21 天），
 答錯直接回第 1 盒。排程存在 `localStorage`。用盒子制而不是 SM-2，是因為行為好預測、
@@ -252,7 +284,8 @@ english_speaking/
 | 方法 | 路徑 | 說明 |
 |---|---|---|
 | GET | `/api/health` | 回 `{ ok, azureConfigured, geminiConfigured }` |
-| GET | `/api/content/:name` | `sentences` / `vocabulary` / `listening` / `translation` / `dialogues` |
+| GET | `/api/content/:name` | `sentences` / `listening` / `translation` / `dialogues` |
+| GET | `/api/vocabulary/:file` | `index.json` / `curated.json` / `band-NN.json`（檔名有白名單，擋路徑穿越）|
 | GET | `/api/settings` | 金鑰設定狀態（**遮蔽過**，只回是否已設定與末四碼）|
 | POST | `/api/settings` | 更新金鑰，寫進 `.env` |
 | GET | `/api/sentences` | 舊路徑，307 轉址到 `/api/content/sentences` |

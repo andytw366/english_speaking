@@ -769,3 +769,59 @@ body {
   padding: 0.1rem;
 }
 .bubble__play:hover { opacity: 1; }
+
+/* ─── 單字牌組選擇 ─────────────────────────────────────────────────────── */
+.deckbar {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.deckbar__label { font-weight: 600; }
+.deckbar__count {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.deckbar .btn { margin-left: auto; }
+
+.decklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.9rem 0;
+}
+.deckitem {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.6rem;
+  text-align: left;
+  font: inherit;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.deckitem:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.deckitem--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.deckitem__label { font-weight: 600; font-size: 0.95rem; }
+.deckitem__count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.deckitem__note {
+  grid-column: 1 / -1;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.vocab__def {
+  margin: 0 0 0.7rem;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  font-style: italic;
+}

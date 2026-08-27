@@ -31,22 +31,32 @@ export function getSrsState() {
   return read('srs', {});
 }
 
-export function getCardState(id) {
-  return getSrsState()[id] ?? { box: 1, due: 0, seen: 0, correct: 0 };
+/**
+ * 每張卡的 SRS 鍵。不同牌組的 id 會重複（精選第 1 張與第一級距第 1 張都是 id 1），
+ * 所以要用牌組名稱做前綴，否則兩張不同的卡會共用同一份複習進度。
+ */
+export function srsKeyOf(card) {
+  return card.srsKey ?? String(card.id);
 }
 
-export function recordAnswer(id, wasCorrect) {
+export function getCardState(card) {
+  const key = typeof card === 'object' ? srsKeyOf(card) : String(card);
+  return getSrsState()[key] ?? { box: 1, due: 0, seen: 0, correct: 0 };
+}
+
+export function recordAnswer(card, wasCorrect) {
+  const key = typeof card === 'object' ? srsKeyOf(card) : String(card);
   const all = getSrsState();
-  const prev = all[id] ?? { box: 1, due: 0, seen: 0, correct: 0 };
+  const prev = all[key] ?? { box: 1, due: 0, seen: 0, correct: 0 };
   const box = wasCorrect ? Math.min(prev.box + 1, BOX_INTERVAL_DAYS.length) : 1;
-  all[id] = {
+  all[key] = {
     box,
     due: Date.now() + BOX_INTERVAL_DAYS[box - 1] * DAY_MS,
     seen: prev.seen + 1,
     correct: prev.correct + (wasCorrect ? 1 : 0),
   };
   write('srs', all);
-  return all[id];
+  return all[key];
 }
 
 /**
@@ -59,7 +69,7 @@ export function buildQueue(cards) {
   const fresh = [];
 
   for (const card of cards) {
-    const s = state[card.id];
+    const s = state[srsKeyOf(card)];
     if (!s) fresh.push(card);
     else if (s.due <= now) due.push({ card, due: s.due });
   }
@@ -76,7 +86,7 @@ export function srsSummary(cards) {
   let mastered = 0;
 
   for (const card of cards) {
-    const s = state[card.id];
+    const s = state[srsKeyOf(card)];
     if (!s) { fresh++; continue; }
     if (s.due <= now) due++;
     if (s.box >= BOX_INTERVAL_DAYS.length) mastered++;

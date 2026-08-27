@@ -11,6 +11,7 @@ export const DEFAULTS = {
   difficulties: [],      // 空陣列 = 全部
   translationType: 'all',// all | cloze | sentence
   autoPlayListening: false,
+  vocabDeck: 'curated',  // 目前選的單字牌組
 };
 
 let cache = null;

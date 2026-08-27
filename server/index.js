@@ -45,11 +45,29 @@ app.get('/api/health', (req, res) => {
 // 執行期少一個失敗點，也不必為了出題付 API 費用。
 const CONTENT_FILES = {
   sentences: 'sentences.json',
-  vocabulary: 'vocabulary.json',
   listening: 'listening.json',
   translation: 'translation.json',
   dialogues: 'dialogues.json',
 };
+
+// 單字庫拆成多個檔案（精選 + 依詞頻分級的 10 個級距），
+// 讓 App 只載入目前要練的那一組，不用一次吃下 3 MB。
+const VOCAB_DIR = path.join(ROOT, 'content', 'vocabulary');
+
+app.get('/api/vocabulary/:file', (req, res, next) => {
+  const name = req.params.file;
+  // 只允許已知的檔名形態，避免路徑穿越
+  if (!/^(index|curated|band-\d{2})\.json$/.test(name)) {
+    return res.status(404).json({
+      error: 'unknown_deck',
+      message: `找不到「${name}」這組單字。`,
+    });
+  }
+  fs.promises
+    .readFile(path.join(VOCAB_DIR, name), 'utf8')
+    .then((raw) => res.type('application/json').send(raw))
+    .catch(next);
+});
 
 app.get('/api/content/:name', (req, res, next) => {
   const file = CONTENT_FILES[req.params.name];

@@ -40,12 +40,30 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/sentences', (req, res, next) => {
+// 靜態學習內容。題目與例句是開發時寫好的靜態檔，不做執行期 AI 生成 ——
+// 執行期少一個失敗點，也不必為了出題付 API 費用。
+const CONTENT_FILES = {
+  sentences: 'sentences.json',
+  vocabulary: 'vocabulary.json',
+  listening: 'listening.json',
+};
+
+app.get('/api/content/:name', (req, res, next) => {
+  const file = CONTENT_FILES[req.params.name];
+  if (!file) {
+    return res.status(404).json({
+      error: 'unknown_content',
+      message: `找不到「${req.params.name}」這份學習內容。`,
+    });
+  }
   fs.promises
-    .readFile(path.join(ROOT, 'sentences.json'), 'utf8')
+    .readFile(path.join(ROOT, 'content', file), 'utf8')
     .then((raw) => res.type('application/json').send(raw))
     .catch(next);
 });
+
+// 舊路徑保留，避免既有連結壞掉
+app.get('/api/sentences', (req, res) => res.redirect(307, '/api/content/sentences'));
 
 app.post(
   '/api/pronunciation-feedback',

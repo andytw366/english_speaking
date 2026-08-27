@@ -1,21 +1,21 @@
-# 英語口說練習 App（speaking-coach）
+# 英語學習練習 App
 
-本機執行的網頁 App：顯示英文練習句 → 聽示範發音 → 錄下自己唸的版本 →
-Azure Speech 給客觀的逐音素發音評分，Gemini 把分數翻成繁體中文的教練建議。
+本機執行的網頁 App，三種練習模式：
 
-**目前進度：階段 1～4 完成，並已接上 Azure Speech 發音評估。**
+| 模式 | 內容 |
+|---|---|
+| 🗂️ **單字卡** | 40 張單字卡，Leitner 間隔重複排程 |
+| 🎧 **聽力** | 10 組情境短文 + 28 道理解測驗，用瀏覽器 TTS 朗讀 |
+| 🗣️ **跟讀** | 27 句練習句，聽示範 → 錄音 → 比對；可選用 AI 發音評分 |
 
-發音評估現在由 **Azure Speech** 提供客觀的逐音素分數，**Gemini** 只負責把那些數字
-翻譯成中文教練建議。兩者都是選填 —— 只設定 Azure 也能用（講評改用本地摘要），
-只設定 Gemini 也能用（退回主觀評分）。
+**題目與例句都是預先寫好的靜態檔**（`content/`），執行期不做 AI 生成 ——
+少一個失敗點，也不必為了出題付 API 費用。
 
-> ⚠️ **Azure 的實際呼叫尚未端對端測過。** 開發環境的網路把 Azure 的端點擋掉了
-> （`*.stt.speech.microsoft.com` 連不出去），所以「真的送一段錄音給 Azure 拿到分數」
-> 這條路徑要你在 WSL 上填入金鑰後才能驗證。
->
-> 已驗證的部分：SDK 的參數形狀與結果解析（用真實的 Azure JSON 格式跑過真正的
-> `PronunciationAssessmentResult` 類別）、前端渲染（用模擬回應跑完整流程）、
-> 錯誤分類的程式邏輯。詳見下方「已驗證與未驗證」。
+發音評分是**輔助功能**，不設定任何金鑰也能正常使用其他三種練習。
+要用的話：**Azure Speech** 給客觀的逐音素分數，**Gemini** 把分數翻成中文教練建議。
+
+> ⚠️ **Azure 的實際呼叫尚未在開發環境端對端測過** —— 開發環境的 egress policy
+> 擋掉了 `*.stt.speech.microsoft.com`。詳見下方「已驗證與未驗證」。
 
 ---
 
@@ -156,26 +156,53 @@ Azure 與 Gemini 的呼叫都在後端，錄音是 POST 到自己的伺服器再
 english_speaking/
 ├── .env                  # 你自己建立（已 gitignore）
 ├── .env.example
-├── .gitignore
 ├── package.json
-├── sentences.json        # 27 句練習句，含 id / text / category / difficulty
+├── content/              # 靜態學習內容（開發時寫好，非執行期生成）
+│   ├── sentences.json    # 27 句跟讀練習句
+│   ├── vocabulary.json   # 40 張單字卡
+│   └── listening.json    # 10 組聽力題
 ├── server/
 │   ├── index.js          # Express、路由、本地摘要 fallback
 │   ├── azure-pronunciation.js  # Azure Speech 發音評估 + 錯誤分類
 │   └── gemini.js         # Gemini：中文講評（主要）、主觀評分（無 Azure 時的退路）
 └── public/
-    ├── index.html
+    ├── index.html        # 外殼
     ├── style.css
-    ├── app.js            # 例句、示範發音、錄音、上傳、顯示講評
-    └── wav-encoder.js    # 錄音 → 16 kHz 單聲道 WAV
+    ├── app.js            # 模式切換
+    ├── lib/
+    │   ├── dom.js        # 極簡元素建構工具
+    │   ├── tts.js        # speechSynthesis（處理 getVoices 非同步的雷）
+    │   ├── recorder.js   # 錄音、格式挑選、麥克風錯誤訊息
+    │   ├── wav-encoder.js  # 錄音 → 16 kHz 單聲道 WAV
+    │   └── storage.js    # localStorage：SRS 排程、練習紀錄
+    └── modes/
+        ├── vocabulary.js
+        ├── listening.js
+        ├── shadowing.js
+        └── assessment-view.js  # 發音評估結果的呈現
 ```
+
+模式是動態 `import()` 進來的，切到哪個才載入哪個。
+
+### 三種模式
+
+**單字卡** 用 Leitner 盒子制做間隔重複：答對往上一盒、間隔拉長（1 → 3 → 7 → 21 天），
+答錯直接回第 1 盒。排程存在 `localStorage`。用盒子制而不是 SM-2，是因為行為好預測、
+出問題也容易看懂。
+
+**聽力** 用瀏覽器內建的 `speechSynthesis` 朗讀短文，作答後才顯示正解與解析；
+聽不出來也可以先看原文。
+
+**跟讀** 是原本的口說練習。發音評分現在是次要按鈕（「🎯 檢查我的發音（選用）」），
+沒設定金鑰也能正常練 —— 聽示範、錄音、自己比對本來就有用。
 
 ### API
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
 | GET | `/api/health` | 回 `{ ok, azureConfigured, geminiConfigured }` |
-| GET | `/api/sentences` | 回 `sentences.json` |
+| GET | `/api/content/:name` | `sentences` / `vocabulary` / `listening`，回對應的 JSON |
+| GET | `/api/sentences` | 舊路徑，307 轉址到 `/api/content/sentences` |
 | POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV 檔）+ `sentence`（目標句） |
 
 **有設定 Azure 時**的回傳：
@@ -226,7 +253,7 @@ Firebase AI Logic 的輸入需求頁卻多列了 `webm` —— 兩份官方文�
 而 `audio/webm` 正好是瀏覽器 `MediaRecorder` 的預設輸出，落在有爭議的那一邊。
 （後來也確認 `@google/genai` 的 `AudioContentMimeType` 型別裡完全沒有 `audio/webm`。）
 
-所以一律在瀏覽器端轉成 WAV 再送（`public/wav-encoder.js`）：
+所以一律在瀏覽器端轉成 WAV 再送（`public/lib/wav-encoder.js`）：
 
 `MediaRecorder` → `blob.arrayBuffer()` → `decodeAudioData()` → `OfflineAudioContext`
 重取樣成單聲道 16 kHz → 自寫的 44-byte RIFF header 編成 16-bit PCM WAV。
@@ -235,7 +262,7 @@ Firebase AI Logic 的輸入需求頁卻多列了 `webm` —— 兩份官方文�
 
 > the default audio stream format (**16KHz 16bit mono PCM**)
 
-正好就是 `wav-encoder.js` 產出的格式，音訊管線一個 byte 都不用改。
+正好就是 `lib/wav-encoder.js` 產出的格式，音訊管線一個 byte 都不用改。
 
 其他好處：不需要 ffmpeg 之類的外部依賴；16 kHz 單聲道對語音辨識綽綽有餘
 （每秒約 32 KB）；而且 Safari 的 `MediaRecorder` 吐的是 mp4/aac 而非 webm，
@@ -268,6 +295,10 @@ MDN 標記為 "Limited availability"、Firefox 支援有問題。
   Gemini 退路分支都正確，無 console 錯誤
 - Gemini 的錯誤分類：用無效金鑰實測，請求確實打到 `generativelanguage.googleapis.com`
 - 各種錯誤情境的前端提示（麥克風權限、裝置、檔案過大等）
+- 三種模式在真實瀏覽器跑過完整流程：單字卡翻面／作答／SRS 盒號遞增與寫入
+  `localStorage`、聽力作答與計分與解析、跟讀錄音與 WAV 轉換、模式切換與記憶，
+  全程無 console 錯誤
+- `content/` 三份 JSON 的結構檢查（id 不重複、選項數、正解索引範圍、必填欄位）
 
 **未驗證（需要你在 WSL 上用真實金鑰確認）：**
 
@@ -304,12 +335,7 @@ WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏�
 
 ## 接下來
 
-發音評估已經降級成輔助功能。App 本體規劃做成一般英語學習 App，包含：
-
-- 單字卡 + 間隔重複（SRS）
-- 聽力理解
-- 跟讀句子（目前這個）
-- 情境對話（獨立功能）
-
-**題目與例句由開發時預先寫成靜態檔，不做執行期 AI 生成** —— 執行期少一個失敗點，
-也不需要為了出題付 API 費用。
+- **情境對話**（獨立功能，還沒做）—— 多輪對話狀態，是四個模式裡最複雜的
+- 練習紀錄的檢視畫面（`storage.js` 已經在記錄跟讀的每次嘗試，但還沒有 UI）
+- 例句／單字依情境與難度篩選（資料已經有 `category` 與 `difficulty` 欄位）
+- 錄音波形視覺化（`AnalyserNode`）

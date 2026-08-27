@@ -1,0 +1,118 @@
+[
+  {
+    "id": 1, "title": "Coffee before the meeting", "category": "daily", "difficulty": "easy",
+    "transcript": "Hey, I'm heading down to the cafe. Do you want anything? I'm going to grab a latte before the ten o'clock meeting. Oh, and I heard the meeting got pushed to ten thirty, so we have a bit more time.",
+    "questions": [
+      { "q_zh": "說話者要去哪裡？", "options": ["咖啡店", "會議室", "辦公室樓上", "停車場"], "answer": 0,
+        "explain_zh": "第一句 I'm heading down to the cafe 就說了要去咖啡店。" },
+      { "q_zh": "會議時間有什麼變化？", "options": ["提前到九點半", "延後到十點半", "取消了", "改成線上"], "answer": 1,
+        "explain_zh": "got pushed to ten thirty，push 在這裡是「延後」。" }
+    ]
+  },
+  {
+    "id": 2, "title": "Checking in at the hotel", "category": "travel", "difficulty": "easy",
+    "transcript": "Good afternoon. I have a reservation under Chen, checking in for three nights. I requested a room on a high floor if that's still possible. Also, could you tell me what time breakfast is served?",
+    "questions": [
+      { "q_zh": "這位客人要住幾晚？", "options": ["一晚", "兩晚", "三晚", "一週"], "answer": 2,
+        "explain_zh": "checking in for three nights。" },
+      { "q_zh": "客人提出什麼要求？", "options": ["高樓層的房間", "安靜的房間", "加床", "延後退房"], "answer": 0,
+        "explain_zh": "I requested a room on a high floor。" },
+      { "q_zh": "客人另外問了什麼？", "options": ["停車位", "早餐時間", "游泳池位置", "退房時間"], "answer": 1,
+        "explain_zh": "what time breakfast is served。" }
+    ]
+  },
+  {
+    "id": 3, "title": "Running late", "category": "daily", "difficulty": "easy",
+    "transcript": "Hi, it's me. I'm running about fifteen minutes late. The train was delayed. Go ahead and order without me, I'll have whatever you're having. Sorry about this.",
+    "questions": [
+      { "q_zh": "說話者會晚多久？", "options": ["五分鐘", "十五分鐘", "半小時", "一小時"], "answer": 1,
+        "explain_zh": "running about fifteen minutes late。" },
+      { "q_zh": "遲到的原因是什麼？", "options": ["塞車", "睡過頭", "火車誤點", "臨時開會"], "answer": 2,
+        "explain_zh": "The train was delayed。" },
+      { "q_zh": "說話者建議對方怎麼做？", "options": ["先點餐", "等他到", "改約時間", "換一家店"], "answer": 0,
+        "explain_zh": "Go ahead and order without me。" }
+    ]
+  },
+  {
+    "id": 4, "title": "A quick project update", "category": "work", "difficulty": "medium",
+    "transcript": "Quick update on the billing migration. We finished moving the customer records last Friday, which was two days ahead of schedule. The remaining work is mostly testing. I'd say we're about eighty percent done overall. The one risk is that we still haven't heard back from the payments team about the API changes.",
+    "questions": [
+      { "q_zh": "客戶資料的搬遷進度如何？", "options": ["還沒開始", "上週五完成", "延遲兩天", "完成一半"], "answer": 1,
+        "explain_zh": "We finished moving the customer records last Friday。" },
+      { "q_zh": "整體進度大約多少？", "options": ["五成", "六成", "八成", "全部完成"], "answer": 2,
+        "explain_zh": "about eighty percent done overall。" },
+      { "q_zh": "目前的風險是什麼？", "options": ["人力不足", "預算超支", "測試失敗", "還沒收到付款團隊的回覆"], "answer": 3,
+        "explain_zh": "we still haven't heard back from the payments team。" }
+    ]
+  },
+  {
+    "id": 5, "title": "Ordering at a restaurant", "category": "travel", "difficulty": "medium",
+    "transcript": "I'll start with the soup of the day. For the main course, does the pasta come with any meat? I'm vegetarian. If it does, I'll take the mushroom risotto instead. And just tap water is fine, thanks.",
+    "questions": [
+      { "q_zh": "這位客人有什麼飲食限制？", "options": ["不吃辣", "素食", "不吃海鮮", "無麩質"], "answer": 1,
+        "explain_zh": "I'm vegetarian。" },
+      { "q_zh": "如果義大利麵含肉，客人會點什麼？", "options": ["換一家店", "蘑菇燉飯", "沙拉", "湯就好"], "answer": 1,
+        "explain_zh": "I'll take the mushroom risotto instead。" },
+      { "q_zh": "客人點了什麼飲料？", "options": ["紅酒", "氣泡水", "自來水", "咖啡"], "answer": 2,
+        "explain_zh": "just tap water is fine，tap water 是免費的自來水。" }
+    ]
+  },
+  {
+    "id": 6, "title": "Interview: tell me about yourself", "category": "interview", "difficulty": "medium",
+    "transcript": "Thanks for having me. I've been working in software development for about five years, mostly on backend systems. Most recently I led a small team that migrated our entire billing system, which took around eight months. What draws me to this role is the collaborative culture you described earlier.",
+    "questions": [
+      { "q_zh": "說話者有幾年經驗？", "options": ["三年", "五年", "八年", "十年"], "answer": 1,
+        "explain_zh": "about five years。" },
+      { "q_zh": "最近的專案是什麼？", "options": ["開發新 App", "搬遷計費系統", "重寫前端", "建立資料庫"], "answer": 1,
+        "explain_zh": "migrated our entire billing system。" },
+      { "q_zh": "他為什麼對這個職缺有興趣？", "options": ["薪水較高", "離家近", "協作的文化", "可以遠端工作"], "answer": 2,
+        "explain_zh": "the collaborative culture you described earlier。" }
+    ]
+  },
+  {
+    "id": 7, "title": "Asking for directions", "category": "travel", "difficulty": "easy",
+    "transcript": "Excuse me, could you tell me how to get to the National Museum? Is it within walking distance, or should I take the subway? I've got about an hour before it closes.",
+    "questions": [
+      { "q_zh": "說話者要去哪裡？", "options": ["國家博物館", "火車站", "圖書館", "美術館"], "answer": 0,
+        "explain_zh": "how to get to the National Museum。" },
+      { "q_zh": "說話者在考慮什麼？", "options": ["要不要買票", "走路還是搭地鐵", "要不要叫車", "要不要改天再去"], "answer": 1,
+        "explain_zh": "within walking distance, or should I take the subway。" }
+    ]
+  },
+  {
+    "id": 8, "title": "Declining an invitation politely", "category": "daily", "difficulty": "medium",
+    "transcript": "That sounds really fun, and I appreciate you thinking of me. Unfortunately I already have plans that evening. My sister's flying in from overseas and I promised I'd pick her up. Could we do something next weekend instead?",
+    "questions": [
+      { "q_zh": "說話者為什麼不能參加？", "options": ["要加班", "身體不舒服", "要去接姊妹", "不感興趣"], "answer": 2,
+        "explain_zh": "My sister's flying in... I promised I'd pick her up。" },
+      { "q_zh": "說話者提出什麼替代方案？", "options": ["下週末再約", "改成線上", "找別人代替", "沒有提出替代"], "answer": 0,
+        "explain_zh": "Could we do something next weekend instead?" },
+      { "q_zh": "說話者的語氣如何？", "options": ["生氣", "冷淡", "客氣婉拒", "猶豫不決"], "answer": 2,
+        "explain_zh": "先肯定對方、說明原因、再提替代方案，是很標準的禮貌婉拒結構。" }
+    ]
+  },
+  {
+    "id": 9, "title": "A delayed flight", "category": "travel", "difficulty": "hard",
+    "transcript": "Attention passengers on flight BA two four seven to London. Due to a technical issue, departure has been delayed by approximately two hours. The new estimated departure time is nine forty. Passengers with connecting flights should speak to a member of staff at gate fourteen. We apologize for the inconvenience.",
+    "questions": [
+      { "q_zh": "班機延誤多久？", "options": ["半小時", "一小時", "約兩小時", "四小時"], "answer": 2,
+        "explain_zh": "delayed by approximately two hours。" },
+      { "q_zh": "新的預計起飛時間是？", "options": ["九點十四分", "九點四十分", "十點四十分", "十四點"], "answer": 1,
+        "explain_zh": "nine forty 是 9:40。注意跟 gate fourteen 的 fourteen 區分。" },
+      { "q_zh": "要轉機的乘客該怎麼做？", "options": ["到十四號登機門找工作人員", "到櫃檯改票", "打電話給航空公司", "在原地等候"], "answer": 0,
+        "explain_zh": "speak to a member of staff at gate fourteen。" }
+    ]
+  },
+  {
+    "id": 10, "title": "Negotiating a deadline", "category": "work", "difficulty": "hard",
+    "transcript": "I want to be upfront with you about the timeline. Delivering everything by the end of the month is technically possible, but I'm not confident we could do it thoroughly. If we can push the deadline back by one week, I'd feel much better about the quality. Alternatively, we could ship the core features on time and follow up with the rest.",
+    "questions": [
+      { "q_zh": "說話者對月底交付的看法是？", "options": ["完全不可能", "技術上可行但品質有疑慮", "輕鬆可以完成", "需要更多人力"], "answer": 1,
+        "explain_zh": "technically possible, but I'm not confident we could do it thoroughly。" },
+      { "q_zh": "說話者提出的第一個方案是？", "options": ["延後一週", "增加人手", "減少功能", "取消專案"], "answer": 0,
+        "explain_zh": "push the deadline back by one week。" },
+      { "q_zh": "第二個替代方案是？", "options": ["全部延後", "先交核心功能，其餘後續補上", "外包出去", "重新評估需求"], "answer": 1,
+        "explain_zh": "ship the core features on time and follow up with the rest。" }
+    ]
+  }
+]

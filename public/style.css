@@ -369,3 +369,182 @@ body {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ─── 模式切換 ─────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.tab {
+  font: inherit;
+  font-size: 0.925rem;
+  font-weight: 500;
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.tab:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.tab--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+#view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.btn--link {
+  border: none;
+  background: none;
+  color: var(--accent);
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  text-align: left;
+}
+.btn--link:hover { text-decoration: underline; }
+
+.counter {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── 單字卡 ───────────────────────────────────────────────────────────── */
+.srsbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.srsstat {
+  text-align: center;
+  padding: 0.5rem 0.3rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.srsstat__value { display: block; font-size: 1.3rem; font-weight: 650; line-height: 1.2; }
+.srsstat__label { display: block; font-size: 0.72rem; color: var(--text-muted); }
+.srsstat--due .srsstat__value { color: var(--accent); }
+.srsstat--mastered .srsstat__value { color: var(--ok); }
+
+.vocab__word {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 2.2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.vocab__ipa {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.95rem;
+}
+.vocab__back {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+.vocab__meaning { margin: 0 0 0.8rem; font-size: 1.25rem; font-weight: 500; }
+.vocab__example { margin: 0 0 0.2rem; font-size: 1.05rem; }
+.vocab__example-zh { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+.vocab__note {
+  margin: 0.9rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.empty { text-align: center; }
+.empty__title { margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 600; }
+.empty .hint { margin-bottom: 1rem; }
+
+/* ─── 聽力 ─────────────────────────────────────────────────────────────── */
+.listen__title { margin: 0 0 0.3rem; font-size: 1.35rem; letter-spacing: -0.01em; }
+
+.transcript {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.transcript p:last-child { margin: 0; line-height: 1.75; }
+
+.question { padding: 0.6rem 0 1rem; }
+.question + .question { border-top: 1px solid var(--border); }
+.question__text { margin: 0 0 0.6rem; font-weight: 500; }
+
+.options { display: flex; flex-direction: column; gap: 0.4rem; }
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font: inherit;
+  font-size: 0.925rem;
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.option:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.option:disabled { cursor: default; }
+.option__mark {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.option--chosen {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.option--chosen .option__mark { background: var(--accent); color: #fff; }
+.option--correct {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+.option--correct .option__mark { background: var(--ok); color: #fff; }
+.option--wrong {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.option--wrong .option__mark { background: var(--danger); color: #fff; }
+
+.explain {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+}
+.explain--correct { background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); }
+.explain--wrong { background: var(--danger-bg); color: var(--danger); }
+
+.result {
+  margin-top: 0.8rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.result__score { margin: 0 0 0.8rem; font-size: 1.15rem; font-weight: 600; }

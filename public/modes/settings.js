@@ -244,10 +244,13 @@ function voiceCard() {
     h('button', {
       class: 'btn btn--ghost',
       onclick: (e) => {
-        e.currentTarget.disabled = true;
+        // 事件派送結束後 e.currentTarget 會變成 null，
+        // 所以要在同步階段先把元素抓下來再進非同步流程
+        const btn = e.currentTarget;
+        btn.disabled = true;
         speak('This is how the example sentences will sound.')
           .catch((err) => console.error('[tts]', err))
-          .finally(() => { e.currentTarget.disabled = false; });
+          .finally(() => { btn.disabled = false; });
       },
     }, '🔊 試聽'),
   );

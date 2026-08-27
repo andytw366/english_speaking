@@ -63,9 +63,12 @@ export async function speak(text, { rate, voiceName } = {}) {
     throw new Error('系統裡找不到英語語音，請到作業系統的語音設定安裝英語語音包。');
   }
 
-  // 優先用設定裡指定的聲音；找不到就退回 en-US，再退回任何英語語音
+  // 優先用設定裡指定的聲音；找不到就退回 en-US，再退回任何英語語音。
+  // 注意這裡不能寫成 (wantVoice && find(...)) ?? fallback ——
+  // wantVoice 預設是空字串，&& 會回傳 ''，而 ?? 不會對空字串 fallback，
+  // 結果 voice 會變成字串 '' 而不是 voice 物件，導致完全沒有聲音。
   const voice =
-    (wantVoice && english.find((v) => v.name === wantVoice)) ??
+    (wantVoice ? english.find((v) => v.name === wantVoice) : undefined) ??
     english.find((v) => v.lang === 'en-US') ??
     english[0];
 

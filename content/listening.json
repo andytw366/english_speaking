@@ -396,5 +396,549 @@
         "explain_zh": "Alternatively 之後接的就是第二方案：ship the core features on time and follow up with the rest。"
       }
     ]
+  },
+  {
+    "id": 11,
+    "title": "A voicemail from the dentist",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "Hi, this is Karen calling from Bright Smile Dental. I'm ringing to confirm your appointment on Thursday the fourteenth at three fifteen. If you need to reschedule, please give us a call at least twenty-four hours in advance. Otherwise we'll see you then. Thanks!",
+    "questions": [
+      {
+        "question": "When is the appointment?",
+        "options": [
+          "Thursday at 3:15",
+          "Thursday at 3:50",
+          "Tuesday at 3:15",
+          "Thursday at 5:30"
+        ],
+        "answer": 0,
+        "explain_zh": "Thursday the fourteenth at three fifteen，注意 fifteen（15）和 fifty（50）發音容易混。"
+      },
+      {
+        "question": "How far in advance should you call to reschedule?",
+        "options": [
+          "Twelve hours",
+          "Twenty-four hours",
+          "Two days",
+          "A week"
+        ],
+        "answer": 1,
+        "explain_zh": "at least twenty-four hours in advance，in advance 是「事先」。"
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "title": "Ordering coffee to go",
+    "category": "daily",
+    "difficulty": "easy",
+    "transcript": "Hi, can I get a large oat milk latte to go? And could you make it extra hot? Oh, and hold the sugar, please. Actually, do you have any of those almond croissants left? I'll take one of those as well.",
+    "questions": [
+      {
+        "question": "What kind of milk does the customer want?",
+        "options": [
+          "Whole milk",
+          "Soy milk",
+          "Oat milk",
+          "Almond milk"
+        ],
+        "answer": 2,
+        "explain_zh": "a large oat milk latte，oat milk 是燕麥奶。"
+      },
+      {
+        "question": "What does 'hold the sugar' mean?",
+        "options": [
+          "Add extra sugar",
+          "Leave out the sugar",
+          "Sugar on the side",
+          "Use brown sugar"
+        ],
+        "answer": 1,
+        "explain_zh": "hold the + 食材 是「不要加」，點餐常用。"
+      },
+      {
+        "question": "What else does the customer order?",
+        "options": [
+          "A muffin",
+          "An almond croissant",
+          "A sandwich",
+          "Nothing else"
+        ],
+        "answer": 1,
+        "explain_zh": "I'll take one of those as well，指前面提到的 almond croissants。"
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "title": "Gym membership enquiry",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "Our standard membership is forty-five a month with no lock-in contract. That gets you access to the gym floor and all group classes. If you want to add personal training, that's an extra thirty per session. We're open five thirty in the morning until eleven at night on weekdays, and eight to eight on weekends.",
+    "questions": [
+      {
+        "question": "How much is the standard membership?",
+        "options": [
+          "Thirty a month",
+          "Forty-five a month",
+          "Seventy-five a month",
+          "Eighty a month"
+        ],
+        "answer": 1,
+        "explain_zh": "forty-five a month，a month 等於 per month。"
+      },
+      {
+        "question": "What does 'no lock-in contract' mean?",
+        "options": [
+          "You can cancel anytime",
+          "You must stay a year",
+          "The gym is always open",
+          "Classes are included"
+        ],
+        "answer": 0,
+        "explain_zh": "lock-in contract 是有綁約期的合約，no lock-in 表示可隨時取消。"
+      },
+      {
+        "question": "When does the gym close on weekends?",
+        "options": [
+          "Eight at night",
+          "Eleven at night",
+          "Five thirty",
+          "It doesn't close"
+        ],
+        "answer": 0,
+        "explain_zh": "eight to eight on weekends，週末是早八到晚八。"
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "title": "Weekend plans falling through",
+    "category": "daily",
+    "difficulty": "hard",
+    "transcript": "So we were supposed to go hiking on Saturday, but the forecast says heavy rain all weekend. I'd rather not get soaked halfway up a mountain. I was thinking we could push it to next weekend instead, or if you're keen to do something, there's that new exhibition at the museum. Let me know either way.",
+    "questions": [
+      {
+        "question": "Why is the plan changing?",
+        "options": [
+          "Someone is sick",
+          "Bad weather is forecast",
+          "The trail is closed",
+          "They lost interest"
+        ],
+        "answer": 1,
+        "explain_zh": "the forecast says heavy rain all weekend，forecast 是天氣預報。"
+      },
+      {
+        "question": "What are the two options offered?",
+        "options": [
+          "Hiking or staying home",
+          "Next weekend or an exhibition",
+          "A different trail or a movie",
+          "Cancelling entirely"
+        ],
+        "answer": 1,
+        "explain_zh": "push it to next weekend instead, or... that new exhibition，or 連接兩個方案。"
+      },
+      {
+        "question": "What does 'push it to next weekend' mean?",
+        "options": [
+          "Cancel it",
+          "Move it later",
+          "Do it sooner",
+          "Force someone to go"
+        ],
+        "answer": 1,
+        "explain_zh": "push something to + 時間 是「延到某時」。"
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "title": "Standup meeting update",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "Quick update from me. Yesterday I finished the login refactor and got it merged. Today I'm picking up the password reset flow, which should take most of the day. One blocker: I'm still waiting on design to send over the final mockups for the error states. If those don't land by this afternoon I'll move on to something else.",
+    "questions": [
+      {
+        "question": "What did the speaker finish yesterday?",
+        "options": [
+          "The password reset flow",
+          "The login refactor",
+          "The error states",
+          "The design mockups"
+        ],
+        "answer": 1,
+        "explain_zh": "I finished the login refactor and got it merged，merge 是把程式碼合併進主分支。"
+      },
+      {
+        "question": "What is blocking the speaker?",
+        "options": [
+          "Waiting on design mockups",
+          "A broken build",
+          "Missing test data",
+          "Nothing"
+        ],
+        "answer": 0,
+        "explain_zh": "waiting on design to send over the final mockups，blocker 指擋住進度的事。"
+      },
+      {
+        "question": "What will the speaker do if the mockups are late?",
+        "options": [
+          "Wait until they arrive",
+          "Work on something else",
+          "Design them personally",
+          "Escalate to the manager"
+        ],
+        "answer": 1,
+        "explain_zh": "I'll move on to something else，move on to 是轉去做別的。"
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "title": "Requesting time off",
+    "category": "work",
+    "difficulty": "medium",
+    "transcript": "I wanted to give you plenty of notice. I'm hoping to take the week of the twelfth off. I know that's close to the release, so I've already spoken to Marcus and he's happy to cover the deployment. I'll also make sure all my handover notes are written up before I go.",
+    "questions": [
+      {
+        "question": "When does the speaker want time off?",
+        "options": [
+          "The week of the second",
+          "The week of the twelfth",
+          "The week of the twentieth",
+          "Next month"
+        ],
+        "answer": 1,
+        "explain_zh": "the week of the twelfth，the week of + 日期 表示那一週。"
+      },
+      {
+        "question": "Who will cover the deployment?",
+        "options": [
+          "The manager",
+          "Marcus",
+          "Nobody",
+          "The whole team"
+        ],
+        "answer": 1,
+        "explain_zh": "I've already spoken to Marcus and he's happy to cover，cover 是代班。"
+      },
+      {
+        "question": "What does the speaker promise to do first?",
+        "options": [
+          "Finish the release",
+          "Write handover notes",
+          "Train a replacement",
+          "Cancel the holiday"
+        ],
+        "answer": 1,
+        "explain_zh": "make sure all my handover notes are written up，handover 是交接。"
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "title": "Checking out of a hotel",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "Good morning. I'm checking out of room four-oh-nine. Before you run the card, could you just talk me through these two charges? There's one for the minibar, which I don't think I used, and another one labelled service fee. Also, would it be possible to leave my bags here until about four this afternoon?",
+    "questions": [
+      {
+        "question": "What does the guest question?",
+        "options": [
+          "The room rate",
+          "Two charges on the bill",
+          "The checkout time",
+          "The breakfast fee"
+        ],
+        "answer": 1,
+        "explain_zh": "talk me through these two charges，talk someone through 是「逐項說明給某人聽」。"
+      },
+      {
+        "question": "What does the guest also ask for?",
+        "options": [
+          "A late checkout",
+          "To store luggage",
+          "A taxi",
+          "A receipt by email"
+        ],
+        "answer": 1,
+        "explain_zh": "leave my bags here until about four，飯店寄放行李的標準說法。"
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "title": "Reporting a lost item",
+    "category": "travel",
+    "difficulty": "hard",
+    "transcript": "I think I left my laptop bag on the number forty bus. I got off at the central station stop at around six fifteen this evening. It's a dark grey backpack with a red luggage tag on the handle. There's a laptop inside and, more importantly, my passport. Is there anything you can do?",
+    "questions": [
+      {
+        "question": "Where was the bag left?",
+        "options": [
+          "At the station",
+          "On a bus",
+          "In a taxi",
+          "At a hotel"
+        ],
+        "answer": 1,
+        "explain_zh": "I left my laptop bag on the number forty bus，number forty 是公車路線號碼。"
+      },
+      {
+        "question": "How is the bag described?",
+        "options": [
+          "Black with a blue tag",
+          "Dark grey with a red tag",
+          "Brown leather",
+          "Grey with no tag"
+        ],
+        "answer": 1,
+        "explain_zh": "a dark grey backpack with a red luggage tag。描述失物要具體，這是實用的句型。"
+      },
+      {
+        "question": "What matters most to the speaker?",
+        "options": [
+          "The laptop",
+          "The passport",
+          "The bag itself",
+          "The luggage tag"
+        ],
+        "answer": 1,
+        "explain_zh": "more importantly, my passport，more importantly 標示出重點。"
+      }
+    ]
+  },
+  {
+    "id": 19,
+    "title": "Describing a weakness",
+    "category": "interview",
+    "difficulty": "hard",
+    "transcript": "Honestly, I used to take on too much. I'd say yes to everything because I wanted to be helpful, and then I'd be stretched too thin to do any of it properly. What's helped is being more deliberate about it. Now when someone asks, I'll check what's already on my plate before committing.",
+    "questions": [
+      {
+        "question": "What weakness does the speaker describe?",
+        "options": [
+          "Being disorganised",
+          "Taking on too much",
+          "Missing deadlines",
+          "Avoiding responsibility"
+        ],
+        "answer": 1,
+        "explain_zh": "I used to take on too much，take on 是承接任務。"
+      },
+      {
+        "question": "What does 'stretched too thin' mean?",
+        "options": [
+          "Working too slowly",
+          "Having too much to do well",
+          "Being underpaid",
+          "Working alone"
+        ],
+        "answer": 1,
+        "explain_zh": "stretched too thin 是「分身乏術」，事情多到每件都做不好。"
+      },
+      {
+        "question": "How has the speaker addressed it?",
+        "options": [
+          "Working longer hours",
+          "Checking existing workload before agreeing",
+          "Refusing all requests",
+          "Delegating everything"
+        ],
+        "answer": 1,
+        "explain_zh": "check what's already on my plate before committing，on my plate 是手上的工作量。"
+      }
+    ]
+  },
+  {
+    "id": 20,
+    "title": "A package delivery notice",
+    "category": "daily",
+    "difficulty": "medium",
+    "transcript": "We attempted to deliver your parcel today at two forty but nobody was home. We've left it with your neighbour at number twelve. If that's not convenient, you can arrange a redelivery online using the reference number on the card. Please note that we can only hold parcels for seven days.",
+    "questions": [
+      {
+        "question": "What happened to the parcel?",
+        "options": [
+          "It was returned to sender",
+          "It was left with a neighbour",
+          "It was left at the door",
+          "It was lost"
+        ],
+        "answer": 1,
+        "explain_zh": "left it with your neighbour at number twelve，number twelve 是門牌號碼。"
+      },
+      {
+        "question": "How long will they hold parcels?",
+        "options": [
+          "Three days",
+          "Five days",
+          "Seven days",
+          "Fourteen days"
+        ],
+        "answer": 2,
+        "explain_zh": "關鍵句是 we can only hold parcels for seven days，hold 在這裡是「代為保管」。"
+      }
+    ]
+  },
+  {
+    "id": 21,
+    "title": "Feedback in a one-on-one",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "Overall I think you've had a strong quarter. The migration project in particular went far more smoothly than I expected. One thing I'd like you to work on is speaking up earlier when something's going off track. You flagged the database issue eventually, but had we known a week earlier we'd have had a lot more options.",
+    "questions": [
+      {
+        "question": "What does the manager praise?",
+        "options": [
+          "The migration project",
+          "The database fix",
+          "Communication skills",
+          "Time management"
+        ],
+        "answer": 0,
+        "explain_zh": "went far more smoothly than I expected，far more 用來加強比較級，語氣比 much more 更強。"
+      },
+      {
+        "question": "What should the employee improve?",
+        "options": [
+          "Writing documentation",
+          "Raising problems earlier",
+          "Working faster",
+          "Attending more meetings"
+        ],
+        "answer": 1,
+        "explain_zh": "speaking up earlier when something's going off track，speak up 是把問題講出來。"
+      },
+      {
+        "question": "What does 'going off track' mean?",
+        "options": [
+          "Moving too fast",
+          "Not going as planned",
+          "Finishing early",
+          "Being cancelled"
+        ],
+        "answer": 1,
+        "explain_zh": "off track 是偏離軌道，指事情沒照計畫走。"
+      }
+    ]
+  },
+  {
+    "id": 22,
+    "title": "Explaining a delay to a client",
+    "category": "work",
+    "difficulty": "hard",
+    "transcript": "I want to be straight with you about where we are. The core functionality is complete and tested. However, the integration with your payment provider has thrown up some issues that were outside what we anticipated. Realistically we're looking at an additional two weeks. I'd rather tell you that now than promise a date we can't hit.",
+    "questions": [
+      {
+        "question": "What is already complete?",
+        "options": [
+          "The payment integration",
+          "The core functionality",
+          "The whole project",
+          "Nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "The core functionality is complete and tested，core functionality 指核心功能，是專案溝通的常用詞。"
+      },
+      {
+        "question": "How much extra time is needed?",
+        "options": [
+          "One week",
+          "Two weeks",
+          "A month",
+          "Unknown"
+        ],
+        "answer": 1,
+        "explain_zh": "we're looking at an additional two weeks，we're looking at 是「預計會是」。"
+      },
+      {
+        "question": "What is the speaker's reasoning for telling the client now?",
+        "options": [
+          "The client asked",
+          "To avoid promising an unrealistic date",
+          "To request more budget",
+          "To cancel the project"
+        ],
+        "answer": 1,
+        "explain_zh": "rather tell you that now than promise a date we can't hit，hit a date 是趕上期限。"
+      }
+    ]
+  },
+  {
+    "id": 23,
+    "title": "Boarding gate change",
+    "category": "travel",
+    "difficulty": "medium",
+    "transcript": "This is an announcement for passengers travelling to Singapore on flight SQ two two six. Please note that this flight will now depart from gate thirty-two, not gate twenty-three as previously announced. Boarding will begin in approximately fifteen minutes. Passengers requiring assistance should make themselves known to a member of staff.",
+    "questions": [
+      {
+        "question": "Which gate should passengers go to?",
+        "options": [
+          "Gate 23",
+          "Gate 32",
+          "Gate 15",
+          "Gate 26"
+        ],
+        "answer": 1,
+        "explain_zh": "gate thirty-two, not gate twenty-three。這兩個數字很容易聽混，是廣播聽力的典型考點。"
+      },
+      {
+        "question": "When does boarding start?",
+        "options": [
+          "Immediately",
+          "In about fifteen minutes",
+          "In thirty minutes",
+          "After the next announcement"
+        ],
+        "answer": 1,
+        "explain_zh": "Boarding will begin in approximately fifteen minutes，in + 時間 表示「再過多久」，不是「在…之內」。"
+      }
+    ]
+  },
+  {
+    "id": 24,
+    "title": "Talking about a career change",
+    "category": "interview",
+    "difficulty": "hard",
+    "transcript": "I spent six years in finance before moving into data analysis. It wasn't a sudden decision. I'd been doing more and more reporting work, and I found I enjoyed the analytical side far more than the client-facing side. So I took a course in the evenings, built a few projects, and eventually made the switch about eighteen months ago.",
+    "questions": [
+      {
+        "question": "What was the speaker's previous field?",
+        "options": [
+          "Marketing",
+          "Finance",
+          "Engineering",
+          "Education"
+        ],
+        "answer": 1,
+        "explain_zh": "I spent six years in finance，spend + 時間 + in + 領域 是描述資歷的常見句型。"
+      },
+      {
+        "question": "What did the speaker enjoy more?",
+        "options": [
+          "Client-facing work",
+          "Analytical work",
+          "Management",
+          "Reporting to clients"
+        ],
+        "answer": 1,
+        "explain_zh": "enjoyed the analytical side far more than the client-facing side，client-facing 指「直接面對客戶」的工作。"
+      },
+      {
+        "question": "How did the speaker prepare for the change?",
+        "options": [
+          "Got a degree",
+          "Took evening courses and built projects",
+          "Was promoted internally",
+          "Had a mentor"
+        ],
+        "answer": 1,
+        "explain_zh": "took a course in the evenings, built a few projects，說明轉職準備的具體行動，面試談轉職時很受用的講法。"
+      }
+    ]
   }
 ]

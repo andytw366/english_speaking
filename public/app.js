@@ -9,6 +9,12 @@ import {
   loadPrefs,
   savePrefs,
 } from './storage.js';
+import {
+  sentenceStats,
+  pickSentence,
+  trendPoints,
+  TREND_LIMIT,
+} from './practice.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,6 +26,8 @@ const el = {
   filterCategory: $('filter-category'),
   filterDifficulty: $('filter-difficulty'),
   filterCount: $('filter-count'),
+  prefWeighted: $('pref-weighted'),
+  sentencePast: $('sentence-past'),
   btnSpeak: $('btn-speak'),
   btnNext: $('btn-next'),
   btnRecord: $('btn-record'),
@@ -41,6 +49,9 @@ const el = {
   historyCard: $('history-card'),
   historyStats: $('history-stats'),
   historyList: $('history-list'),
+  historyTrend: $('history-trend'),
+  trendCaption: $('trend-caption'),
+  trendChart: $('trend-chart'),
   btnClearHistory: $('btn-clear-history'),
 };
 
@@ -64,6 +75,9 @@ let wavStats = null;
 let playbackUrl = null;
 let models = [];
 let history = [];
+// 依句子彙整的練習成績。history 一變就跟著重算，抽句加權與句子旁的
+// 「練過幾次」都讀這份，不要各自再算一次。
+let stats = new Map();
 // 瀏覽器不支援錄音時 fatal() 會停用錄音鍵，之後換句子不可以再把它打開
 let browserSupported = true;
 
@@ -123,6 +137,8 @@ function buildFilterOptions() {
   const prefs = loadPrefs();
   if (categories.includes(prefs.category)) el.filterCategory.value = prefs.category;
   if (difficulties.includes(prefs.difficulty)) el.filterDifficulty.value = prefs.difficulty;
+  // 沒存過偏好時預設開啟；只有明確存成 false 才關掉
+  el.prefWeighted.checked = prefs.weighted !== false;
 }
 
 function filteredSentences() {
@@ -141,6 +157,16 @@ function onFilterChange() {
   showRandomSentence();
 }
 
+function onWeightedChange() {
+  savePrefs({ weighted: el.prefWeighted.checked });
+  // 不立刻換句 —— 使用者可能正想練現在這句，換掉會很煩。下一次「換一句」才生效。
+  setStatus(
+    el.prefWeighted.checked
+      ? '之後換句時會優先抽出你分數比較低的句子。'
+      : '之後換句時會從符合條件的句子裡等機率隨機抽。'
+  );
+}
+
 function showRandomSentence() {
   const pool = filteredSentences();
   el.filterCount.textContent = `符合條件 ${pool.length} / ${sentences.length} 句`;
@@ -151,6 +177,7 @@ function showRandomSentence() {
     el.sentence.textContent = '這個組合沒有練習句';
     el.category.textContent = '';
     el.difficulty.textContent = '';
+    el.sentencePast.hidden = true;
     el.btnSpeak.disabled = true;
     el.btnRecord.disabled = true;
     resetRecording();
@@ -158,23 +185,67 @@ function showRandomSentence() {
     return;
   }
 
+  // 加權抽句的規則在 practice.js，這裡只負責把目前的狀態餵進去。
+  // 關掉開關就退回等機率隨機 —— 「怎麼一直抽到同幾句」要有辦法關掉。
+  current = pickSentence(pool, {
+    stats,
+    weighted: el.prefWeighted.checked,
+    excludeId: current?.id ?? null,
+  });
+
+  renderCurrentSentence();
+}
+
+/** 把 `current` 畫到畫面上。抽到的、或從紀錄裡指定重練的，都走這裡。 */
+function renderCurrentSentence() {
+  if (!current) return;
+
   el.btnSpeak.disabled = false;
   el.btnRecord.disabled = !browserSupported;
-
-  let next = current;
-  // 池子多於一句時，避免連續抽到同一句
-  while (pool.length > 1 && next?.id === current?.id) {
-    next = pool[Math.floor(Math.random() * pool.length)];
-  }
-  // 池子只剩一句，或原本的句子已經不在池子裡，就直接用第一句
-  current = pool.includes(next) ? next : pool[0];
 
   el.sentence.textContent = current.text;
   el.category.textContent = CATEGORY_LABEL[current.category] ?? current.category;
   el.difficulty.textContent =
     DIFFICULTY_LABEL[current.difficulty] ?? current.difficulty;
+  renderPastChip();
 
   resetRecording();
+}
+
+/**
+ * 句子旁邊顯示這句以前練得怎麼樣。
+ *
+ * 這也是加權抽句唯一看得見的地方 —— 沒有它的話，「為什麼又是這句」
+ * 只會像是隨機抽壞了，而不是「因為你這句只有 42 分」。
+ */
+function renderPastChip() {
+  const stat = current ? stats.get(current.id) : null;
+  if (!stat) {
+    el.sentencePast.hidden = true;
+    el.sentencePast.textContent = '';
+    return;
+  }
+  el.sentencePast.hidden = false;
+  el.sentencePast.textContent =
+    stat.count === 1
+      ? `練過 1 次・${stat.last} 分`
+      : `練過 ${stat.count} 次・平均 ${stat.average} 分`;
+}
+
+/** 從練習紀錄指定重練某一句。找不到就當作沒按（sentences.json 可能改過）。 */
+function practiseSentence(id) {
+  const target = sentences.find((s) => s.id === id);
+  if (!target) return;
+
+  current = target;
+  renderCurrentSentence();
+
+  // 篩選條件不動 —— 偷偷改掉使用者選的條件比句子跑出範圍更難理解。
+  // 但要講清楚，不然按「換一句」時會覺得句子莫名其妙跳走。
+  if (!filteredSentences().some((s) => s.id === id)) {
+    setStatus('這句不在目前的篩選條件內；按「換一句」就會回到符合條件的句子。');
+  }
+  el.sentence.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ─── 階段 1：播放正確發音（speechSynthesis）─────────────────────────────
@@ -432,6 +503,11 @@ function setRecordingUI(isRecording) {
   el.btnSpeak.disabled = isRecording;
   el.filterCategory.disabled = isRecording;
   el.filterDifficulty.disabled = isRecording;
+  el.prefWeighted.disabled = isRecording;
+  // 錄音中按「重練這句」會把正在錄的句子換掉，錄完的音就對不上目標句了
+  for (const btn of el.historyList.querySelectorAll('.history__replay')) {
+    btn.disabled = isRecording;
+  }
 }
 
 /**
@@ -690,10 +766,16 @@ function onModelChange() {
 
 // ─── 階段 5：練習紀錄 ────────────────────────────────────────────────────
 
+/** history 只從這裡改，順便重算 stats。 */
+function setHistory(next) {
+  history = next;
+  stats = sentenceStats(history);
+}
+
 function saveToHistory(data) {
   if (!current || typeof data?.score !== 'number') return;
 
-  history = addRecord({
+  setHistory(addRecord({
     at: new Date().toISOString(),
     sentenceId: current.id,
     sentenceText: current.text,
@@ -703,8 +785,10 @@ function saveToHistory(data) {
     transcript: data.transcript ?? '',
     problemWords: Array.isArray(data.problem_words) ? data.problem_words : [],
     model: data.model ?? el.model.value,
-  });
+  }));
   renderHistory();
+  // 剛練完的分數會影響這句的統計，chip 要跟著更新
+  renderPastChip();
 }
 
 function formatTime(iso) {
@@ -722,9 +806,98 @@ function scoreClass(score) {
   return 'score--low';
 }
 
+// ─── 分數趨勢圖 ─────────────────────────────────────────────────────────
+// 用 inline SVG 而不是 canvas：資料點最多 20 個，SVG 可以直接縮放、
+// 在深色模式下靠 CSS 變數換色，也不需要處理 devicePixelRatio。
+// （錄音波形那邊每秒要重畫 60 次才需要 canvas，這裡是靜態圖。）
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+/** 圖的座標系。實際顯示大小交給 CSS，這裡只是 viewBox 的單位。 */
+const TREND_BOX = { w: 320, h: 100, top: 8, right: 8, bottom: 16, left: 24 };
+
+function svgEl(name, attrs = {}) {
+  const node = document.createElementNS(SVG_NS, name);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  return node;
+}
+
+function renderTrend() {
+  const points = trendPoints(history, TREND_LIMIT);
+
+  // 只有一筆畫不出「走勢」，一條線兩個端點才有意義
+  if (points.length < 2) {
+    el.historyTrend.hidden = true;
+    el.trendChart.replaceChildren();
+    return;
+  }
+  el.historyTrend.hidden = false;
+
+  const { w, h, top, right, bottom, left } = TREND_BOX;
+  const plotW = w - left - right;
+  const plotH = h - top - bottom;
+  const x = (i) => left + (plotW * i) / (points.length - 1);
+  const y = (score) => top + plotH * (1 - Math.min(100, Math.max(0, score)) / 100);
+
+  const svg = svgEl('svg', {
+    viewBox: `0 0 ${w} ${h}`,
+    class: 'trend__svg',
+    role: 'img',
+    'aria-labelledby': 'trend-caption',
+  });
+
+  // 格線：60 / 80 是講評卡片上分數變色的分界，這裡用同一組門檻才對得起來
+  for (const score of [0, 60, 80, 100]) {
+    svg.append(
+      svgEl('line', {
+        class: score === 0 || score === 100 ? 'trend__grid' : 'trend__grid trend__grid--dashed',
+        x1: left,
+        x2: w - right,
+        y1: y(score),
+        y2: y(score),
+      })
+    );
+    const label = svgEl('text', { class: 'trend__label', x: left - 4, y: y(score) + 3 });
+    label.textContent = String(score);
+    svg.append(label);
+  }
+
+  svg.append(
+    svgEl('polyline', {
+      class: 'trend__line',
+      points: points.map((p, i) => `${x(i)},${y(p.score)}`).join(' '),
+    })
+  );
+
+  points.forEach((point, i) => {
+    const dot = svgEl('circle', {
+      class: `trend__dot trend__dot--${scoreClass(point.score).replace('score--', '')}`,
+      cx: x(i),
+      cy: y(point.score),
+      r: 3.5,
+    });
+    // 滑鼠移上去看得到是哪一句、什麼時候練的
+    const title = svgEl('title');
+    title.textContent = `${formatTime(point.at)}・${point.score} 分・${point.sentenceText}`;
+    dot.append(title);
+    svg.append(dot);
+  });
+
+  const first = points[0];
+  const last = points.at(-1);
+  const delta = last.score - first.score;
+  const direction = delta > 0 ? `進步 ${delta} 分` : delta < 0 ? `退步 ${-delta} 分` : '持平';
+  el.trendCaption.textContent =
+    `最近 ${points.length} 次的分數走勢（左舊右新）：` +
+    `${formatTime(first.at)} ${first.score} 分 → ${formatTime(last.at)} ${last.score} 分，${direction}。`;
+
+  el.trendChart.replaceChildren(svg);
+}
+
 function renderHistory() {
   if (history.length === 0) {
     el.historyCard.hidden = true;
+    el.historyTrend.hidden = true;
+    el.trendChart.replaceChildren();
     return;
   }
   el.historyCard.hidden = false;
@@ -748,6 +921,8 @@ function renderHistory() {
     tile.append(v, l);
     el.historyStats.append(tile);
   }
+
+  renderTrend();
 
   // 只列最近 20 筆，再多就變成一整頁捲不完的清單
   el.historyList.replaceChildren();
@@ -778,6 +953,18 @@ function renderHistory() {
 
     main.append(text, meta);
     item.append(score, main);
+
+    // 這句還在 sentences.json 裡才給重練 —— 例句改過之後舊紀錄可能對不到
+    if (sentences.some((s) => s.id === record.sentenceId)) {
+      const replay = document.createElement('button');
+      replay.type = 'button';
+      replay.className = 'btn btn--ghost btn--small history__replay';
+      replay.textContent = '重練這句';
+      replay.disabled = recorder !== null;
+      replay.addEventListener('click', () => practiseSentence(record.sentenceId));
+      item.append(replay);
+    }
+
     el.historyList.append(item);
   }
 
@@ -795,8 +982,9 @@ function onClearHistory() {
     return;
   }
   clearHistory();
-  history = [];
+  setHistory([]);
   renderHistory();
+  renderPastChip();
 }
 
 // ─── 啟動 ────────────────────────────────────────────────────────────────
@@ -825,6 +1013,7 @@ el.btnRecord.addEventListener('click', () => {
 });
 el.filterCategory.addEventListener('change', onFilterChange);
 el.filterDifficulty.addEventListener('change', onFilterChange);
+el.prefWeighted.addEventListener('change', onWeightedChange);
 el.model.addEventListener('change', onModelChange);
 el.btnClearHistory.addEventListener('click', onClearHistory);
 
@@ -836,6 +1025,12 @@ window.addEventListener('pagehide', () => {
 
 (async function init() {
   const supported = checkBrowserSupport();
+
+  // 紀錄要先讀進來，第一次抽句才有加權可用（localStorage 是同步的，不會拖慢載入）
+  setHistory(loadHistory());
+  if (!storageAvailable()) {
+    console.warn('[storage] localStorage 不可用，這次的練習紀錄與偏好設定不會被保存');
+  }
 
   try {
     await loadSentences();
@@ -860,11 +1055,8 @@ window.addEventListener('pagehide', () => {
     el.modelNote.textContent = '讀不到可用的 model 清單，將使用伺服器的預設值。';
   }
 
-  history = loadHistory();
+  // 紀錄清單要等 model 清單載入後才畫，meta 那行才顯示得出 model 的名稱
   renderHistory();
-  if (!storageAvailable()) {
-    console.warn('[storage] localStorage 不可用，這次的練習紀錄與偏好設定不會被保存');
-  }
 
   if (supported) {
     // 提早暖機 voice 清單，避免第一次按播放沒聲音

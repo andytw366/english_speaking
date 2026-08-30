@@ -640,6 +640,14 @@ body {
   color: var(--danger);
 }
 
+/* 階段 8：這句在練你常錯的哪個音。
+   用 ok 的綠色而不是 danger 的紅色 —— 它講的是「這句對你有用」，
+   不是「你又錯了」；紅色留給實際唸錯的字。 */
+.chip--focus {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--ok);
+}
+
 /* 播放鍵靠右，這樣多個字排下來時按鍵是對齊的 */
 .problems__play {
   margin-left: auto;

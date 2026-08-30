@@ -55,5 +55,8 @@ export function renderSetSummary(el, summary) {
     list.append(row);
   }
 
-  el.issues.append(title, list);
+  const note = document.createElement('p');
+  note.className = 'hint';
+  note.textContent = '接下來會多抽一些練得到這些音的句子。';
+  el.issues.append(title, list, note);
 }

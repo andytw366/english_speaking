@@ -147,20 +147,41 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 check('重整後記得開著', await page.locator('#pref-weighted').isChecked());
 
-console.log('\n【7】加權不會讓任何句子抽不到（不設條件時每句都要抽得到）');
+console.log('\n【7】加權不會讓任何句子抽不到');
 // 加權調過頭的症狀是「某幾句再也抽不到」。這裡只驗沒有句子被完全餓死 ——
 // 機率分布本身在 test/practice.test.js 用純函式測。
 await seed(fakeHistory([[0, 100], [0, 100], [0, 100], [1, 0], [1, 0], [2, 0]]));
+
+// 先在一個小池子裡驗「每一句都抽得到」。句庫有 80 句以上，
+// 在全部句子裡跑 coupon collector 要 350 次以上才蓋得完，用真實點擊跑太慢；
+// 縮小池子才驗得準，而餓死問題在小池子裡本來就更明顯。
+await page.selectOption('#filter-difficulty', 'hard');
+await page.selectOption('#filter-category', 'travel');
+await page.waitForTimeout(200);
+const poolSize = Number((await page.textContent('#filter-count')).match(/符合條件 (\d+)/)[1]);
+const poolSeen = new Set();
+for (let i = 0; i < poolSize * 15; i += 1) {
+  await page.click('#btn-next');
+  poolSeen.add(await page.textContent('#sentence'));
+}
+check(`小池子（${poolSize} 句）每一句都抽得到`, poolSeen.size === poolSize, `${poolSeen.size} / ${poolSize} 句`);
+
+// 再回到完整句庫看整體覆蓋率，確認沒有一整區被權重壓到抽不出來
+await page.selectOption('#filter-difficulty', '');
+await page.selectOption('#filter-category', '');
+await page.waitForTimeout(200);
 const DRAWS = 200;
 const seen = new Set();
 for (let i = 0; i < DRAWS; i += 1) {
   await page.click('#btn-next');
   seen.add(await page.textContent('#sentence'));
 }
-// 加權後 100 分那句的機率約 1/83，200 次抽不到的機率約 9% —— 所以不單獨斷言它，
-// 改看整體覆蓋率（漏掉 3 句以上的機率不到萬分之一）。單句的機率分布在
-// test/practice.test.js 用純函式測，那裡才驗得準。
-check(`${DRAWS} 次換句抽到過幾乎所有句子`, seen.size >= sentences.length - 2, `${seen.size} / ${sentences.length} 句`);
+// 等機率下 200 抽平均蓋到約九成，這裡抓八成當下限（低於它幾乎不可能是巧合）
+check(
+  `${DRAWS} 次換句蓋到八成以上的句子`,
+  seen.size >= Math.floor(sentences.length * 0.8),
+  `${seen.size} / ${sentences.length} 句`
+);
 check('0 分的兩句一定抽得到', seen.has(sentences[1].text) && seen.has(sentences[2].text));
 
 console.log('\n【8】間隔重複：久沒練的句子會被標成「該複習了」');
@@ -240,7 +261,34 @@ await page.evaluate(async (text) => {
 }, sentenceText);
 check('都唸對時不會留下空的區塊', (await page.locator('.problems').count()) === 0);
 
-console.log('\n【10】今天的進度與連續天數');
+console.log('\n【10】依弱點音抽句');
+// 紀錄裡塞一批「th 一直錯」的練習，句子旁邊要說明這句在練 th
+const thHeavy = fakeHistory([[0, 50], [1, 50], [2, 50], [3, 50]]).map((r) => ({
+  ...r,
+  problemWords: [{ word: 'think', issue: 'th', heard: 'sink', tip_zh: '舌尖伸到門牙之間' }],
+}));
+await seed(thHeavy);
+
+// 換幾次句子，總會抽到練得到 th 的句子（th 的句子權重是別人的兩倍）
+let focusChip = '';
+for (let i = 0; i < 40 && !focusChip; i += 1) {
+  if (await page.locator('#sentence-focus').isVisible()) {
+    focusChip = await page.textContent('#sentence-focus');
+    break;
+  }
+  await page.click('#btn-next');
+}
+check('抽到練得到弱點音的句子時會說明', focusChip.includes('這句在練'), focusChip || '(40 次都沒出現)');
+check('說明裡是中文標籤而不是代碼', focusChip.includes('th 音'), focusChip);
+await shot(page, 'ui-05-弱點音');
+
+// 關掉加權時弱點音也不再影響抽句，那個 chip 就不該繼續掛著
+await page.uncheck('#pref-weighted');
+await page.waitForTimeout(150);
+check('關掉加權後就不再顯示', await page.locator('#sentence-focus').isHidden());
+await page.check('#pref-weighted');
+
+console.log('\n【11】今天的進度與連續天數');
 // 紀錄一律放在本地時間的中午，避開午夜與日光節約的邊界 ——
 // 不然這支測試會在半夜跑的時候紅一次，隔天自己又好了。
 const noonDaysAgo = (daysAgo) => {
@@ -275,7 +323,7 @@ check('今天是 0 句', (await page.textContent('#today-count')).startsWith('0 
 await seed(onDays([0, 0, 0, 0, 0]));
 check('達成目標時有講', (await page.textContent('#today-note')).includes('達成'), await page.textContent('#today-note'));
 check('達標的數字會變色', await page.locator('#today-count.today__value--done').isVisible());
-await shot(page, 'ui-05-今天的進度');
+await shot(page, 'ui-06-今天的進度');
 
 // 每日目標記在 localStorage
 await page.selectOption('#daily-goal', '10');
@@ -285,7 +333,7 @@ await page.reload();
 await page.waitForSelector('#sentence:not(:empty)');
 check('重整後記得選的目標', (await page.locator('#daily-goal').inputValue()) === '10');
 
-console.log('\n【11】一組練完的總結');
+console.log('\n【12】一組練完的總結');
 await page.evaluate(async () => {
   const { renderSetSummary } = await import('/set-view.js');
   const { summariseSet } = await import('/practice.js');
@@ -308,7 +356,7 @@ check('最高最低都在', (await page.textContent('#set-stats')).includes('90 
 check('最常出現的問題排在第一', (await page.textContent('#set-issues .set__list li')).includes('th 音'));
 check('列出被點名的字', (await page.textContent('#set-issues')).includes('thoroughly'));
 check('有「再練一組」', await page.locator('#btn-next-set').isVisible());
-await shot(page, 'ui-06-一組練完');
+await shot(page, 'ui-07-一組練完');
 
 await page.evaluate(async () => {
   const { renderSetSummary } = await import('/set-view.js');
@@ -320,7 +368,7 @@ await page.evaluate(async () => {
 });
 check('都唸對時講的是好消息，不是一片空白', (await page.textContent('#set-issues')).includes('沒有被點名'));
 
-console.log('\n【12】清除紀錄');
+console.log('\n【13】清除紀錄');
 page.once('dialog', (d) => d.accept());
 await page.click('#btn-clear-history');
 await page.waitForTimeout(200);
@@ -328,14 +376,14 @@ check('紀錄卡片收起來', await page.locator('#history-card').isHidden());
 check('趨勢圖也收起來', await page.locator('#history-trend').isHidden());
 check('句子旁的成績 chip 收起來', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【13】沒有紀錄時的初始畫面');
+console.log('\n【14】沒有紀錄時的初始畫面');
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => !document.getElementById('sentence').textContent.includes('載入中'));
 check('紀錄卡片是隱藏的', await page.locator('#history-card').isHidden());
 check('趨勢圖是隱藏的', await page.locator('#history-trend').isHidden());
 check('成績 chip 是隱藏的', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【14】JS 錯誤');
+console.log('\n【15】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

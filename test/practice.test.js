@@ -23,6 +23,10 @@ import {
   todayCount,
   streakDays,
   summariseSet,
+  weakIssues,
+  focusBoost,
+  matchedWeakIssues,
+  WEAK_WINDOW,
 } from '../public/practice.js';
 
 /**
@@ -434,4 +438,102 @@ test('summariseSet：空的或壞掉的輸入回一份空總結', () => {
     assert.equal(summary.average, null);
     assert.deepEqual(summary.issues, []);
   }
+});
+
+// ─── 依弱點音抽句 ────────────────────────────────────────────────────────
+
+const withProblems = (issues, minutesAgo = 0) => ({
+  ...rec('x', 60, minutesAgo),
+  problemWords: issues.map((issue) => ({ word: 'w', issue, heard: '', tip_zh: '' })),
+});
+
+test('weakIssues：統計最近的紀錄裡哪些音出問題出得最多', () => {
+  const weak = weakIssues([
+    withProblems(['th', 'r_l']),
+    withProblems(['th'], 10),
+    withProblems(['th'], 20),
+  ]);
+  assert.equal(weak.get('th'), 3);
+  assert.equal(weak.get('r_l'), 1);
+});
+
+test('weakIssues：只看最近 N 筆，太舊的問題不再影響抽句', () => {
+  // 一年前改掉的問題不該一直綁住現在的練習
+  const history = [
+    ...Array.from({ length: WEAK_WINDOW }, (_, i) => withProblems(['r_l'], i)),
+    withProblems(['th'], WEAK_WINDOW + 1),
+  ];
+  const weak = weakIssues(history);
+  assert.equal(weak.get('r_l'), WEAK_WINDOW);
+  assert.equal(weak.has('th'), false);
+});
+
+test('weakIssues：舊格式（純字串）與壞資料不會讓統計爆掉', () => {
+  const weak = weakIssues([
+    { problemWords: ['thoroughly'] },
+    { problemWords: [null, 42, { word: 'x' }] }, // 沒有 issue
+    null,
+    { score: 60 },
+  ]);
+  assert.equal(weak.size, 0);
+  assert.equal(weakIssues(undefined).size, 0);
+});
+
+test('focusBoost：命中弱點的句子權重變高，最多兩倍', () => {
+  const weak = new Map([['th', 6], ['r_l', 2]]);
+
+  const both = focusBoost({ focus: ['th', 'r_l'] }, weak);
+  const onlyTh = focusBoost({ focus: ['th', 'stress'] }, weak);
+  const unrelated = focusBoost({ focus: ['v_w'] }, weak);
+
+  assert.equal(both, 2);
+  assert.ok(onlyTh > unrelated && onlyTh < both, `${unrelated} < ${onlyTh} < ${both}`);
+});
+
+test('focusBoost：下限是 1 —— 練不到弱點的句子只是不被偏好，不會被排除', () => {
+  // 跟前面兩條加權同一個原則。focus 是人工標的，本來就不會完美，
+  // 全部只給弱點音的句子會讓練習變得很窄。
+  const weak = new Map([['th', 10]]);
+  assert.equal(focusBoost({ focus: ['v_w'] }, weak), 1);
+  assert.equal(focusBoost({ focus: [] }, weak), 1);
+  assert.equal(focusBoost({}, weak), 1); // 還沒標 focus 的句子
+  assert.equal(focusBoost(null, weak), 1);
+});
+
+test('focusBoost：沒有弱點資料時一律 1（新使用者不會被亂加權）', () => {
+  assert.equal(focusBoost({ focus: ['th'] }, new Map()), 1);
+  assert.equal(focusBoost({ focus: ['th'] }, null), 1);
+});
+
+test('matchedWeakIssues：只回「這句練得到、而且使用者確實有問題」的音', () => {
+  const weak = new Map([['th', 2], ['r_l', 5]]);
+  assert.deepEqual(matchedWeakIssues({ focus: ['th', 'v_w', 'r_l'] }, weak), ['r_l', 'th']);
+  assert.deepEqual(matchedWeakIssues({ focus: ['v_w'] }, weak), []);
+  assert.deepEqual(matchedWeakIssues({ focus: ['th'] }, new Map()), []);
+});
+
+test('pickSentence：練得到弱點音的句子明顯比較常被抽到', () => {
+  const pool = [
+    { id: 'th1', focus: ['th'] },
+    { id: 'th2', focus: ['th'] },
+    { id: 'other', focus: ['v_w'] },
+  ];
+  const weak = new Map([['th', 8]]);
+
+  const counts = { th1: 0, th2: 0, other: 0 };
+  for (let i = 0; i < 3000; i += 1) counts[pickSentence(pool, { weak, now: NOW }).id] += 1;
+
+  // 權重 2 : 2 : 1 → 練得到 th 的兩句合計應該遠多於另一句
+  assert.ok(counts.th1 + counts.th2 > counts.other * 3, JSON.stringify(counts));
+  assert.ok(counts.other > 200, `練不到弱點的句子還是要抽得到：${counts.other} / 3000`);
+});
+
+test('pickSentence：沒傳 weak 時行為跟以前一樣（關掉加權的路徑）', () => {
+  const pool = [
+    { id: 'a', focus: ['th'] },
+    { id: 'b', focus: ['v_w'] },
+  ];
+  const counts = { a: 0, b: 0 };
+  for (let i = 0; i < 2000; i += 1) counts[pickSentence(pool, { now: NOW }).id] += 1;
+  assert.ok(counts.a > 800 && counts.b > 800, `應該接近等機率：${JSON.stringify(counts)}`);
 });

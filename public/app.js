@@ -30,6 +30,8 @@ import {
   streakDays,
   todayCount,
   summariseSet,
+  weakIssues,
+  matchedWeakIssues,
   SET_SIZE,
 } from './practice.js';
 import { renderFeedback } from './feedback-view.js';
@@ -38,6 +40,7 @@ import { renderSetSummary } from './set-view.js';
 import {
   categoryLabel,
   difficultyLabel,
+  issueLabel,
   relativeTime,
   DIFFICULTY_ORDER,
   CATEGORY_LABEL,
@@ -56,6 +59,7 @@ const el = {
   filterCount: $('filter-count'),
   prefWeighted: $('pref-weighted'),
   sentencePast: $('sentence-past'),
+  sentenceFocus: $('sentence-focus'),
   btnSpeak: $('btn-speak'),
   btnNext: $('btn-next'),
   btnRecord: $('btn-record'),
@@ -122,6 +126,8 @@ let history = [];
 // 依句子彙整的練習成績。history 一變就跟著重算，抽句加權與句子旁的
 // 「練過幾次」都讀這份，不要各自再算一次。
 let stats = new Map();
+// 最近哪些音出問題出得最多。跟 stats 一樣，history 一變就重算。
+let weak = new Map();
 // 瀏覽器不支援錄音時 fatal() 會停用錄音鍵，之後換句子不可以再把它打開
 let browserSupported = true;
 // 這一組練到第幾句（只存在記憶體裡：一組是「這次坐下來練的這幾句」，
@@ -204,6 +210,8 @@ function onFilterChange() {
 
 function onWeightedChange() {
   savePrefs({ weighted: el.prefWeighted.checked });
+  // 關掉加權時弱點音也不再影響抽句，那個 chip 就不該繼續掛著
+  renderFocusChip();
   // 不立刻換句 —— 使用者可能正想練現在這句，換掉會很煩。下一次「換一句」才生效。
   setStatus(
     el.prefWeighted.checked
@@ -234,6 +242,7 @@ function showRandomSentence() {
   // 關掉開關就退回等機率隨機 —— 「怎麼一直抽到同幾句」要有辦法關掉。
   current = pickSentence(pool, {
     stats,
+    weak: el.prefWeighted.checked ? weak : null,
     weighted: el.prefWeighted.checked,
     excludeId: current?.id ?? null,
   });
@@ -252,6 +261,7 @@ function renderCurrentSentence() {
   el.category.textContent = categoryLabel(current.category);
   el.difficulty.textContent = difficultyLabel(current.difficulty);
   renderPastChip();
+  renderFocusChip();
 
   resetRecording();
 }
@@ -285,6 +295,25 @@ function renderPastChip() {
   el.sentencePast.hidden = false;
   el.sentencePast.textContent = parts.join('・');
   el.sentencePast.classList.toggle('chip--due', due && Boolean(since));
+}
+
+/**
+ * 句子旁邊說明「這句在練你常錯的哪個音」。
+ *
+ * 跟成績 chip 同一個理由：弱點音也在影響抽句，不寫出來就完全看不出來。
+ * 只在「這句練得到、而且使用者確實有問題」時才顯示 ——
+ * 每句都掛一個標籤的話，這個標籤就不帶任何資訊了。
+ */
+function renderFocusChip() {
+  const matched = el.prefWeighted.checked && current ? matchedWeakIssues(current, weak) : [];
+
+  if (matched.length === 0) {
+    el.sentenceFocus.hidden = true;
+    el.sentenceFocus.textContent = '';
+    return;
+  }
+  el.sentenceFocus.hidden = false;
+  el.sentenceFocus.textContent = `這句在練 ${matched.slice(0, 2).map(issueLabel).join('、')}`;
 }
 
 /** 從練習紀錄指定重練某一句。找不到就當作沒按（sentences.json 可能改過）。 */
@@ -495,6 +524,7 @@ function onModelChange() {
 function setHistory(next) {
   history = next;
   stats = sentenceStats(history);
+  weak = weakIssues(history);
 }
 
 function saveToHistory(data) {
@@ -514,8 +544,9 @@ function saveToHistory(data) {
     })
   );
   drawHistory();
-  // 剛練完的分數會影響這句的統計，chip 要跟著更新
+  // 剛練完的分數與新出現的問題音都會影響 chip，兩個都要更新
   renderPastChip();
+  renderFocusChip();
 
   setRecords.push(history[0]);
   renderToday();
@@ -620,6 +651,7 @@ function onClearHistory() {
   el.setCard.hidden = true;
   drawHistory();
   renderPastChip();
+  renderFocusChip();
   renderToday();
   renderSetProgress();
 }

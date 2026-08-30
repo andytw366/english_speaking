@@ -156,6 +156,7 @@ export function isDue(stat, now = Date.now()) {
  * @param {*} [options.excludeId] 上一句的 id，池子多於一句時避免連續抽到同一句
  * @param {() => number} [options.random] 注入亂數來源，測試用
  * @param {number} [options.now] 現在時間（毫秒），間隔重複用；注入是為了測試
+ * @param {Map<string, number>} [options.weak] `weakIssues()` 的結果，依弱點音加權用
  * @returns {object|null}
  */
 export function pickSentence(pool, options = {}) {
@@ -165,6 +166,7 @@ export function pickSentence(pool, options = {}) {
     excludeId = null,
     random = Math.random,
     now = Date.now(),
+    weak = null,
   } = options;
 
   if (!Array.isArray(pool) || pool.length === 0) return null;
@@ -180,7 +182,7 @@ export function pickSentence(pool, options = {}) {
 
   if (!weighted) return pickAt(Math.floor(random() * list.length));
 
-  const weights = list.map((s) => sentenceWeight(stats.get(s.id), now));
+  const weights = list.map((s) => sentenceWeight(stats.get(s.id), now) * focusBoost(s, weak));
   const total = weights.reduce((sum, w) => sum + w, 0);
   let threshold = random() * total;
   for (let i = 0; i < list.length; i += 1) {
@@ -324,4 +326,74 @@ export function summariseSet(records) {
     // 次數多的排前面；一樣多時照第一次出現的順序，才不會每次重畫都跳動
     issues: [...counts.values()].sort((a, b) => b.count - a.count),
   };
+}
+
+// ─── 依弱點音抽句（階段 8）──────────────────────────────────────────────
+//
+// 階段 7 的總結會告訴你「這一組有三句都是 th」，但下一組不會因此多給你 th 的句子 ——
+// 講完就沒有下文，跟階段 6 之前的練習紀錄一樣。
+//
+// 所以 `sentences.json` 的每一句多了 `focus`（這句在練哪些音），
+// 抽句時再乘上一個「這句練不練得到你的弱點」的係數。
+// ELSA 那類 App 的做法也是這樣：分析出你哪個音有問題，然後餵你那個音的題目。
+
+/** 只看最近這麼多筆紀錄。太舊的問題可能早就改掉了，一直拿來加權只會綁住使用者。 */
+export const WEAK_WINDOW = 30;
+
+/** 完全命中弱點時的最大加成。1 代表最多兩倍。 */
+export const FOCUS_BONUS = 1;
+
+/**
+ * 最近的紀錄裡，哪些音出問題出得最多。
+ *
+ * @param {Array<object>} history 由新到舊
+ * @returns {Map<string, number>} issue 代碼 → 出現次數
+ */
+export function weakIssues(history, limit = WEAK_WINDOW) {
+  const counts = new Map();
+  if (!Array.isArray(history)) return counts;
+
+  for (const record of history.slice(0, limit)) {
+    const words = Array.isArray(record?.problemWords) ? record.problemWords : [];
+    for (const item of words) {
+      // 舊紀錄是純字串，沒有類型可以統計
+      if (!item || typeof item !== 'object' || !item.issue) continue;
+      counts.set(item.issue, (counts.get(item.issue) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
+ * 這句練不練得到你的弱點：1（完全沒關係）～ 2（把你的問題全包了）。
+ *
+ * **下限是 1，不是 0** —— 跟前面兩條加權同一個原則：
+ * 沒標 `focus` 的句子、練不到你弱點的句子，只是不會被特別偏好，不會被排除。
+ * 全部只給弱點音的句子會讓練習變得很窄，而且 `focus` 是人工標的，本來就不會完美。
+ */
+export function focusBoost(sentence, weak) {
+  if (!weak || weak.size === 0) return 1;
+  const focus = Array.isArray(sentence?.focus) ? sentence.focus : [];
+  if (focus.length === 0) return 1;
+
+  let total = 0;
+  for (const count of weak.values()) total += count;
+  if (total === 0) return 1;
+
+  // 同一句可能標了兩個音，兩個都命中就加得比較多，但整體仍封頂在 2 倍
+  const matched = focus.reduce((sum, tag) => sum + (weak.get(tag) ?? 0), 0);
+  return 1 + FOCUS_BONUS * Math.min(1, matched / total);
+}
+
+/**
+ * 一句話說明「為什麼會抽到這句」裡跟弱點有關的那一部分。
+ *
+ * @returns {string[]} 這句練得到、而且使用者確實有問題的音（照問題多寡排序）
+ */
+export function matchedWeakIssues(sentence, weak) {
+  if (!weak || weak.size === 0) return [];
+  const focus = Array.isArray(sentence?.focus) ? sentence.focus : [];
+  return focus
+    .filter((tag) => (weak.get(tag) ?? 0) > 0)
+    .sort((a, b) => weak.get(b) - weak.get(a));
 }

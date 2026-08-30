@@ -4,7 +4,7 @@
 // 三個地方都要用同一組 —— 分數門檻（60 / 80）尤其不能各自定義，
 // 不然趨勢圖的格線會跟紀錄上的顏色對不起來。
 
-export const CATEGORY_LABEL = { daily: '日常對話', interview: '面試', travel: '旅遊' };
+export const CATEGORY_LABEL = { daily: '日常對話', work: '職場', interview: '面試', travel: '旅遊' };
 export const DIFFICULTY_LABEL = { easy: '簡單', medium: '中等', hard: '困難' };
 
 /** 難度下拉選單的排序。直接用 Object.keys 會變成 sentences.json 的出現順序。 */

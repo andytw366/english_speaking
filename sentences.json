@@ -3,162 +3,810 @@
     "id": 1,
     "text": "Could you tell me where the nearest subway station is?",
     "category": "travel",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ]
   },
   {
     "id": 2,
     "text": "I'd like to check in, please. I have a reservation under Chen.",
     "category": "travel",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "linking",
+      "r_l"
+    ]
   },
   {
     "id": 3,
     "text": "Excuse me, does this bus go to the airport terminal?",
     "category": "travel",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "final_consonant"
+    ]
   },
   {
     "id": 4,
     "text": "I'm afraid my luggage didn't arrive on the same flight.",
     "category": "travel",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ]
   },
   {
     "id": 5,
     "text": "Would it be possible to change my seat to an aisle one?",
     "category": "travel",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ]
   },
   {
     "id": 6,
     "text": "The weather is thoroughly unpredictable throughout the autumn.",
     "category": "travel",
-    "difficulty": "hard"
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "stress"
+    ]
   },
   {
     "id": 7,
     "text": "How was your weekend? Did you do anything interesting?",
     "category": "daily",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "v_w"
+    ]
   },
   {
     "id": 8,
     "text": "I usually grab a coffee on my way to work.",
     "category": "daily",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "linking"
+    ]
   },
   {
     "id": 9,
     "text": "Sorry, I didn't catch that. Could you say it again more slowly?",
     "category": "daily",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "th"
+    ]
   },
   {
     "id": 10,
     "text": "I've been meaning to call you, but things got really busy.",
     "category": "daily",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ]
   },
   {
     "id": 11,
     "text": "Let's schedule a quick catch-up sometime later this week.",
     "category": "daily",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "th"
+    ]
   },
   {
     "id": 12,
     "text": "That restaurant was surprisingly affordable for such good food.",
     "category": "daily",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "stress"
+    ]
   },
   {
     "id": 13,
     "text": "The thirty-three thieves thought they thrilled the throne.",
     "category": "daily",
-    "difficulty": "hard"
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "r_l"
+    ]
   },
   {
     "id": 14,
     "text": "She specifically requested a vegetarian alternative for the buffet.",
     "category": "daily",
-    "difficulty": "hard"
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "stress"
+    ]
   },
   {
     "id": 15,
     "text": "Thanks for having me. I'm excited to learn more about this role.",
     "category": "interview",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "r_l"
+    ]
   },
   {
     "id": 16,
     "text": "I have about five years of experience in software development.",
     "category": "interview",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ]
   },
   {
     "id": 17,
     "text": "My greatest strength is staying calm when priorities shift quickly.",
     "category": "interview",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "stress"
+    ]
   },
   {
     "id": 18,
     "text": "I led a small team that migrated our entire billing system.",
     "category": "interview",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "r_l"
+    ]
   },
   {
     "id": 19,
     "text": "Could you walk me through what a typical week looks like here?",
     "category": "interview",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "vowel_length"
+    ]
   },
   {
     "id": 20,
     "text": "I'm particularly interested in the collaborative culture you described.",
     "category": "interview",
-    "difficulty": "hard"
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "plural_ed"
+    ]
   },
   {
     "id": 21,
     "text": "We prioritized reliability over adding entirely new features.",
     "category": "interview",
-    "difficulty": "hard"
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "stress"
+    ]
   },
   {
     "id": 22,
     "text": "I thoroughly reviewed the requirements before I scheduled the meeting.",
     "category": "interview",
-    "difficulty": "hard"
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "plural_ed"
+    ]
   },
   {
     "id": 23,
     "text": "Do you accept credit cards, or is it cash only?",
     "category": "travel",
-    "difficulty": "easy"
+    "difficulty": "easy",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ]
   },
   {
     "id": 24,
     "text": "I'll take the local specialty, whatever you'd recommend.",
     "category": "travel",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "v_w"
+    ]
   },
   {
     "id": 25,
     "text": "It completely slipped my mind that today was a public holiday.",
     "category": "daily",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "r_l"
+    ]
   },
   {
     "id": 26,
     "text": "The world's largest rural literature museum opened last year.",
     "category": "daily",
-    "difficulty": "hard"
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ]
   },
   {
     "id": 27,
     "text": "Would you mind if I followed up with a few questions by email?",
     "category": "interview",
-    "difficulty": "medium"
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 28,
+    "text": "Is there a pharmacy around here that's open late?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "r_l"
+    ]
+  },
+  {
+    "id": 29,
+    "text": "I'd like a window seat, please.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "vowel_length",
+      "v_w"
+    ]
+  },
+  {
+    "id": 30,
+    "text": "Could I get the bill, please? We're paying separately.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "linking"
+    ]
+  },
+  {
+    "id": 31,
+    "text": "How long does it take to walk there from here?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "th"
+    ]
+  },
+  {
+    "id": 32,
+    "text": "Where can I buy a ticket for the express train?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ]
+  },
+  {
+    "id": 33,
+    "text": "I think there's been a mistake with my booking.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "n_ng"
+    ]
+  },
+  {
+    "id": 34,
+    "text": "Do you know if the tour includes lunch?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 35,
+    "text": "We reserved a table for three at seven thirty.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "r_l"
+    ]
+  },
+  {
+    "id": 36,
+    "text": "The room next door was really loud last night.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ]
+  },
+  {
+    "id": 37,
+    "text": "Is breakfast included in the room rate?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "r_l"
+    ]
+  },
+  {
+    "id": 38,
+    "text": "I'd rather walk than wait for another shuttle.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "v_w"
+    ]
+  },
+  {
+    "id": 39,
+    "text": "Our flight was delayed three hours because of the thunderstorm.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 40,
+    "text": "The receptionist recommended a restaurant within walking distance.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "stress"
+    ]
+  },
+  {
+    "id": 41,
+    "text": "What time do you usually wake up?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "vowel_length",
+      "final_consonant"
+    ]
+  },
+  {
+    "id": 42,
+    "text": "I'm just heading out to grab some lunch.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "extra_vowel"
+    ]
+  },
+  {
+    "id": 43,
+    "text": "Thanks a lot. That really helps.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "r_l"
+    ]
+  },
+  {
+    "id": 44,
+    "text": "Let me think about it for a second.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "linking"
+    ]
+  },
+  {
+    "id": 45,
+    "text": "I've been feeling a little under the weather lately.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "th"
+    ]
+  },
+  {
+    "id": 46,
+    "text": "Could you send me the link when you get a chance?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "final_consonant"
+    ]
+  },
+  {
+    "id": 47,
+    "text": "We watched three movies in a row last weekend.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "th"
+    ]
+  },
+  {
+    "id": 48,
+    "text": "She asked me twice, but I forgot both times.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "v_w"
+    ]
+  },
+  {
+    "id": 49,
+    "text": "It's been raining on and off all afternoon.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "linking"
+    ]
+  },
+  {
+    "id": 50,
+    "text": "I'd appreciate it if you could clarify the last point.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ]
+  },
+  {
+    "id": 51,
+    "text": "Rural areas rarely receive reliable coverage.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "stress"
+    ]
+  },
+  {
+    "id": 52,
+    "text": "Very few of the volunteers were available on the weekend.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "r_l"
+    ]
+  },
+  {
+    "id": 53,
+    "text": "The children thought the theater was closed on Thursdays.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 54,
+    "text": "I'll send over the notes right after the meeting.",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "linking"
+    ]
+  },
+  {
+    "id": 55,
+    "text": "Can we move the call to three o'clock?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "th"
+    ]
+  },
+  {
+    "id": 56,
+    "text": "Sorry, you're breaking up a little. Could you say that again?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "n_ng"
+    ]
+  },
+  {
+    "id": 57,
+    "text": "Let's circle back on this once we have the numbers.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "th"
+    ]
+  },
+  {
+    "id": 58,
+    "text": "I'll double-check the figures and get back to you.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 59,
+    "text": "Could you share your screen so we can all see it?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "vowel_length"
+    ]
+  },
+  {
+    "id": 60,
+    "text": "We're running slightly behind on the delivery date.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ]
+  },
+  {
+    "id": 61,
+    "text": "I've attached the revised proposal to this thread.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "th"
+    ]
+  },
+  {
+    "id": 62,
+    "text": "The vendor withdrew the invoice without any explanation.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "th"
+    ]
+  },
+  {
+    "id": 63,
+    "text": "We thoroughly tested the workflow through three environments.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 64,
+    "text": "Realistically, we'll need another two weeks for the rollout.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "vowel_length"
+    ]
+  },
+  {
+    "id": 65,
+    "text": "I'm currently working as a data analyst.",
+    "category": "interview",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ]
+  },
+  {
+    "id": 66,
+    "text": "I graduated with a degree in computer science.",
+    "category": "interview",
+    "difficulty": "easy",
+    "focus": [
+      "plural_ed",
+      "stress"
+    ]
+  },
+  {
+    "id": 67,
+    "text": "I'd describe myself as a fairly methodical problem solver.",
+    "category": "interview",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "r_l"
+    ]
+  },
+  {
+    "id": 68,
+    "text": "The role sounds like a great fit for my background.",
+    "category": "interview",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "n_ng"
+    ]
+  },
+  {
+    "id": 69,
+    "text": "I'm looking for a place where I can keep growing.",
+    "category": "interview",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "vowel_length"
+    ]
+  },
+  {
+    "id": 70,
+    "text": "What does success look like in the first three months?",
+    "category": "interview",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "final_consonant"
+    ]
+  },
+  {
+    "id": 71,
+    "text": "I'd rather focus on depth than breadth in my next role.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "r_l"
+    ]
+  },
+  {
+    "id": 72,
+    "text": "Everything I've worked on has involved cross-team collaboration.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 73,
+    "text": "The visualization work required both patience and precision.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "th"
+    ]
+  },
+  {
+    "id": 74,
+    "text": "I asked for milk, not orange juice.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 75,
+    "text": "The desk next to the window is free.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "v_w"
+    ]
+  },
+  {
+    "id": 76,
+    "text": "He said it looked good and cost a lot less.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ]
+  },
+  {
+    "id": 77,
+    "text": "Give it a try and let me know how it goes.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "linking",
+      "r_l"
+    ]
+  },
+  {
+    "id": 78,
+    "text": "Is it all right if I call you back in an hour?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "linking",
+      "r_l"
+    ]
+  },
+  {
+    "id": 79,
+    "text": "Could you fill in this form and hand it in at the desk?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "extra_vowel"
+    ]
+  },
+  {
+    "id": 80,
+    "text": "She still feels the film was a little too long.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "r_l"
+    ]
+  },
+  {
+    "id": 81,
+    "text": "They've been asked to send the signed documents back.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "extra_vowel"
+    ]
   }
 ]

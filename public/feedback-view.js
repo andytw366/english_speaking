@@ -2,7 +2,9 @@
 //
 // 這裡只負責「把資料畫出來」，不決定要不要計入紀錄、也不呼叫 API。
 
-import { diffWords } from './text-diff.js';
+import { diffWords, problemWordText } from './text-diff.js';
+import { issueLabel } from './labels.js';
+import { speak } from './speech.js';
 
 /**
  * 把目標句重畫成一個個 span，沒對上或被點名的字標色。
@@ -33,6 +35,83 @@ export function highlightSentence(sentenceEl, sentenceText, transcript, problemW
  * @param {object} data /api/pronunciation-feedback 的回應
  * @param {{sentenceText: string, labelForModel: (id: string) => string}} context
  */
+/**
+ * 逐字的發音問題：唸成什麼、屬於哪一類、嘴巴該怎麼做，外加單字的示範發音。
+ *
+ * 為什麼要有這一段：只說「thoroughly 發音不準」對練習沒有幫助 ——
+ * 使用者不知道自己唸成了什麼，也不知道要怎麼改。ELSA 那類 App 的核心價值
+ * 就在這裡，而不是那個分數。
+ *
+ * 每個字旁邊給一個單獨的播放鍵，是因為整句示範聽三次也未必抓得到那一個音。
+ *
+ * @returns {HTMLElement|null} 沒有問題字時回 null（不要留一個空的區塊）
+ */
+function renderProblemWords(list) {
+  const items = (Array.isArray(list) ? list : [])
+    .map((item) => (typeof item === 'string' ? { word: item } : item))
+    .filter((item) => problemWordText(item));
+
+  if (items.length === 0) return null;
+
+  const section = document.createElement('div');
+  section.className = 'problems';
+
+  const heading = document.createElement('p');
+  heading.className = 'problems__title';
+  heading.textContent = '這幾個字可以再練';
+  section.append(heading);
+
+  const list_ = document.createElement('ul');
+  list_.className = 'problems__list';
+
+  for (const item of items) {
+    const row = document.createElement('li');
+    row.className = 'problems__item';
+
+    const head = document.createElement('div');
+    head.className = 'problems__head';
+
+    const word = document.createElement('span');
+    word.className = 'problems__word';
+    word.textContent = item.word;
+
+    const tag = document.createElement('span');
+    tag.className = 'chip chip--issue';
+    tag.textContent = issueLabel(item.issue);
+
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'btn btn--ghost btn--small problems__play';
+    play.textContent = '🔊 單字';
+    play.title = `聽 ${item.word} 的發音`;
+    // 單字放慢一點 —— 這裡的目的是聽清楚那個音，不是聽自然的語速
+    play.addEventListener('click', () => speak(item.word, { rate: 0.75 }));
+
+    head.append(word, tag, play);
+    row.append(head);
+
+    // 「你唸成什麼」只在確實不一樣時才寫；一樣的話那行字只會讓人困惑
+    if (item.heard && item.heard.toLowerCase() !== item.word.toLowerCase()) {
+      const heard = document.createElement('p');
+      heard.className = 'problems__heard';
+      heard.textContent = `你唸成：${item.heard}`;
+      row.append(heard);
+    }
+
+    if (item.tip_zh) {
+      const tip = document.createElement('p');
+      tip.className = 'problems__tip';
+      tip.textContent = item.tip_zh;
+      row.append(tip);
+    }
+
+    list_.append(row);
+  }
+
+  section.append(list_);
+  return section;
+}
+
 export function renderFeedback(el, data, { sentenceText, labelForModel }) {
   el.body.replaceChildren();
 
@@ -74,6 +153,9 @@ export function renderFeedback(el, data, { sentenceText, labelForModel }) {
     legend.textContent = '上方句子中標紅的字，是沒被聽到、或發音需要加強的部分。';
     el.body.append(heard, legend);
   }
+
+  const problems = renderProblemWords(data?.problem_words);
+  if (problems) el.body.append(problems);
 
   const body = document.createElement('p');
   body.style.whiteSpace = 'pre-wrap';

@@ -45,17 +45,34 @@ export function matchedTargetIndices(targetWords, spokenWords) {
 }
 
 /**
+ * 取出 problem_words 裡的單字。
+ *
+ * 階段 7 把 problem_words 從字串陣列換成物件（word / heard / issue / tip_zh），
+ * 但 `localStorage` 裡的舊紀錄還是字串 —— 使用者的紀錄不會因為我們改了 schema 就跟著變，
+ * 所以兩種格式都要吃得下。
+ */
+export function problemWordText(item) {
+  if (typeof item === 'string') return item;
+  if (item && typeof item.word === 'string') return item.word;
+  return '';
+}
+
+/**
  * 把目標句拆成一個個「要不要標紅、為什麼」的項目，交給畫面去渲染。
  *
  * @param {string} targetText 目標句
  * @param {string} transcript AI 實際聽到的內容
- * @param {Array<string>} problemWords 模型點名發音有問題的字
+ * @param {Array<string|{word:string}>} problemWords 模型點名發音有問題的字
  * @returns {Array<{word:string, miss:boolean, reason:''|'unheard'|'problem'}>}
  */
 export function diffWords(targetText, transcript, problemWords = []) {
   const targetWords = String(targetText ?? '').split(/\s+/).filter(Boolean);
   const matched = matchedTargetIndices(targetWords, String(transcript ?? '').split(/\s+/));
-  const problems = new Set(problemWords.map(normalizeWord).filter(Boolean));
+  const problems = new Set(
+    (Array.isArray(problemWords) ? problemWords : [])
+      .map((item) => normalizeWord(problemWordText(item)))
+      .filter(Boolean)
+  );
 
   return targetWords.map((word, idx) => {
     // 「沒聽到」優先於「發音待加強」：字根本沒出現時，講「發音要加強」是誤導

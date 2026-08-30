@@ -48,6 +48,29 @@ export function defaultModel() {
   return FALLBACK_MODEL;
 }
 
+// 階段 7：發音問題的分類。
+//
+// 為什麼要有這個列舉、而不是讓模型自由寫一句話：
+//   1. 前端可以把類型做成標籤，使用者一眼看得出「又是 th」——
+//      同一類錯誤重複出現，比單看某一個字唸錯更有意義；
+//   2. 自由文字每次的說法都不一樣，同一種錯誤會被寫成好幾種講法。
+//
+// 清單本身是照中文母語者的常見錯誤挑的（th、r/l、v/w、字尾子音、-s／-ed 等），
+// 不是通用的音素表 —— 這個 App 的使用者介面是繁體中文，練的人幾乎都是這個族群。
+export const ISSUE_CODES = [
+  'th',
+  'r_l',
+  'v_w',
+  'final_consonant',
+  'plural_ed',
+  'vowel_length',
+  'n_ng',
+  'extra_vowel',
+  'stress',
+  'linking',
+  'other',
+];
+
 // 階段 4：讓 Gemini 一次回傳 transcript + 分數 + 講評，
 // 取代原本要用 Web Speech API 做辨識的規劃（SpeechRecognition 吃不了錄好的 Blob）。
 //
@@ -74,8 +97,39 @@ const RESPONSE_SCHEMA = {
     },
     problem_words: {
       type: 'array',
-      items: { type: 'string' },
-      description: '發音明顯不準確的英文單字，取自目標句，最多 5 個。沒有就給空陣列。',
+      items: {
+        type: 'object',
+        properties: {
+          word: {
+            type: 'string',
+            description: '目標句裡發音不準的那個英文單字，照目標句的拼法。',
+          },
+          heard: {
+            type: 'string',
+            description:
+              '使用者實際唸出來的樣子，用英文拼寫近似地寫（例如把 thoroughly 唸成 sorrowly 就寫 sorrowly）。' +
+              '聽起來就是對的、只是不夠自然時，寫跟 word 一樣的內容。',
+          },
+          issue: {
+            type: 'string',
+            enum: ISSUE_CODES,
+            description:
+              '錯誤類型。th＝θ/ð 唸成 s/z/d；r_l＝r 與 l 混淆；v_w＝v 與 w 混淆；' +
+              'final_consonant＝字尾子音沒發出來；plural_ed＝字尾 -s／-ed 沒唸；' +
+              'vowel_length＝長短母音混淆（ship／sheep）；n_ng＝字尾 n 與 ng 混淆；' +
+              'extra_vowel＝字尾多加了母音；stress＝重音位置錯了；linking＝該連音卻斷開；' +
+              'other＝以上都不是。',
+          },
+          tip_zh: {
+            type: 'string',
+            description:
+              '一句話的繁體中文練習提示，要講「嘴巴怎麼做」而不是只說「發音不準」。' +
+              '例如「舌尖輕輕伸到上下門牙之間送氣，不要用 s」。40 字以內。',
+          },
+        },
+        required: ['word', 'heard', 'issue', 'tip_zh'],
+      },
+      description: '發音明顯不準確的英文單字，取自目標句，最多 3 個。沒有就給空陣列。',
     },
     feedback_zh: {
       type: 'string',
@@ -118,13 +172,22 @@ function buildPrompt(sentence) {
 2. 語調／重音是否自然
 3. 一句鼓勵 + 一個具體可改善的建議
 
+**使用者是中文（繁體）母語者。** 這個族群最常見的問題有：
+th（θ/ð）唸成 s／z／d、r 與 l 混淆、v 與 w 混淆、字尾子音被吞掉、
+字尾 -s／-ed 沒唸出來、長短母音不分（ship／sheep）、字尾 n 與 ng 混淆、
+字尾多加一個母音（and 唸成「an-de」）。優先檢查這些。
+
+problem_words 每一項都要寫清楚**你聽到他唸成什麼**（heard）跟**嘴巴該怎麼做**（tip_zh）——
+只說「thoroughly 發音不準」對練習沒有幫助，使用者不知道自己錯在哪、也不知道怎麼改。
+最多 3 個，挑最值得改的；真的都唸得不錯就給空陣列，不要硬湊。
+
 請用簡短條列回答，不要長篇大論。
 
 另外請一併提供：
 - transcript：你實際聽到的英文內容，逐字照實記錄。如果使用者唸錯、漏字或多唸，
   就照實寫下你聽到的，不要自動修正成目標句 —— 這個欄位會拿去跟目標句做比對。
 - score：0-100 的發音參考分數
-- problem_words：發音明顯不準的單字（取自目標句）
+- problem_words：發音明顯不準的單字（取自目標句），含 word / heard / issue / tip_zh
 
 如果聽得到人聲但內容與目標句完全無關，speech_detected 給 true、
 transcript 照實寫你聽到的、score 依實際發音給分，並在 feedback_zh 指出唸的不是目標句。`;
@@ -277,14 +340,48 @@ function normalize(parsed) {
     speech_detected: true,
     transcript: typeof parsed.transcript === 'string' ? parsed.transcript : '',
     score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null,
-    problem_words: Array.isArray(parsed.problem_words)
-      ? parsed.problem_words.filter((w) => typeof w === 'string').slice(0, 5)
-      : [],
+    problem_words: normalizeProblemWords(parsed.problem_words),
     feedback_zh:
       typeof parsed.feedback_zh === 'string' && parsed.feedback_zh.trim()
         ? parsed.feedback_zh
         : '（Gemini 沒有給出講評內容，請再試一次）',
   };
+}
+
+/**
+ * 整理 problem_words。
+ *
+ * 這裡故意寬鬆：**只要有 word 就留下來**，其他欄位缺了就補預設值。
+ * 理由是這幾個欄位在畫面上的地位不同 —— word 決定句子裡哪個字要標紅（沒有它就沒東西可標），
+ * heard／tip_zh 只是補充說明，因為模型少寫一欄就把整個字丟掉，
+ * 使用者反而看不到「這個字唸錯了」這件最重要的事。
+ *
+ * 另外相容舊格式（純字串陣列）：schema 換過，但快取或舊紀錄裡可能還是字串。
+ */
+export function normalizeProblemWords(list) {
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .map((item) => {
+      if (typeof item === 'string') {
+        const word = item.trim();
+        return word ? { word, heard: '', issue: 'other', tip_zh: '' } : null;
+      }
+      if (!item || typeof item !== 'object') return null;
+
+      const word = typeof item.word === 'string' ? item.word.trim() : '';
+      if (!word) return null;
+
+      return {
+        word,
+        heard: typeof item.heard === 'string' ? item.heard.trim() : '',
+        // 沒見過的類型一律歸到 other，不要讓沒有對應中文標籤的代碼漏到畫面上
+        issue: ISSUE_CODES.includes(item.issue) ? item.issue : 'other',
+        tip_zh: typeof item.tip_zh === 'string' ? item.tip_zh.trim() : '',
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 function withTimeout(promise, ms) {

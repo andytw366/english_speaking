@@ -589,3 +589,70 @@ body {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ─── 階段 7：逐字的發音問題 ────────────────────────────────────────────
+   這一段是講評裡最該被看到的東西（分數只是個數字），所以給它一個底色區塊，
+   不要跟其他 hint 文字混在一起。 */
+
+.problems {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: var(--radius);
+}
+
+.problems__title {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.problems__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.problems__item + .problems__item {
+  border-top: 1px solid var(--border);
+  padding-top: 0.7rem;
+}
+
+.problems__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.problems__word {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.chip--issue {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+/* 播放鍵靠右，這樣多個字排下來時按鍵是對齊的 */
+.problems__play {
+  margin-left: auto;
+}
+
+.problems__heard {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.problems__tip {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}

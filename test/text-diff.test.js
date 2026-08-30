@@ -6,7 +6,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeWord, matchedTargetIndices, diffWords } from '../public/text-diff.js';
+import {
+  normalizeWord,
+  matchedTargetIndices,
+  diffWords,
+  problemWordText,
+} from '../public/text-diff.js';
 
 const TARGET = 'Could you tell me where the nearest subway station is?';
 
@@ -88,4 +93,33 @@ test('重複的字不會互相對錯位', () => {
     words.map((w) => w.miss),
     [false, false, false, true, false]
   );
+});
+
+// ─── problem_words 的兩種格式 ───────────────────────────────────────────
+// 階段 7 把它從字串陣列換成物件；使用者 localStorage 裡的舊紀錄還是字串。
+
+test('problemWordText：字串與物件都取得到單字', () => {
+  assert.equal(problemWordText('nearest'), 'nearest');
+  assert.equal(problemWordText({ word: 'nearest', issue: 'th' }), 'nearest');
+  assert.equal(problemWordText(null), '');
+  assert.equal(problemWordText({}), '');
+  assert.equal(problemWordText(42), '');
+});
+
+test('新格式（物件）的 problem_words 一樣標得到紅字', () => {
+  const words = diffWords(TARGET, TARGET, [{ word: 'nearest', issue: 'th', tip_zh: '…' }]);
+  assert.equal(words.find((w) => w.word === 'nearest').reason, 'problem');
+});
+
+test('新舊格式混在一起也不會壞', () => {
+  const words = diffWords(TARGET, TARGET, ['subway', { word: 'nearest' }, null]);
+  assert.deepEqual(
+    words.filter((w) => w.miss).map((w) => w.word),
+    ['nearest', 'subway']
+  );
+});
+
+test('problem_words 不是陣列時不會丟例外', () => {
+  assert.equal(diffWords(TARGET, TARGET, 'nearest').filter((w) => w.miss).length, 0);
+  assert.equal(diffWords(TARGET, TARGET, null).filter((w) => w.miss).length, 0);
 });

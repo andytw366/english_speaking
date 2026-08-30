@@ -183,7 +183,64 @@ check(
 );
 await shot(page, 'ui-03-該複習了');
 
-console.log('\n【9】清除紀錄');
+console.log('\n【9】逐字的發音問題（音素級回饋）');
+// 這一段不用真的錄音也測得到：直接在頁面裡 import feedback-view.js 來畫。
+// 走真實流程要金鑰、要錄音，而這裡要驗的是「拿到這樣的資料時畫成什麼」。
+await page.goto(BASE);
+await page.waitForSelector('#sentence:not(:empty)');
+const sentenceText = await page.textContent('#sentence');
+await page.evaluate(async (text) => {
+  const { renderFeedback } = await import('/feedback-view.js');
+  renderFeedback(
+    {
+      card: document.getElementById('feedback-card'),
+      body: document.getElementById('feedback'),
+      sentence: document.getElementById('sentence'),
+    },
+    {
+      speech_detected: true,
+      transcript: text,
+      score: 72,
+      problem_words: [
+        { word: text.split(/\s+/)[0], heard: 'sorrowly', issue: 'th', tip_zh: '舌尖輕輕伸到上下門牙之間送氣，不要用 s' },
+        { word: text.split(/\s+/)[1], heard: text.split(/\s+/)[1], issue: 'stress', tip_zh: '重音放在第一個音節' },
+      ],
+      feedback_zh: '• 整體不錯',
+      model: 'gemini-3.6-flash',
+    },
+    { sentenceText: text, labelForModel: (id) => id }
+  );
+}, sentenceText);
+
+check('列出兩個要練的字', (await page.locator('.problems__item').count()) === 2);
+check('每個字都有分類標籤', (await page.locator('.problems__item .chip--issue').count()) === 2);
+check('th 顯示成中文標籤而不是代碼', (await page.textContent('.problems__list')).includes('th 音'));
+check('有「你唸成什麼」', (await page.textContent('.problems__list')).includes('你唸成：sorrowly'));
+check(
+  '唸得跟目標一樣時不寫「你唸成」（不然那行字只會讓人困惑）',
+  (await page.locator('.problems__heard').count()) === 1
+);
+check('有嘴巴該怎麼做的提示', (await page.textContent('.problems__list')).includes('舌尖輕輕伸到'));
+check('每個字都有單獨的播放鍵', (await page.locator('.problems__play').count()) === 2);
+check('被點名的字在句子裡標紅了', (await page.locator('#sentence .word--miss').count()) >= 2);
+await shot(page, 'ui-04-音素級回饋');
+
+// 沒有問題字時不要留一個空的區塊
+await page.evaluate(async (text) => {
+  const { renderFeedback } = await import('/feedback-view.js');
+  renderFeedback(
+    {
+      card: document.getElementById('feedback-card'),
+      body: document.getElementById('feedback'),
+      sentence: document.getElementById('sentence'),
+    },
+    { speech_detected: true, transcript: text, score: 98, problem_words: [], feedback_zh: '• 很好' },
+    { sentenceText: text, labelForModel: (id) => id }
+  );
+}, sentenceText);
+check('都唸對時不會留下空的區塊', (await page.locator('.problems').count()) === 0);
+
+console.log('\n【10】清除紀錄');
 page.once('dialog', (d) => d.accept());
 await page.click('#btn-clear-history');
 await page.waitForTimeout(200);
@@ -191,14 +248,14 @@ check('紀錄卡片收起來', await page.locator('#history-card').isHidden());
 check('趨勢圖也收起來', await page.locator('#history-trend').isHidden());
 check('句子旁的成績 chip 收起來', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【10】沒有紀錄時的初始畫面');
+console.log('\n【11】沒有紀錄時的初始畫面');
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => !document.getElementById('sentence').textContent.includes('載入中'));
 check('紀錄卡片是隱藏的', await page.locator('#history-card').isHidden());
 check('趨勢圖是隱藏的', await page.locator('#history-trend').isHidden());
 check('成績 chip 是隱藏的', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【11】JS 錯誤');
+console.log('\n【12】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

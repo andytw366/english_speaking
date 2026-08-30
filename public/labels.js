@@ -65,3 +65,27 @@ export function relativeTime(iso, now = Date.now()) {
   const months = Math.floor(days / 30);
   return months < 12 ? `${months} 個月前` : `${Math.floor(months / 12)} 年前`;
 }
+
+/**
+ * 發音問題類型的中文標籤（對應 server/gemini.js 的 ISSUE_CODES）。
+ *
+ * 有標籤才看得出「又是 th」—— 同一類錯誤重複出現，比單看某一個字唸錯更有意義。
+ * 後端已經把沒見過的代碼歸成 other，這裡再兜一次底，避免代碼原文漏到畫面上。
+ */
+export const ISSUE_LABEL = {
+  th: 'th 音',
+  r_l: 'r / l',
+  v_w: 'v / w',
+  final_consonant: '字尾子音',
+  plural_ed: '字尾 -s / -ed',
+  vowel_length: '長短母音',
+  n_ng: 'n / ng',
+  extra_vowel: '多了母音',
+  stress: '重音',
+  linking: '連音',
+  other: '發音',
+};
+
+export function issueLabel(code) {
+  return ISSUE_LABEL[code] ?? ISSUE_LABEL.other;
+}

@@ -23,9 +23,18 @@ import {
   loadPrefs,
   savePrefs,
 } from './storage.js';
-import { sentenceStats, pickSentence, isDue } from './practice.js';
+import {
+  sentenceStats,
+  pickSentence,
+  isDue,
+  streakDays,
+  todayCount,
+  summariseSet,
+  SET_SIZE,
+} from './practice.js';
 import { renderFeedback } from './feedback-view.js';
 import { renderHistory } from './history-view.js';
+import { renderSetSummary } from './set-view.js';
 import {
   categoryLabel,
   difficultyLabel,
@@ -72,7 +81,21 @@ const el = {
   trendCaption: $('trend-caption'),
   trendChart: $('trend-chart'),
   btnClearHistory: $('btn-clear-history'),
+  todayCount: $('today-count'),
+  todayFill: $('today-fill'),
+  todayNote: $('today-note'),
+  streakCount: $('streak-count'),
+  dailyGoal: $('daily-goal'),
+  setProgress: $('set-progress'),
+  setCard: $('set-card'),
+  setStats: $('set-stats'),
+  setIssues: $('set-issues'),
+  btnNextSet: $('btn-next-set'),
 };
+
+/** 每日目標的可選值。跟 index.html 的 <option> 是同一組，改要一起改。 */
+const GOAL_CHOICES = [3, 5, 10, 20];
+const DEFAULT_GOAL = SET_SIZE;
 
 const historyEl = {
   card: el.historyCard,
@@ -101,6 +124,9 @@ let history = [];
 let stats = new Map();
 // 瀏覽器不支援錄音時 fatal() 會停用錄音鍵，之後換句子不可以再把它打開
 let browserSupported = true;
+// 這一組練到第幾句（只存在記憶體裡：一組是「這次坐下來練的這幾句」，
+// 重整頁面就重新開始，不需要也不應該跨分頁還記得）
+let setRecords = [];
 
 const waveform = createWaveform(el.waveform, showLevel);
 
@@ -490,7 +516,88 @@ function saveToHistory(data) {
   drawHistory();
   // 剛練完的分數會影響這句的統計，chip 要跟著更新
   renderPastChip();
+
+  setRecords.push(history[0]);
+  renderToday();
+
+  if (setRecords.length >= SET_SIZE) {
+    // 總結畫出來之後就把計數歸零：使用者沒按「再練一組」也照樣可以繼續練，
+    // 那些句子要算進下一組，不然第 6 句一送出又會再彈一次總結。
+    showSetSummary(setRecords);
+    setRecords = [];
+  } else {
+    renderSetProgress();
+  }
 }
+
+// ─── 每日目標與連續天數 ──────────────────────────────────────────────────
+
+function dailyGoal() {
+  const saved = Number(loadPrefs().dailyGoal);
+  return GOAL_CHOICES.includes(saved) ? saved : DEFAULT_GOAL;
+}
+
+function renderToday() {
+  const goal = dailyGoal();
+  const done = todayCount(history);
+  const streak = streakDays(history);
+
+  el.dailyGoal.value = String(goal);
+  el.todayCount.textContent = `${done} / ${goal}`;
+  el.todayFill.style.width = `${Math.min(100, Math.round((done / goal) * 100))}%`;
+  el.todayCount.classList.toggle('today__value--done', done >= goal);
+  el.streakCount.textContent = String(streak);
+
+  el.todayNote.textContent = todayNote(done, goal, streak);
+}
+
+/**
+ * 今天這一行的說明文字。
+ *
+ * 刻意不寫「你今天還沒練，連續天數要斷了」這種話 —— 用罰的去推人回來，
+ * 短期有效，長期只會讓人不想打開。這裡只講事實跟還差幾句。
+ */
+function todayNote(done, goal, streak) {
+  if (done >= goal) {
+    return streak > 1
+      ? `今天的目標達成了，連續 ${streak} 天。`
+      : '今天的目標達成了。要再多練幾句也沒問題。';
+  }
+  if (done > 0) return `再 ${goal - done} 句就達成今天的目標了。`;
+  if (streak > 0) return `已經連續 ${streak} 天，今天練 ${goal} 句就接得下去。`;
+  return `今天練 ${goal} 句就算達成目標。`;
+}
+
+function onGoalChange() {
+  savePrefs({ dailyGoal: Number(el.dailyGoal.value) });
+  renderToday();
+}
+
+// ─── 一組 5 句 ───────────────────────────────────────────────────────────
+// 「換一句、再換一句」是沒有終點的，很容易練兩句就關掉。
+// 切成一組，是為了讓每次打開 App 都有個看得到的終點與一份總結。
+
+function renderSetProgress() {
+  el.setProgress.textContent =
+    setRecords.length > 0 ? `這一組：${setRecords.length} / ${SET_SIZE} 句` : '';
+}
+
+function showSetSummary(records) {
+  renderSetSummary({ stats: el.setStats, issues: el.setIssues }, summariseSet(records));
+
+  el.setCard.hidden = false;
+  el.setProgress.textContent = `這一組 ${SET_SIZE} 句練完了`;
+  el.setCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function startNextSet() {
+  setRecords = [];
+  el.setCard.hidden = true;
+  renderSetProgress();
+  showRandomSentence();
+}
+
+
 
 function drawHistory() {
   renderHistory(historyEl, {
@@ -509,8 +616,12 @@ function onClearHistory() {
   }
   clearHistory();
   setHistory([]);
+  setRecords = [];
+  el.setCard.hidden = true;
   drawHistory();
   renderPastChip();
+  renderToday();
+  renderSetProgress();
 }
 
 // ─── 啟動 ────────────────────────────────────────────────────────────────
@@ -542,6 +653,8 @@ el.filterDifficulty.addEventListener('change', onFilterChange);
 el.prefWeighted.addEventListener('change', onWeightedChange);
 el.model.addEventListener('change', onModelChange);
 el.btnClearHistory.addEventListener('click', onClearHistory);
+el.dailyGoal.addEventListener('change', onGoalChange);
+el.btnNextSet.addEventListener('click', startNextSet);
 
 // 離開頁面時確實釋放麥克風與 AudioContext
 window.addEventListener('pagehide', () => {
@@ -580,6 +693,8 @@ window.addEventListener('pagehide', () => {
 
   // 紀錄清單要等 model 清單載入後才畫，meta 那行才顯示得出 model 的名稱
   drawHistory();
+  renderToday();
+  renderSetProgress();
 
   if (supported) {
     // 提早暖機 voice 清單，避免第一次按播放沒聲音

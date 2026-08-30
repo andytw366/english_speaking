@@ -16,6 +16,34 @@
       <!-- 瀏覽器不支援時的整頁提示 -->
       <div id="fatal" class="banner banner--error" hidden></div>
 
+      <!-- 階段 7：今天練了多少、連續幾天 -->
+      <section class="card card--today" aria-labelledby="today-heading">
+        <h2 id="today-heading" class="visually-hidden">今天的練習</h2>
+        <div class="today">
+          <div class="today__block">
+            <span id="today-count" class="today__value">0 / 5</span>
+            <span class="today__label">今天練的句子</span>
+            <span class="today__bar">
+              <span id="today-fill" class="today__fill"></span>
+            </span>
+          </div>
+          <div class="today__block today__block--streak">
+            <span id="streak-count" class="today__value">0</span>
+            <span class="today__label">連續天數</span>
+          </div>
+          <label class="field field--inline today__goal">
+            <span class="field__label">每日目標</span>
+            <select id="daily-goal" class="select">
+              <option value="3">3 句</option>
+              <option value="5">5 句</option>
+              <option value="10">10 句</option>
+              <option value="20">20 句</option>
+            </select>
+          </label>
+        </div>
+        <p id="today-note" class="hint"></p>
+      </section>
+
       <section class="card" aria-labelledby="sentence-heading">
         <h2 id="sentence-heading" class="visually-hidden">練習句</h2>
 
@@ -53,6 +81,7 @@
           <button id="btn-next" class="btn btn--ghost" type="button">
             <span aria-hidden="true">🔀</span> 換一句
           </button>
+          <span id="set-progress" class="hint"></span>
         </div>
       </section>
 
@@ -97,6 +126,16 @@
       <section id="feedback-card" class="card" aria-labelledby="feedback-heading" hidden>
         <h2 id="feedback-heading" class="card__title">發音講評</h2>
         <div id="feedback"></div>
+      </section>
+
+      <!-- 階段 7：一組 5 句練完後的總結 -->
+      <section id="set-card" class="card card--set" aria-labelledby="set-heading" hidden>
+        <h2 id="set-heading" class="card__title">這一組練完了</h2>
+        <div id="set-stats" class="stats"></div>
+        <div id="set-issues" class="set__issues"></div>
+        <div class="row">
+          <button id="btn-next-set" class="btn btn--primary" type="button">再練一組</button>
+        </div>
       </section>
 
       <!-- 階段 5：localStorage 練習紀錄 -->

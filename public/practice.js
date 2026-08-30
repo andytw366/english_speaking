@@ -209,3 +209,119 @@ export function trendPoints(history, limit = TREND_LIMIT) {
       sentenceText: r.sentenceText ?? '',
     }));
 }
+
+// ─── 每日目標與連續天數（階段 7）────────────────────────────────────────
+//
+// 為什麼要有這個：練習紀錄回答的是「我練得怎麼樣」，但**沒有回答「我今天練了嗎」**。
+// 各大英語學習 App 都有的 streak／每日目標解的就是這件事 ——
+// 它不是遊戲化的裝飾，而是把「每天回來」這個行為本身變成看得見的東西。
+//
+// 一律用**本地時間**切一天。使用者說的「昨天」是他自己時區的昨天，
+// 用 UTC 切的話，台灣時間晚上八點以後練的都會被算成隔天。
+
+/** 一筆紀錄屬於哪一天（本地時間的 YYYY-MM-DD）。時間壞掉回空字串。 */
+export function dayKey(value) {
+  const date = value instanceof Date ? value : new Date(value ?? '');
+  if (Number.isNaN(date.getTime())) return '';
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
+
+/** 往前／往後推 n 天的 dayKey。跨月、跨年、日光節約都交給 Date 自己算。 */
+function shiftDay(base, days) {
+  const date = new Date(base);
+  date.setDate(date.getDate() + days);
+  return dayKey(date);
+}
+
+/** 有練習紀錄的日子（本地時間，去重）。 */
+export function practiceDays(history) {
+  const days = new Set();
+  if (!Array.isArray(history)) return days;
+  for (const record of history) {
+    const key = dayKey(record?.at);
+    if (key) days.add(key);
+  }
+  return days;
+}
+
+/** 今天練了幾句（含沒有分數的紀錄？不含 —— 沒分數代表沒真的練成一句）。 */
+export function todayCount(history, now = Date.now()) {
+  const today = dayKey(new Date(now));
+  if (!Array.isArray(history)) return 0;
+  return history.filter((r) => typeof r?.score === 'number' && dayKey(r.at) === today).length;
+}
+
+/**
+ * 連續練習天數。
+ *
+ * **今天還沒練不會馬上歸零** —— 從昨天開始往回算。
+ * 這是刻意的：早上打開 App 看到「連續 0 天」，會讓人覺得昨天的努力已經沒了，
+ * 那正好是最不該讓人放棄的時間點。真的斷了（前天以前才練過）才是 0。
+ */
+export function streakDays(history, now = Date.now()) {
+  const days = practiceDays(history);
+  if (days.size === 0) return 0;
+
+  const today = dayKey(new Date(now));
+  // 今天練過就從今天算，沒練過就從昨天算；昨天也沒有才是真的斷了
+  let cursor = days.has(today) ? today : shiftDay(new Date(now), -1);
+  if (!days.has(cursor)) return 0;
+
+  let streak = 0;
+  while (days.has(cursor)) {
+    streak += 1;
+    cursor = shiftDay(new Date(`${cursor}T12:00:00`), -1); // 中午避開日光節約的邊界
+  }
+  return streak;
+}
+
+// ─── 一組練習（階段 7）──────────────────────────────────────────────────
+//
+// 「換一句、再換一句」是沒有終點的，練到什麼時候算一段落全靠使用者自己決定 ——
+// 結果就是很容易練兩句就關掉。切成一組 5 句，是為了讓每一次打開 App 都有個
+// 看得到的終點，以及一份「這一組練得怎麼樣」的總結。
+
+/** 一組幾句。5 句約 3～5 分鐘，短到隨時可以開始，長到看得出平均分有意義。 */
+export const SET_SIZE = 5;
+
+/**
+ * 一組練完之後的總結。
+ *
+ * 重點是 `issues`：一組裡重複出現的錯誤類型，比單看某一句的分數有用得多 ——
+ * 「五句裡有三句都是 th」是一個可以拿去練的結論，「平均 72 分」不是。
+ *
+ * @param {Array<object>} records 這一組的紀錄（由舊到新）
+ */
+export function summariseSet(records) {
+  const list = Array.isArray(records) ? records.filter((r) => typeof r?.score === 'number') : [];
+  if (list.length === 0) return { count: 0, average: null, best: null, worst: null, issues: [] };
+
+  const scores = list.map((r) => r.score);
+  const counts = new Map();
+
+  for (const record of list) {
+    const words = Array.isArray(record.problemWords) ? record.problemWords : [];
+    for (const item of words) {
+      // 舊紀錄是純字串，沒有類型可以統計
+      if (!item || typeof item !== 'object' || !item.issue) continue;
+      const found = counts.get(item.issue);
+      if (found) {
+        found.count += 1;
+        if (!found.words.includes(item.word)) found.words.push(item.word);
+      } else {
+        counts.set(item.issue, { issue: item.issue, count: 1, words: [item.word] });
+      }
+    }
+  }
+
+  return {
+    count: list.length,
+    average: Math.round(scores.reduce((a, b) => a + b, 0) / list.length),
+    best: Math.max(...scores),
+    worst: Math.min(...scores),
+    // 次數多的排前面；一樣多時照第一次出現的順序，才不會每次重畫都跳動
+    issues: [...counts.values()].sort((a, b) => b.count - a.count),
+  };
+}

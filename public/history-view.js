@@ -4,22 +4,10 @@ import { summarise } from './storage.js';
 import { trendPoints, TREND_LIMIT } from './practice.js';
 import { buildTrendChart } from './trend-chart.js';
 import { categoryLabel, formatTime, scoreClass } from './labels.js';
+import { statTile } from './stat-tile.js';
 
 /** 清單最多列這麼多筆。再多就變成一整頁捲不完的東西，趨勢圖才是看長期的地方。 */
 const LIST_LIMIT = 20;
-
-function statTile(label, value) {
-  const tile = document.createElement('div');
-  tile.className = 'stat';
-  const v = document.createElement('span');
-  v.className = 'stat__value';
-  v.textContent = value;
-  const l = document.createElement('span');
-  l.className = 'stat__label';
-  l.textContent = label;
-  tile.append(v, l);
-  return tile;
-}
 
 /**
  * @param {object} el 紀錄卡片相關的元素

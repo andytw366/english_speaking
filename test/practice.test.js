@@ -18,6 +18,11 @@ import {
   DUE_MIN,
   DUE_MAX,
   SRS_BASE_HOURS,
+  dayKey,
+  practiceDays,
+  todayCount,
+  streakDays,
+  summariseSet,
 } from '../public/practice.js';
 
 /**
@@ -301,4 +306,132 @@ test('trendPoints：只取最近 limit 筆，且跳過沒有分數的紀錄', ()
 test('trendPoints：沒有紀錄時回空陣列', () => {
   assert.deepEqual(trendPoints([]), []);
   assert.deepEqual(trendPoints(undefined), []);
+});
+
+// ─── 每日目標與連續天數 ──────────────────────────────────────────────────
+//
+// 一律注入 now。這幾個函式全部跟「今天是哪一天」有關，
+// 用真實時鐘的話測試會在半夜跑的時候紅一次，然後隔天自己好了 —— 最難查的那種。
+
+/** 本地時間 n 天前的中午。用中午避開午夜與日光節約的邊界。 */
+const noonDaysAgo = (daysAgo, base = new Date(2026, 7, 30, 20, 0)) => {
+  const date = new Date(base);
+  date.setDate(date.getDate() - daysAgo);
+  date.setHours(12, 0, 0, 0);
+  return { at: date.toISOString(), score: 70, sentenceId: `s${daysAgo}` };
+};
+
+const NOW_LOCAL = new Date(2026, 7, 30, 20, 0).getTime();
+
+test('dayKey：用本地時間切一天，壞掉的時間回空字串', () => {
+  // 用 UTC 切的話，台灣時間晚上八點以後練的都會被算成隔天
+  assert.equal(dayKey(new Date(2026, 7, 30, 23, 30)), '2026-08-30');
+  assert.equal(dayKey(new Date(2026, 7, 1, 0, 5)), '2026-08-01');
+  assert.equal(dayKey('not a date'), '');
+  assert.equal(dayKey(undefined), '');
+});
+
+test('practiceDays：同一天的多筆只算一天', () => {
+  const days = practiceDays([noonDaysAgo(0), noonDaysAgo(0), noonDaysAgo(1)]);
+  assert.equal(days.size, 2);
+});
+
+test('todayCount：只算今天、而且有分數的紀錄', () => {
+  const history = [
+    noonDaysAgo(0),
+    noonDaysAgo(0),
+    { ...noonDaysAgo(0), score: undefined }, // 無人聲那種紀錄不算練過一句
+    noonDaysAgo(1),
+  ];
+  assert.equal(todayCount(history, NOW_LOCAL), 2);
+});
+
+test('streakDays：連續三天就是 3', () => {
+  const history = [noonDaysAgo(0), noonDaysAgo(1), noonDaysAgo(2)];
+  assert.equal(streakDays(history, NOW_LOCAL), 3);
+});
+
+test('streakDays：今天還沒練不會馬上歸零，從昨天往回算', () => {
+  // 早上打開 App 看到「連續 0 天」，會讓人覺得昨天的努力已經沒了，
+  // 而那正好是最不該讓人放棄的時間點
+  assert.equal(streakDays([noonDaysAgo(1), noonDaysAgo(2)], NOW_LOCAL), 2);
+});
+
+test('streakDays：斷了就是 0（前天以前才練過）', () => {
+  assert.equal(streakDays([noonDaysAgo(2), noonDaysAgo(3)], NOW_LOCAL), 0);
+});
+
+test('streakDays：中間缺一天就停在缺口', () => {
+  const history = [noonDaysAgo(0), noonDaysAgo(1), noonDaysAgo(3), noonDaysAgo(4)];
+  assert.equal(streakDays(history, NOW_LOCAL), 2);
+});
+
+test('streakDays：沒有紀錄、或時間全壞掉時是 0，不會丟例外', () => {
+  assert.equal(streakDays([], NOW_LOCAL), 0);
+  assert.equal(streakDays(undefined, NOW_LOCAL), 0);
+  assert.equal(streakDays([{ at: 'x', score: 1 }], NOW_LOCAL), 0);
+});
+
+test('streakDays：跨月也要算得對', () => {
+  const base = new Date(2026, 8, 1, 20, 0); // 9/1
+  const history = [0, 1, 2].map((d) => noonDaysAgo(d, base)); // 9/1、8/31、8/30
+  assert.equal(streakDays(history, base.getTime()), 3);
+});
+
+// ─── 一組練習的總結 ──────────────────────────────────────────────────────
+
+const withIssues = (score, issues) => ({
+  score,
+  at: new Date(NOW_LOCAL).toISOString(),
+  problemWords: issues.map(([issue, word]) => ({ word, issue, heard: '', tip_zh: '' })),
+});
+
+test('summariseSet：算出句數、平均、最高最低', () => {
+  const summary = summariseSet([withIssues(60, []), withIssues(80, []), withIssues(70, [])]);
+  assert.equal(summary.count, 3);
+  assert.equal(summary.average, 70);
+  assert.equal(summary.best, 80);
+  assert.equal(summary.worst, 60);
+});
+
+test('summariseSet：重複出現的錯誤類型會被統計並排序', () => {
+  // 「五句裡有三句都是 th」才是可以拿去練的結論
+  const summary = summariseSet([
+    withIssues(60, [['th', 'thoroughly'], ['r_l', 'really']]),
+    withIssues(70, [['th', 'think']]),
+    withIssues(80, [['th', 'three']]),
+  ]);
+
+  assert.equal(summary.issues[0].issue, 'th');
+  assert.equal(summary.issues[0].count, 3);
+  assert.deepEqual(summary.issues[0].words, ['thoroughly', 'think', 'three']);
+  assert.equal(summary.issues[1].issue, 'r_l');
+});
+
+test('summariseSet：同一個字重複被點名時不會列兩次', () => {
+  const summary = summariseSet([
+    withIssues(60, [['th', 'think']]),
+    withIssues(60, [['th', 'think']]),
+  ]);
+  assert.equal(summary.issues[0].count, 2);
+  assert.deepEqual(summary.issues[0].words, ['think']);
+});
+
+test('summariseSet：舊格式（純字串）的紀錄不會讓統計壞掉', () => {
+  const summary = summariseSet([
+    { score: 60, problemWords: ['thoroughly'] },
+    { score: 80, problemWords: [{ word: 'think', issue: 'th' }] },
+  ]);
+  // 字串沒有類型可以統計，跳過就好，不要因此丟掉整組
+  assert.equal(summary.count, 2);
+  assert.equal(summary.issues.length, 1);
+});
+
+test('summariseSet：空的或壞掉的輸入回一份空總結', () => {
+  for (const input of [[], undefined, [{ score: 'x' }], [null]]) {
+    const summary = summariseSet(input);
+    assert.equal(summary.count, 0);
+    assert.equal(summary.average, null);
+    assert.deepEqual(summary.issues, []);
+  }
 });

@@ -240,7 +240,87 @@ await page.evaluate(async (text) => {
 }, sentenceText);
 check('都唸對時不會留下空的區塊', (await page.locator('.problems').count()) === 0);
 
-console.log('\n【10】清除紀錄');
+console.log('\n【10】今天的進度與連續天數');
+// 紀錄一律放在本地時間的中午，避開午夜與日光節約的邊界 ——
+// 不然這支測試會在半夜跑的時候紅一次，隔天自己又好了。
+const noonDaysAgo = (daysAgo) => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  date.setHours(12, 0, 0, 0);
+  return date.toISOString();
+};
+const onDays = (offsets) =>
+  offsets.map((daysAgo, i) => ({
+    at: noonDaysAgo(daysAgo),
+    sentenceId: sentences[i % sentences.length].id,
+    sentenceText: sentences[i % sentences.length].text,
+    category: sentences[i % sentences.length].category,
+    difficulty: sentences[i % sentences.length].difficulty,
+    score: 70,
+    transcript: '',
+    problemWords: [],
+    model: 'gemini-3.6-flash',
+  }));
+
+await seed(onDays([0, 0, 1, 2]));
+check('今天的句數是今天那幾筆', (await page.textContent('#today-count')).startsWith('2 /'), await page.textContent('#today-count'));
+check('連續天數算到今天', (await page.textContent('#streak-count')) === '3');
+check('沒達標時說還差幾句', (await page.textContent('#today-note')).includes('再 3 句'), await page.textContent('#today-note'));
+
+// 今天還沒練不該讓連續天數馬上歸零 —— 那是最不該讓人放棄的時間點
+await seed(onDays([1, 2]));
+check('今天還沒練時連續天數不歸零', (await page.textContent('#streak-count')) === '2');
+check('今天是 0 句', (await page.textContent('#today-count')).startsWith('0 /'));
+
+await seed(onDays([0, 0, 0, 0, 0]));
+check('達成目標時有講', (await page.textContent('#today-note')).includes('達成'), await page.textContent('#today-note'));
+check('達標的數字會變色', await page.locator('#today-count.today__value--done').isVisible());
+await shot(page, 'ui-05-今天的進度');
+
+// 每日目標記在 localStorage
+await page.selectOption('#daily-goal', '10');
+await page.waitForTimeout(100);
+check('改目標後分母跟著變', (await page.textContent('#today-count')).endsWith('/ 10'));
+await page.reload();
+await page.waitForSelector('#sentence:not(:empty)');
+check('重整後記得選的目標', (await page.locator('#daily-goal').inputValue()) === '10');
+
+console.log('\n【11】一組練完的總結');
+await page.evaluate(async () => {
+  const { renderSetSummary } = await import('/set-view.js');
+  const { summariseSet } = await import('/practice.js');
+  const records = [
+    { score: 60, problemWords: [{ word: 'thoroughly', issue: 'th' }, { word: 'really', issue: 'r_l' }] },
+    { score: 70, problemWords: [{ word: 'think', issue: 'th' }] },
+    { score: 90, problemWords: [] },
+    { score: 55, problemWords: [{ word: 'three', issue: 'th' }] },
+    { score: 80, problemWords: [] },
+  ];
+  renderSetSummary(
+    { stats: document.getElementById('set-stats'), issues: document.getElementById('set-issues') },
+    summariseSet(records)
+  );
+  document.getElementById('set-card').hidden = false;
+});
+check('總結有三塊統計', (await page.locator('#set-stats .stat').count()) === 3);
+check('平均分算對了', (await page.textContent('#set-stats')).includes('71'), await page.textContent('#set-stats'));
+check('最高最低都在', (await page.textContent('#set-stats')).includes('90 / 55'));
+check('最常出現的問題排在第一', (await page.textContent('#set-issues .set__list li')).includes('th 音'));
+check('列出被點名的字', (await page.textContent('#set-issues')).includes('thoroughly'));
+check('有「再練一組」', await page.locator('#btn-next-set').isVisible());
+await shot(page, 'ui-06-一組練完');
+
+await page.evaluate(async () => {
+  const { renderSetSummary } = await import('/set-view.js');
+  const { summariseSet } = await import('/practice.js');
+  renderSetSummary(
+    { stats: document.getElementById('set-stats'), issues: document.getElementById('set-issues') },
+    summariseSet([{ score: 95, problemWords: [] }])
+  );
+});
+check('都唸對時講的是好消息，不是一片空白', (await page.textContent('#set-issues')).includes('沒有被點名'));
+
+console.log('\n【12】清除紀錄');
 page.once('dialog', (d) => d.accept());
 await page.click('#btn-clear-history');
 await page.waitForTimeout(200);
@@ -248,14 +328,14 @@ check('紀錄卡片收起來', await page.locator('#history-card').isHidden());
 check('趨勢圖也收起來', await page.locator('#history-trend').isHidden());
 check('句子旁的成績 chip 收起來', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【11】沒有紀錄時的初始畫面');
+console.log('\n【13】沒有紀錄時的初始畫面');
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => !document.getElementById('sentence').textContent.includes('載入中'));
 check('紀錄卡片是隱藏的', await page.locator('#history-card').isHidden());
 check('趨勢圖是隱藏的', await page.locator('#history-trend').isHidden());
 check('成績 chip 是隱藏的', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【12】JS 錯誤');
+console.log('\n【14】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

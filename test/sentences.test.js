@@ -78,6 +78,42 @@ test('每個情境與難度的組合都有句子（篩選不會選出空池子�
   }
 });
 
+test('中文意思：有的話不能是空字串，而且不能有簡體字', () => {
+  // 匯入的句子帶中文（Tatoeba 的翻譯，用 OpenCC 轉成台灣正體），
+  // 早期手寫的沒有。有欄位卻是空字串會在畫面上留一行空白。
+  const SIMPLIFIED = /[们这来对说过时会个国还没热爱开关门问题华语电脑机业务讲练习没错觉见图书报纸]/;
+  for (const s of sentences) {
+    if (!('zh' in s)) continue;
+    assert.ok(typeof s.zh === 'string' && s.zh.trim(), `zh 是空的：${s.id}`);
+    assert.ok(!SIMPLIFIED.test(s.zh), `zh 有簡體字：${s.id}「${s.zh}」`);
+  }
+});
+
+test('中文意思沒有踩到 OpenCC 的簡繁一對多陷阱', () => {
+  // 簡體「发」對應正體的「發」與「髮」，靠詞組判斷；詞組表沒收的組合會轉錯，
+  // 而錯字在畫面上看起來就只是個錯字，不會有任何錯誤訊息
+  const MISCONVERTED = /(髮明|髮現|髮生|髮展|髮出|頭發|裡程|幹凈|沒幹)/;
+  for (const s of sentences) {
+    if (!s.zh) continue;
+    assert.ok(!MISCONVERTED.test(s.zh), `簡繁轉換有問題：${s.id}「${s.zh}」`);
+  }
+});
+
+test('句子裡不出現阿拉伯數字', () => {
+  // 目標句要拿去跟 AI 聽到的內容逐字比對，而 "300,000" 唸出來是什麼
+  // 取決於使用者怎麼讀 —— 一定對不上。要練數字就把它寫成英文。
+  for (const s of sentences) {
+    assert.ok(!/[0-9]/.test(s.text), `句子裡有數字：${s.id}「${s.text}」`);
+  }
+});
+
+test('每一句都以句號、問號或驚嘆號結尾', () => {
+  // 沒有結尾標點多半代表這句是從一段話裡切出來的半句
+  for (const s of sentences) {
+    assert.match(s.text, /[.?!]$/, `結尾怪怪的：${s.id}「${s.text}」`);
+  }
+});
+
 test('句子沒有重複', () => {
   const texts = sentences.map((s) => s.text.trim().toLowerCase());
   assert.equal(new Set(texts).size, texts.length);

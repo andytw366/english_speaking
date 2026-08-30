@@ -60,6 +60,7 @@ const el = {
   prefWeighted: $('pref-weighted'),
   sentencePast: $('sentence-past'),
   sentenceFocus: $('sentence-focus'),
+  sentenceZh: $('sentence-zh'),
   btnSpeak: $('btn-speak'),
   btnNext: $('btn-next'),
   btnRecord: $('btn-record'),
@@ -258,6 +259,9 @@ function renderCurrentSentence() {
   el.btnRecord.disabled = !browserSupported;
 
   el.sentence.textContent = current.text;
+  // 中文意思只有匯入進來的句子才有（早期手寫的沒有），沒有就整行收起來
+  el.sentenceZh.hidden = !current.zh;
+  el.sentenceZh.textContent = current.zh ?? '';
   el.category.textContent = categoryLabel(current.category);
   el.difficulty.textContent = difficultyLabel(current.difficulty);
   renderPastChip();

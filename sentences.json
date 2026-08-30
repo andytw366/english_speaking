@@ -5,8 +5,8 @@
     "category": "travel",
     "difficulty": "easy",
     "focus": [
-      "r_l",
-      "final_consonant"
+      "vowel_length",
+      "r_l"
     ]
   },
   {
@@ -15,8 +15,7 @@
     "category": "travel",
     "difficulty": "easy",
     "focus": [
-      "linking",
-      "r_l"
+      "linking"
     ]
   },
   {
@@ -25,8 +24,8 @@
     "category": "travel",
     "difficulty": "easy",
     "focus": [
-      "th",
-      "final_consonant"
+      "plural_ed",
+      "th"
     ]
   },
   {
@@ -35,8 +34,8 @@
     "category": "travel",
     "difficulty": "medium",
     "focus": [
-      "r_l",
-      "final_consonant"
+      "linking",
+      "r_l"
     ]
   },
   {
@@ -45,8 +44,7 @@
     "category": "travel",
     "difficulty": "medium",
     "focus": [
-      "v_w",
-      "vowel_length"
+      "final_consonant"
     ]
   },
   {
@@ -66,7 +64,7 @@
     "difficulty": "easy",
     "focus": [
       "n_ng",
-      "v_w"
+      "stress"
     ]
   },
   {
@@ -75,8 +73,8 @@
     "category": "daily",
     "difficulty": "easy",
     "focus": [
-      "v_w",
-      "linking"
+      "stress",
+      "r_l"
     ]
   },
   {
@@ -85,8 +83,8 @@
     "category": "daily",
     "difficulty": "easy",
     "focus": [
-      "r_l",
-      "th"
+      "vowel_length",
+      "r_l"
     ]
   },
   {
@@ -96,7 +94,7 @@
     "difficulty": "medium",
     "focus": [
       "n_ng",
-      "r_l"
+      "vowel_length"
     ]
   },
   {
@@ -105,8 +103,7 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "stress",
-      "th"
+      "vowel_length"
     ]
   },
   {
@@ -115,8 +112,8 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "r_l",
-      "stress"
+      "stress",
+      "r_l"
     ]
   },
   {
@@ -135,8 +132,8 @@
     "category": "daily",
     "difficulty": "hard",
     "focus": [
-      "plural_ed",
-      "stress"
+      "stress",
+      "v_w"
     ]
   },
   {
@@ -145,7 +142,7 @@
     "category": "interview",
     "difficulty": "easy",
     "focus": [
-      "th",
+      "n_ng",
       "r_l"
     ]
   },
@@ -156,7 +153,7 @@
     "difficulty": "easy",
     "focus": [
       "v_w",
-      "plural_ed"
+      "stress"
     ]
   },
   {
@@ -166,7 +163,7 @@
     "difficulty": "medium",
     "focus": [
       "n_ng",
-      "stress"
+      "extra_vowel"
     ]
   },
   {
@@ -175,8 +172,8 @@
     "category": "interview",
     "difficulty": "medium",
     "focus": [
-      "plural_ed",
-      "r_l"
+      "stress",
+      "n_ng"
     ]
   },
   {
@@ -185,7 +182,7 @@
     "category": "interview",
     "difficulty": "medium",
     "focus": [
-      "th",
+      "r_l",
       "vowel_length"
     ]
   },
@@ -195,8 +192,8 @@
     "category": "interview",
     "difficulty": "hard",
     "focus": [
-      "r_l",
-      "plural_ed"
+      "stress",
+      "r_l"
     ]
   },
   {
@@ -205,7 +202,7 @@
     "category": "interview",
     "difficulty": "hard",
     "focus": [
-      "r_l",
+      "v_w",
       "stress"
     ]
   },
@@ -215,8 +212,8 @@
     "category": "interview",
     "difficulty": "hard",
     "focus": [
-      "th",
-      "plural_ed"
+      "v_w",
+      "stress"
     ]
   },
   {
@@ -225,8 +222,8 @@
     "category": "travel",
     "difficulty": "easy",
     "focus": [
-      "plural_ed",
-      "final_consonant"
+      "linking",
+      "vowel_length"
     ]
   },
   {
@@ -235,8 +232,8 @@
     "category": "travel",
     "difficulty": "medium",
     "focus": [
-      "r_l",
-      "v_w"
+      "v_w",
+      "stress"
     ]
   },
   {
@@ -245,8 +242,8 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "plural_ed",
-      "r_l"
+      "stress",
+      "final_consonant"
     ]
   },
   {
@@ -256,7 +253,7 @@
     "difficulty": "hard",
     "focus": [
       "r_l",
-      "final_consonant"
+      "stress"
     ]
   },
   {
@@ -265,8 +262,7 @@
     "category": "interview",
     "difficulty": "medium",
     "focus": [
-      "v_w",
-      "plural_ed"
+      "linking"
     ]
   },
   {
@@ -276,7 +272,7 @@
     "difficulty": "easy",
     "focus": [
       "th",
-      "r_l"
+      "stress"
     ]
   },
   {
@@ -285,8 +281,7 @@
     "category": "travel",
     "difficulty": "easy",
     "focus": [
-      "vowel_length",
-      "v_w"
+      "final_consonant"
     ]
   },
   {
@@ -295,8 +290,8 @@
     "category": "travel",
     "difficulty": "easy",
     "focus": [
-      "r_l",
-      "linking"
+      "n_ng",
+      "stress"
     ]
   },
   {
@@ -306,7 +301,7 @@
     "difficulty": "easy",
     "focus": [
       "n_ng",
-      "th"
+      "r_l"
     ]
   },
   {
@@ -315,8 +310,7 @@
     "category": "travel",
     "difficulty": "easy",
     "focus": [
-      "r_l",
-      "final_consonant"
+      "th"
     ]
   },
   {
@@ -325,8 +319,8 @@
     "category": "travel",
     "difficulty": "medium",
     "focus": [
-      "th",
-      "n_ng"
+      "n_ng",
+      "th"
     ]
   },
   {
@@ -336,7 +330,7 @@
     "difficulty": "medium",
     "focus": [
       "r_l",
-      "plural_ed"
+      "extra_vowel"
     ]
   },
   {
@@ -345,8 +339,8 @@
     "category": "travel",
     "difficulty": "medium",
     "focus": [
-      "th",
-      "r_l"
+      "v_w",
+      "th"
     ]
   },
   {
@@ -365,7 +359,7 @@
     "category": "travel",
     "difficulty": "medium",
     "focus": [
-      "plural_ed",
+      "stress",
       "r_l"
     ]
   },
@@ -376,7 +370,7 @@
     "difficulty": "hard",
     "focus": [
       "th",
-      "v_w"
+      "stress"
     ]
   },
   {
@@ -385,8 +379,8 @@
     "category": "travel",
     "difficulty": "hard",
     "focus": [
-      "th",
-      "plural_ed"
+      "v_w",
+      "r_l"
     ]
   },
   {
@@ -395,8 +389,8 @@
     "category": "travel",
     "difficulty": "hard",
     "focus": [
-      "r_l",
-      "stress"
+      "stress",
+      "n_ng"
     ]
   },
   {
@@ -405,7 +399,7 @@
     "category": "daily",
     "difficulty": "easy",
     "focus": [
-      "vowel_length",
+      "stress",
       "final_consonant"
     ]
   },
@@ -416,7 +410,7 @@
     "difficulty": "easy",
     "focus": [
       "n_ng",
-      "extra_vowel"
+      "r_l"
     ]
   },
   {
@@ -425,8 +419,8 @@
     "category": "daily",
     "difficulty": "easy",
     "focus": [
-      "th",
-      "r_l"
+      "n_ng",
+      "th"
     ]
   },
   {
@@ -435,8 +429,8 @@
     "category": "daily",
     "difficulty": "easy",
     "focus": [
-      "th",
-      "linking"
+      "n_ng",
+      "final_consonant"
     ]
   },
   {
@@ -445,8 +439,8 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "vowel_length",
-      "th"
+      "v_w",
+      "n_ng"
     ]
   },
   {
@@ -455,8 +449,8 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "n_ng",
-      "final_consonant"
+      "vowel_length",
+      "n_ng"
     ]
   },
   {
@@ -465,8 +459,8 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "plural_ed",
-      "th"
+      "v_w",
+      "extra_vowel"
     ]
   },
   {
@@ -475,8 +469,7 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "plural_ed",
-      "v_w"
+      "extra_vowel"
     ]
   },
   {
@@ -485,8 +478,8 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "n_ng",
-      "linking"
+      "linking",
+      "n_ng"
     ]
   },
   {
@@ -495,8 +488,8 @@
     "category": "daily",
     "difficulty": "hard",
     "focus": [
-      "r_l",
-      "final_consonant"
+      "stress",
+      "vowel_length"
     ]
   },
   {
@@ -516,7 +509,7 @@
     "difficulty": "hard",
     "focus": [
       "v_w",
-      "r_l"
+      "stress"
     ]
   },
   {
@@ -535,8 +528,8 @@
     "category": "work",
     "difficulty": "easy",
     "focus": [
-      "r_l",
-      "linking"
+      "n_ng",
+      "th"
     ]
   },
   {
@@ -556,7 +549,7 @@
     "difficulty": "easy",
     "focus": [
       "r_l",
-      "n_ng"
+      "vowel_length"
     ]
   },
   {
@@ -565,8 +558,8 @@
     "category": "work",
     "difficulty": "medium",
     "focus": [
-      "r_l",
-      "th"
+      "v_w",
+      "plural_ed"
     ]
   },
   {
@@ -575,8 +568,7 @@
     "category": "work",
     "difficulty": "medium",
     "focus": [
-      "final_consonant",
-      "plural_ed"
+      "final_consonant"
     ]
   },
   {
@@ -585,7 +577,6 @@
     "category": "work",
     "difficulty": "medium",
     "focus": [
-      "r_l",
       "vowel_length"
     ]
   },
@@ -595,7 +586,7 @@
     "category": "work",
     "difficulty": "medium",
     "focus": [
-      "n_ng",
+      "v_w",
       "r_l"
     ]
   },
@@ -605,8 +596,8 @@
     "category": "work",
     "difficulty": "medium",
     "focus": [
-      "plural_ed",
-      "th"
+      "th",
+      "plural_ed"
     ]
   },
   {
@@ -625,8 +616,8 @@
     "category": "work",
     "difficulty": "hard",
     "focus": [
-      "th",
-      "plural_ed"
+      "v_w",
+      "th"
     ]
   },
   {
@@ -636,7 +627,7 @@
     "difficulty": "hard",
     "focus": [
       "r_l",
-      "vowel_length"
+      "stress"
     ]
   },
   {
@@ -645,8 +636,8 @@
     "category": "interview",
     "difficulty": "easy",
     "focus": [
-      "n_ng",
-      "r_l"
+      "stress",
+      "n_ng"
     ]
   },
   {
@@ -655,7 +646,6 @@
     "category": "interview",
     "difficulty": "easy",
     "focus": [
-      "plural_ed",
       "stress"
     ]
   },
@@ -665,8 +655,8 @@
     "category": "interview",
     "difficulty": "medium",
     "focus": [
-      "th",
-      "r_l"
+      "r_l",
+      "stress"
     ]
   },
   {
@@ -676,7 +666,7 @@
     "difficulty": "medium",
     "focus": [
       "r_l",
-      "n_ng"
+      "final_consonant"
     ]
   },
   {
@@ -686,7 +676,7 @@
     "difficulty": "medium",
     "focus": [
       "n_ng",
-      "vowel_length"
+      "r_l"
     ]
   },
   {
@@ -696,7 +686,7 @@
     "difficulty": "medium",
     "focus": [
       "th",
-      "final_consonant"
+      "plural_ed"
     ]
   },
   {
@@ -706,7 +696,7 @@
     "difficulty": "hard",
     "focus": [
       "th",
-      "r_l"
+      "extra_vowel"
     ]
   },
   {
@@ -716,7 +706,7 @@
     "difficulty": "hard",
     "focus": [
       "v_w",
-      "plural_ed"
+      "stress"
     ]
   },
   {
@@ -726,7 +716,7 @@
     "difficulty": "hard",
     "focus": [
       "v_w",
-      "th"
+      "stress"
     ]
   },
   {
@@ -736,7 +726,7 @@
     "difficulty": "easy",
     "focus": [
       "extra_vowel",
-      "plural_ed"
+      "r_l"
     ]
   },
   {
@@ -745,8 +735,8 @@
     "category": "daily",
     "difficulty": "easy",
     "focus": [
-      "extra_vowel",
-      "v_w"
+      "th",
+      "extra_vowel"
     ]
   },
   {
@@ -755,8 +745,8 @@
     "category": "daily",
     "difficulty": "medium",
     "focus": [
-      "extra_vowel",
-      "final_consonant"
+      "final_consonant",
+      "extra_vowel"
     ]
   },
   {
@@ -765,8 +755,7 @@
     "category": "daily",
     "difficulty": "easy",
     "focus": [
-      "linking",
-      "r_l"
+      "final_consonant"
     ]
   },
   {
@@ -775,8 +764,7 @@
     "category": "work",
     "difficulty": "easy",
     "focus": [
-      "linking",
-      "r_l"
+      "linking"
     ]
   },
   {
@@ -785,7 +773,7 @@
     "category": "travel",
     "difficulty": "medium",
     "focus": [
-      "vowel_length",
+      "linking",
       "extra_vowel"
     ]
   },
@@ -795,8 +783,8 @@
     "category": "daily",
     "difficulty": "hard",
     "focus": [
-      "vowel_length",
-      "r_l"
+      "n_ng",
+      "vowel_length"
     ]
   },
   {
@@ -805,8 +793,3345 @@
     "category": "work",
     "difficulty": "hard",
     "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ]
+  },
+  {
+    "id": 82,
+    "text": "This is never going to end.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "這個永遠完不了了。"
+  },
+  {
+    "id": 83,
+    "text": "We don't see things as they are, but as we are.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "我們看東西不是看其實質，而是以我們的主觀意識看它們的。"
+  },
+  {
+    "id": 84,
+    "text": "This is what I want.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "這就是我想要的。"
+  },
+  {
+    "id": 85,
+    "text": "The station is two meters away.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "車站在兩米遠。"
+  },
+  {
+    "id": 86,
+    "text": "This is a picture of an airport.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "plural_ed"
+    ],
+    "zh": "這是一張機場的照片。"
+  },
+  {
+    "id": 87,
+    "text": "The meeting room is occupied at the moment.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "linking"
+    ],
+    "zh": "會議室正在使用中。"
+  },
+  {
+    "id": 88,
+    "text": "Your project needs a large amount of money.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "你的專案需要一大筆錢。"
+  },
+  {
+    "id": 89,
+    "text": "If you want this job, you must apply for it by tomorrow.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "final_consonant"
+    ],
+    "zh": "如果你想要這份工作的話，就一定要在明天之前申請。"
+  },
+  {
+    "id": 90,
+    "text": "Who did you see at the station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "final_consonant"
+    ],
+    "zh": "你在車站看見了誰?"
+  },
+  {
+    "id": 91,
+    "text": "The meeting was called off.",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "會議取消了。"
+  },
+  {
+    "id": 92,
+    "text": "It was nice meeting you here.",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "vowel_length"
+    ],
+    "zh": "在這裡見到您真是太好了。"
+  },
+  {
+    "id": 93,
+    "text": "We must work hard to complete the project.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "要努力完成計劃。"
+  },
+  {
+    "id": 94,
+    "text": "We went to the beach last week.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "我們上週去了海灘。"
+  },
+  {
+    "id": 95,
+    "text": "The report proved true as a result of their investigation.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "他們的調查結果顯示這篇報導是真實的。"
+  },
+  {
+    "id": 96,
+    "text": "Each country has its own customs.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
       "plural_ed",
       "extra_vowel"
-    ]
+    ],
+    "zh": "不同的國家有不同的習俗。"
+  },
+  {
+    "id": 97,
+    "text": "This is just between you and me.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "vowel_length",
+      "extra_vowel"
+    ],
+    "zh": "這只是我們之間的秘密。"
+  },
+  {
+    "id": 98,
+    "text": "This coat hasn't got any pockets.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "extra_vowel"
+    ],
+    "zh": "這件外套沒有口袋。"
+  },
+  {
+    "id": 99,
+    "text": "There are forty students in our class.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "vowel_length"
+    ],
+    "zh": "我們班有四十個學生。"
+  },
+  {
+    "id": 100,
+    "text": "Is this the train station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "plural_ed"
+    ],
+    "zh": "這就是車站嗎？"
+  },
+  {
+    "id": 101,
+    "text": "This rule is applied to foreigners only.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "plural_ed"
+    ],
+    "zh": "這條規則只適用於外國人。"
+  },
+  {
+    "id": 102,
+    "text": "They asked for an increase of salary.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "linking",
+      "stress"
+    ],
+    "zh": "他們要求加薪。"
+  },
+  {
+    "id": 103,
+    "text": "The lady looked sad, also tired.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "這個女士看起來很悲傷，也很疲憊。"
+  },
+  {
+    "id": 104,
+    "text": "It was not until I reached home that I missed my purse.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "final_consonant",
+      "plural_ed"
+    ],
+    "zh": "那是在我到家以後，我才不見了我的錢包。"
+  },
+  {
+    "id": 105,
+    "text": "You might have heard of it.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "linking",
+      "final_consonant"
+    ],
+    "zh": "你可能聽說過。"
+  },
+  {
+    "id": 106,
+    "text": "Please let me pick up your sister at the station.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "final_consonant"
+    ],
+    "zh": "請讓我到火車站去接你的姐姐。"
+  },
+  {
+    "id": 107,
+    "text": "Have you read my report?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "vowel_length"
+    ],
+    "zh": "你讀了我的報告了嗎？"
+  },
+  {
+    "id": 108,
+    "text": "Where can I buy an entrance ticket?",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "linking"
+    ],
+    "zh": "我在哪裡可以買到門票？"
+  },
+  {
+    "id": 109,
+    "text": "How far is it to the station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "linking"
+    ],
+    "zh": "到火車站有多遠？"
+  },
+  {
+    "id": 110,
+    "text": "Who is in charge of the office while the boss is away?",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "在主任不在的時候，辦公室由誰來負責？"
+  },
+  {
+    "id": 111,
+    "text": "The entire sales staff has worked around the clock for a week.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ],
+    "zh": "全體銷售人員通宵達旦地工作了一週。"
+  },
+  {
+    "id": 112,
+    "text": "Are you meeting someone here?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "vowel_length"
+    ],
+    "zh": "你在這裡是要見誰吧？"
+  },
+  {
+    "id": 113,
+    "text": "The station is two miles away.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "車站離這裡兩英里遠。"
+  },
+  {
+    "id": 114,
+    "text": "At times the train doesn't arrive on time.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "有時候火車沒能按時到達。"
+  },
+  {
+    "id": 115,
+    "text": "This is the very book you wanted.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ],
+    "zh": "這是你非常想要的書。"
+  },
+  {
+    "id": 116,
+    "text": "My salary was high this month.",
+    "category": "interview",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "stress"
+    ],
+    "zh": "這個月有很多工資。"
+  },
+  {
+    "id": 117,
+    "text": "This is the house where I used to live when I was young.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ],
+    "zh": "這是我年輕時候住的房子。"
+  },
+  {
+    "id": 118,
+    "text": "No one believed me at first.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "extra_vowel"
+    ],
+    "zh": "起初誰也不相信我。"
+  },
+  {
+    "id": 119,
+    "text": "We got the meeting over with quickly.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "我們很快的結束了這個會議。"
+  },
+  {
+    "id": 120,
+    "text": "What was that meeting about?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "final_consonant"
+    ],
+    "zh": "那場會議主題是什麼？"
+  },
+  {
+    "id": 121,
+    "text": "What time will you get to the station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "final_consonant"
+    ],
+    "zh": "你幾點會到車站？"
+  },
+  {
+    "id": 122,
+    "text": "You can't apply this rule to every case.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "vowel_length"
+    ],
+    "zh": "你不能把這規則應用在所有事上。"
+  },
+  {
+    "id": 123,
+    "text": "Does the train stop at the next station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "final_consonant"
+    ],
+    "zh": "火車會在下一站停嗎？"
+  },
+  {
+    "id": 124,
+    "text": "Would you take part in the project?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "extra_vowel"
+    ],
+    "zh": "你願意加入這個專案嗎？"
+  },
+  {
+    "id": 125,
+    "text": "That child can count to twenty.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "這孩子能數到20。"
+  },
+  {
+    "id": 126,
+    "text": "If anybody is still absent, please send their names to me.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "extra_vowel"
+    ],
+    "zh": "如果仍然有人缺席的，請將名單發給我。"
+  },
+  {
+    "id": 127,
+    "text": "It's a cold day, isn't it?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "今天很冷啊，不是嗎？"
+  },
+  {
+    "id": 128,
+    "text": "The train arrived ten minutes behind time.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ],
+    "zh": "列車晚到了十分鐘。"
+  },
+  {
+    "id": 129,
+    "text": "Change trains at the next station.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "th"
+    ],
+    "zh": "在下一站換火車。"
+  },
+  {
+    "id": 130,
+    "text": "This company and I have signed a three-year contract.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "th"
+    ],
+    "zh": "我跟公司簽了一份三年的合同。"
+  },
+  {
+    "id": 131,
+    "text": "Six people applied for this job, but none of them was accepted.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ],
+    "zh": "六個人投了這份工作，但他們中沒有一個被錄用。"
+  },
+  {
+    "id": 132,
+    "text": "The meeting room is in use now.",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "linking"
+    ],
+    "zh": "會議室正在使用中。"
+  },
+  {
+    "id": 133,
+    "text": "This may be our last meeting.",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "vowel_length"
+    ],
+    "zh": "這也許是我們最後的會議。"
+  },
+  {
+    "id": 134,
+    "text": "Many people consider a high salary to be a condition for success.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "vowel_length"
+    ],
+    "zh": "不少人以高薪為成功的條件。"
+  },
+  {
+    "id": 135,
+    "text": "These customs differ from those in our country.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "vowel_length"
+    ],
+    "zh": "這些習俗和我們國家不同。"
+  },
+  {
+    "id": 136,
+    "text": "Is there a gas station around here?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "plural_ed"
+    ],
+    "zh": "這裡附近有沒有加油站？"
+  },
+  {
+    "id": 137,
+    "text": "Can I ask a question?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "linking",
+      "vowel_length"
+    ],
+    "zh": "我能問個問題嗎？"
+  },
+  {
+    "id": 138,
+    "text": "It is not easy to distinguish good from evil.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "區分善惡不容易。"
+  },
+  {
+    "id": 139,
+    "text": "Can't you get by on your salary?",
+    "category": "interview",
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "靠你的收入你不能過活嗎?"
+  },
+  {
+    "id": 140,
+    "text": "Will you go to the party instead of me?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "你會代替我去派對嗎？"
+  },
+  {
+    "id": 141,
+    "text": "The boss has a good opinion of your work.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "老闆對你的工作有很高的評價。"
+  },
+  {
+    "id": 142,
+    "text": "Only one third of the members turned up at the meeting.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "th"
+    ],
+    "zh": "僅三分之一的成員出席了會議。"
+  },
+  {
+    "id": 143,
+    "text": "Could you please take me to the station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "final_consonant"
+    ],
+    "zh": "可以帶我去車站嗎？"
+  },
+  {
+    "id": 144,
+    "text": "This company and I have signed a contract of three years.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ],
+    "zh": "我和這家公司簽了三年合同。"
+  },
+  {
+    "id": 145,
+    "text": "This is my email address.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "vowel_length"
+    ],
+    "zh": "這是我的電郵地址。"
+  },
+  {
+    "id": 146,
+    "text": "This is not your book, it's mine.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "這不是你的書,這是我的書。"
+  },
+  {
+    "id": 147,
+    "text": "There was no one there besides me.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "plural_ed"
+    ],
+    "zh": "那兒除了我，一個人都沒有。"
+  },
+  {
+    "id": 148,
+    "text": "What we need is help.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "我們需要的是幫助。"
+  },
+  {
+    "id": 149,
+    "text": "Is this your first trip abroad?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "這是你第一次出國嗎？"
+  },
+  {
+    "id": 150,
+    "text": "Please take that baggage to the post office.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "final_consonant"
+    ],
+    "zh": "請將這些行李拿到郵局那邊。"
+  },
+  {
+    "id": 151,
+    "text": "The train got in on time.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "linking",
+      "th"
+    ],
+    "zh": "火車準時到了。"
+  },
+  {
+    "id": 152,
+    "text": "This rule doesn't apply to every case.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "這條規則不是甚麼時候都適用的。"
+  },
+  {
+    "id": 153,
+    "text": "Please fill in this application form.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "請填好這張申請表。"
+  },
+  {
+    "id": 154,
+    "text": "When does the next train leave?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "下一班火車什麼時候開？"
+  },
+  {
+    "id": 155,
+    "text": "Bill got up early in order to catch the first train.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "linking"
+    ],
+    "zh": "為了趕上第一班火車, 比爾很早就起床了。"
+  },
+  {
+    "id": 156,
+    "text": "How long will the meeting last?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "th"
+    ],
+    "zh": "會議持續多久？"
+  },
+  {
+    "id": 157,
+    "text": "May I have a look at your ticket?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "linking"
+    ],
+    "zh": "我能看一下您的票嗎？"
+  },
+  {
+    "id": 158,
+    "text": "What time does it open?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "linking",
+      "final_consonant"
+    ],
+    "zh": "什麼時候開門？"
+  },
+  {
+    "id": 159,
+    "text": "One, three, and five are odd numbers.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "１、３、５都是奇數。"
+  },
+  {
+    "id": 160,
+    "text": "My sister is twenty-one years old and a college student.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "我妹妹21歲，是個大學生。"
+  },
+  {
+    "id": 161,
+    "text": "The contract is in the bag, so let's go out and celebrate.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "extra_vowel"
+    ],
+    "zh": "合同已經到手了，那就出去慶祝一下吧。"
+  },
+  {
+    "id": 162,
+    "text": "We hold a meeting once a month.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "extra_vowel"
+    ],
+    "zh": "我們一個月開會一次。"
+  },
+  {
+    "id": 163,
+    "text": "Would you please look over my report?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "你可以仔細檢查一下我的報告嗎?"
+  },
+  {
+    "id": 164,
+    "text": "The meeting will have broken up by the time you arrive there.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "th"
+    ],
+    "zh": "等你到的時候應該已經散會了。"
+  },
+  {
+    "id": 165,
+    "text": "Don't walk so fast! I can't keep up with you.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "extra_vowel"
+    ],
+    "zh": "不要走得那麼快！我跟不上你們了。"
+  },
+  {
+    "id": 166,
+    "text": "Can you come to the meeting tomorrow?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "stress"
+    ],
+    "zh": "你明天可以來參加會議嗎？"
+  },
+  {
+    "id": 167,
+    "text": "Why did you paint the bench red?",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "為什麼你把長凳漆成紅色了？"
+  },
+  {
+    "id": 168,
+    "text": "If I could be like that...",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "final_consonant",
+      "th"
+    ],
+    "zh": "如果我可以像那樣的話..."
+  },
+  {
+    "id": 169,
+    "text": "Please pick me up at the airport at five.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "vowel_length"
+    ],
+    "zh": "請於五點鐘到機場接我。"
+  },
+  {
+    "id": 170,
+    "text": "Our flight has been cancelled.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "我們的航班被取消了。"
+  },
+  {
+    "id": 171,
+    "text": "The station is not far from here.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "th"
+    ],
+    "zh": "火車站離這裡不遠。"
+  },
+  {
+    "id": 172,
+    "text": "You have to go to the meeting.",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng"
+    ],
+    "zh": "你必須去會議。"
+  },
+  {
+    "id": 173,
+    "text": "How much do you want in terms of salary?",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "stress"
+    ],
+    "zh": "您想要多少工資？"
+  },
+  {
+    "id": 174,
+    "text": "This hotel does not serve lunch.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "th"
+    ],
+    "zh": "這家旅館不提供午餐。"
+  },
+  {
+    "id": 175,
+    "text": "Is there a gas station near here?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "plural_ed"
+    ],
+    "zh": "這裡附近有沒有加油站？"
+  },
+  {
+    "id": 176,
+    "text": "Can you tell me what this is?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "vowel_length",
+      "plural_ed"
+    ],
+    "zh": "你能告訴我這是什麼嗎？"
+  },
+  {
+    "id": 177,
+    "text": "Weather permitting, we will leave in an hour.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "如果天氣允許的話，我們1小時後出發。"
+  },
+  {
+    "id": 178,
+    "text": "The man sitting next to me spoke to me.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "n_ng"
+    ],
+    "zh": "坐在我旁邊的男人跟我說話了。"
+  },
+  {
+    "id": 179,
+    "text": "What is your email address?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "vowel_length"
+    ],
+    "zh": "你的電子郵件地址是什麼？"
+  },
+  {
+    "id": 180,
+    "text": "Their contract is to run out at the end of this month.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "linking"
+    ],
+    "zh": "他們的合同在這個月底到期。"
+  },
+  {
+    "id": 181,
+    "text": "This is a very important meeting.",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "stress"
+    ],
+    "zh": "這是個很重要的會議。"
+  },
+  {
+    "id": 182,
+    "text": "How long will the train stop here?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "n_ng"
+    ],
+    "zh": "火車要在這裡停多久？"
+  },
+  {
+    "id": 183,
+    "text": "Will the train leave on time?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "這班火車會準時出發嗎？"
+  },
+  {
+    "id": 184,
+    "text": "Don't sign the contract in pencil.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "extra_vowel"
+    ],
+    "zh": "別用鉛筆籤合同。"
+  },
+  {
+    "id": 185,
+    "text": "School begins at half past eight.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "學校8點半開始上課。"
+  },
+  {
+    "id": 186,
+    "text": "Last month our twenty-year-old daughter gave birth to a baby girl.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "extra_vowel"
+    ],
+    "zh": "上個月，我們20歲的女兒生了個女孩。"
+  },
+  {
+    "id": 187,
+    "text": "What goes around comes around.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ],
+    "zh": "善有善報，惡有惡報。"
+  },
+  {
+    "id": 188,
+    "text": "The tickets were sold within a week.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "extra_vowel"
+    ],
+    "zh": "票一週內就賣完了。"
+  },
+  {
+    "id": 189,
+    "text": "Quite by chance, I met my old friend at the airport.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "很幸運地，我在機場遇到了我的老朋友。"
+  },
+  {
+    "id": 190,
+    "text": "Write up the daily report today!",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ],
+    "zh": "今天就去把每日報告寫好。"
+  },
+  {
+    "id": 191,
+    "text": "How was the meeting yesterday?",
+    "category": "work",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "stress"
+    ],
+    "zh": "昨天的會議怎麼樣？"
+  },
+  {
+    "id": 192,
+    "text": "Have you got the report yet?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "th"
+    ],
+    "zh": "你寫好報告了嗎？"
+  },
+  {
+    "id": 193,
+    "text": "The train was so crowded that none of us could get a seat.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "final_consonant"
+    ],
+    "zh": "火車擠得要命，我們都找不到位子坐。"
+  },
+  {
+    "id": 194,
+    "text": "Can I pick my ticket up at the airport?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "linking"
+    ],
+    "zh": "我能在機場領取機票嗎？"
+  },
+  {
+    "id": 195,
+    "text": "My father does not always walk to work.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "我爸爸不是每天都走路上班的。"
+  },
+  {
+    "id": 196,
+    "text": "Last night my house was robbed while I was still awake.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "昨晚我還沒有睡覺家裡就被小偷光顧了"
+  },
+  {
+    "id": 197,
+    "text": "How many boys are there in this class?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "th"
+    ],
+    "zh": "這個班有多少男生？"
+  },
+  {
+    "id": 198,
+    "text": "The meeting lasted two hours.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "這個會議持續了兩個小時。"
+  },
+  {
+    "id": 199,
+    "text": "Do you go by train or by car?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "linking"
+    ],
+    "zh": "你會坐火車還是汽車呢？"
+  },
+  {
+    "id": 200,
+    "text": "What time does the first train leave?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "第一班火車什麼時候出發？"
+  },
+  {
+    "id": 201,
+    "text": "You should have attended the meeting.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "n_ng"
+    ],
+    "zh": "你應該參加這個會議的。"
+  },
+  {
+    "id": 202,
+    "text": "Take as many cookies as you want.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "vowel_length"
+    ],
+    "zh": "想吃多少餅乾就吃多少。"
+  },
+  {
+    "id": 203,
+    "text": "These issues have no effect on us.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "linking",
+      "vowel_length"
+    ],
+    "zh": "這些問題對我們毫無效果。"
+  },
+  {
+    "id": 204,
+    "text": "Would you please give me some more tea?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "你能再給我點茶嗎？"
+  },
+  {
+    "id": 205,
+    "text": "Which way is the beach?",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "vowel_length"
+    ],
+    "zh": "去海灘走哪條路？"
+  },
+  {
+    "id": 206,
+    "text": "You'll have to play it by ear at the interview.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "在面試的時候你必須見機行事。"
+  },
+  {
+    "id": 207,
+    "text": "You can hear the sound of the sea in this hotel room.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "vowel_length"
+    ],
+    "zh": "在這間酒店房間裡，你可以聽見海的聲音。"
+  },
+  {
+    "id": 208,
+    "text": "Either you or I must attend the meeting.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "th"
+    ],
+    "zh": "你和我其中一個要出席這次的會議。"
+  },
+  {
+    "id": 209,
+    "text": "Like it or not, we have to attend that meeting.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "不管喜不喜歡，我們都得參加那個會議。"
+  },
+  {
+    "id": 210,
+    "text": "The train tickets can be ordered online in a few days.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "過兩天就可以在網上訂火車票了。"
+  },
+  {
+    "id": 211,
+    "text": "In order to apply, you have to go in person.",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "r_l"
+    ],
+    "zh": "要申請的話，你得親自去。"
+  },
+  {
+    "id": 212,
+    "text": "There is a map on the wall.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "th"
+    ],
+    "zh": "牆上有張地圖。"
+  },
+  {
+    "id": 213,
+    "text": "We still have a lot of time.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "我們還有很多時間。"
+  },
+  {
+    "id": 214,
+    "text": "Man consists of soul and body.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "人是由靈魂和肉身組成的。"
+  },
+  {
+    "id": 215,
+    "text": "You should give up smoking and drinking.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "linking"
+    ],
+    "zh": "你該戒菸戒酒了。"
+  },
+  {
+    "id": 216,
+    "text": "Does your salary get put on your pay card on a monthly basis?",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "r_l"
+    ],
+    "zh": "您的工資是每個月打入您的工資卡嗎？"
+  },
+  {
+    "id": 217,
+    "text": "How did your interview go?",
+    "category": "interview",
+    "difficulty": "hard",
+    "focus": [
+      "stress"
+    ],
+    "zh": "你的面試怎麼樣？"
+  },
+  {
+    "id": 218,
+    "text": "We take great pleasure in meeting all of you this evening.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "n_ng"
+    ],
+    "zh": "我們很高興今晚能見到大家。"
+  },
+  {
+    "id": 219,
+    "text": "We organized a project team.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "extra_vowel"
+    ],
+    "zh": "我們組織了一個專案團隊。"
+  },
+  {
+    "id": 220,
+    "text": "The train was late this morning.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "th"
+    ],
+    "zh": "今天早上火車來遲了。"
+  },
+  {
+    "id": 221,
+    "text": "What time does the train leave from here?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "這班火車幾點鐘開？"
+  },
+  {
+    "id": 222,
+    "text": "Don't trust a man whose past you know nothing about.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "extra_vowel"
+    ],
+    "zh": "不要相信一個你一點都不瞭解他過去的人。"
+  },
+  {
+    "id": 223,
+    "text": "The number of tourists has increased greatly in recent years.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ],
+    "zh": "近年的遊客數量大幅增加。"
+  },
+  {
+    "id": 224,
+    "text": "You must do it yourself.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "你應該自己做。"
+  },
+  {
+    "id": 225,
+    "text": "Not a single taxi stopped.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "final_consonant"
+    ],
+    "zh": "甚至沒有一輛計程車停下來。"
+  },
+  {
+    "id": 226,
+    "text": "What is the exchange rate?",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "final_consonant"
+    ],
+    "zh": "匯率是多少？"
+  },
+  {
+    "id": 227,
+    "text": "My boss just fired me.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "我的老闆剛剛解僱了我。"
+  },
+  {
+    "id": 228,
+    "text": "This is my favourite project.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "plural_ed"
+    ],
+    "zh": "這是我最喜歡的專案。"
+  },
+  {
+    "id": 229,
+    "text": "This trip of mine would need twelve days in total.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ],
+    "zh": "我這趟旅程一共在內需要十二天。"
+  },
+  {
+    "id": 230,
+    "text": "Let me check your ticket.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ],
+    "zh": "讓我看一下你的票。"
+  },
+  {
+    "id": 231,
+    "text": "You were late for work.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "final_consonant"
+    ],
+    "zh": "你上班遲到了。"
+  },
+  {
+    "id": 232,
+    "text": "The dress suits you very well.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "這條裙子很適合你。"
+  },
+  {
+    "id": 233,
+    "text": "This book is too difficult for you to read.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "這本書對你來說讀起來太難了。"
+  },
+  {
+    "id": 234,
+    "text": "Can they finish this before the deadline?",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "r_l"
+    ],
+    "zh": "他們能不能在最後期限之前完成這項工作?"
+  },
+  {
+    "id": 235,
+    "text": "There is no excuse that will let you be absent from the meeting.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "r_l"
+    ],
+    "zh": "你沒有任何藉口缺席這次會議。"
+  },
+  {
+    "id": 236,
+    "text": "My brother will often sit up all night.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "r_l"
+    ],
+    "zh": "我弟弟會經常徹夜不睡。"
+  },
+  {
+    "id": 237,
+    "text": "How can I get to the train station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "th"
+    ],
+    "zh": "請問火車站怎麼走？"
+  },
+  {
+    "id": 238,
+    "text": "The last train has already gone.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "stress"
+    ],
+    "zh": "最後一班車已經走了。"
+  },
+  {
+    "id": 239,
+    "text": "That has been an evil rabbit.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "linking"
+    ],
+    "zh": "那是一隻有惡意的兔子。"
+  },
+  {
+    "id": 240,
+    "text": "The word is of great use to me.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "這個詞對我很有用。"
+  },
+  {
+    "id": 241,
+    "text": "All the tickets sold out in an hour.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "extra_vowel"
+    ],
+    "zh": "票不到一個鐘頭就賣得精光。"
+  },
+  {
+    "id": 242,
+    "text": "Taking off is easier than landing.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "linking"
+    ],
+    "zh": "起飛比降落容易。"
+  },
+  {
+    "id": 243,
+    "text": "Here is my email address.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "r_l"
+    ],
+    "zh": "這是我的電子郵箱。"
+  },
+  {
+    "id": 244,
+    "text": "We do not have time to finish our report.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "我們沒有時間來完成我們的報告。"
+  },
+  {
+    "id": 245,
+    "text": "These old customs have been handed down from generation to generation.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "vowel_length"
+    ],
+    "zh": "這些古老習俗都是一代一代相傳下來的。"
+  },
+  {
+    "id": 246,
+    "text": "It is not easy to train dogs.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "plural_ed"
+    ],
+    "zh": "訓練狗是不容易的。"
+  },
+  {
+    "id": 247,
+    "text": "Are you sure about this?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "vowel_length"
+    ],
+    "zh": "你確定嗎？"
+  },
+  {
+    "id": 248,
+    "text": "It's against the law to carry weapons.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "vowel_length"
+    ],
+    "zh": "攜帶武器是違法的。"
+  },
+  {
+    "id": 249,
+    "text": "Are you going to visit any other countries?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "vowel_length"
+    ],
+    "zh": "你會去訪問其他國家嗎？"
+  },
+  {
+    "id": 250,
+    "text": "My boss is keeping me pretty busy.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "n_ng"
+    ],
+    "zh": "我的老闆讓我很忙。"
+  },
+  {
+    "id": 251,
+    "text": "They went to the station by car.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "th"
+    ],
+    "zh": "他們開車去車站。"
+  },
+  {
+    "id": 252,
+    "text": "The train has already left.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "stress"
+    ],
+    "zh": "列車已經出發。"
+  },
+  {
+    "id": 253,
+    "text": "In that case we should start by having a family meeting.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "n_ng"
+    ],
+    "zh": "那麼首先我們應該召開一次家庭會議。"
+  },
+  {
+    "id": 254,
+    "text": "Does this book belong to you?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "這本書是你的嗎？"
+  },
+  {
+    "id": 255,
+    "text": "Thank you for your patience.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "extra_vowel"
+    ],
+    "zh": "謝謝你的耐心。"
+  },
+  {
+    "id": 256,
+    "text": "It's nothing, don't be afraid!",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "extra_vowel"
+    ],
+    "zh": "沒事的，別害怕！"
+  },
+  {
+    "id": 257,
+    "text": "The tickets sold out within a week.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "extra_vowel"
+    ],
+    "zh": "那些票一個禮拜不到就全賣完了。"
+  },
+  {
+    "id": 258,
+    "text": "What's more, you can only buy train tickets one week in advance.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "extra_vowel"
+    ],
+    "zh": "再說，只能提前一週買火車票 。"
+  },
+  {
+    "id": 259,
+    "text": "The project was a great success.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "th"
+    ],
+    "zh": "該計劃是一個大成功。"
+  },
+  {
+    "id": 260,
+    "text": "This is my favorite project.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "plural_ed"
+    ],
+    "zh": "這是我最喜歡的專案。"
+  },
+  {
+    "id": 261,
+    "text": "We didn't know what train they'd be on.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "final_consonant"
+    ],
+    "zh": "我們不知道他們會乘哪一班列車。"
+  },
+  {
+    "id": 262,
+    "text": "Not even one taxi stopped.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "final_consonant"
+    ],
+    "zh": "甚至沒有一輛計程車停下來。"
+  },
+  {
+    "id": 263,
+    "text": "When did the accident take place?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "stress",
+      "final_consonant"
+    ],
+    "zh": "這意外是何時發生的？"
+  },
+  {
+    "id": 264,
+    "text": "Is it a recent picture?",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "linking",
+      "final_consonant"
+    ],
+    "zh": "那是一張近照嗎？"
+  },
+  {
+    "id": 265,
+    "text": "It looks like an egg.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "final_consonant"
+    ],
+    "zh": "這看上去像個蛋。"
+  },
+  {
+    "id": 266,
+    "text": "The staff in that restaurant gave us a very good impression.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "linking"
+    ],
+    "zh": "那家飯館兒的服務員給我們留下很好的印象。"
+  },
+  {
+    "id": 267,
+    "text": "Where does the train leave from?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "火車從什麼地方開出？"
+  },
+  {
+    "id": 268,
+    "text": "How can I get to the station?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "th"
+    ],
+    "zh": "我怎樣才能到火車站？"
+  },
+  {
+    "id": 269,
+    "text": "My boss was forced to resign.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed"
+    ],
+    "zh": "我的上司被逼迫辭職。"
+  },
+  {
+    "id": 270,
+    "text": "The eight o'clock bus was early today.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "8點那班車今天早到了。"
+  },
+  {
+    "id": 271,
+    "text": "This is considered to be a matter of great importance.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "plural_ed"
+    ],
+    "zh": "這被認為是一件大事。"
+  },
+  {
+    "id": 272,
+    "text": "One of us has to go.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ],
+    "zh": "我們中的一個得走。"
+  },
+  {
+    "id": 273,
+    "text": "My parents have just arrived at the station.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ],
+    "zh": "我的父母剛剛到達車站。"
+  },
+  {
+    "id": 274,
+    "text": "This ticket is valid for three days.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "th"
+    ],
+    "zh": "這張票三日有效。"
+  },
+  {
+    "id": 275,
+    "text": "Who is the boss of this company?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "th"
+    ],
+    "zh": "這家公司的老闆是誰？"
+  },
+  {
+    "id": 276,
+    "text": "How soon will the meeting begin?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "th"
+    ],
+    "zh": "會議什麼時候開始？"
+  },
+  {
+    "id": 277,
+    "text": "Where is the entrance to the museum?",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "stress"
+    ],
+    "zh": "博物館的入口在哪？"
+  },
+  {
+    "id": 278,
+    "text": "The train will arrive on time without fail.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "th"
+    ],
+    "zh": "我保證火車會準時來。"
+  },
+  {
+    "id": 279,
+    "text": "One is new, and the other is old.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "extra_vowel"
+    ],
+    "zh": "一個是新的，另一個是舊的。"
+  },
+  {
+    "id": 280,
+    "text": "Three months is too short a time to finish the experiment.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "extra_vowel"
+    ],
+    "zh": "要完成實驗，三個月太短了。"
+  },
+  {
+    "id": 281,
+    "text": "A large amount of money was spent on the bridge.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "extra_vowel"
+    ],
+    "zh": "建這條橋花了不少錢。"
+  },
+  {
+    "id": 282,
+    "text": "Go to the history department or education department.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "extra_vowel"
+    ],
+    "zh": "去歷史系或者教育系。"
+  },
+  {
+    "id": 283,
+    "text": "Which station are you going to?",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng"
+    ],
+    "zh": "你去哪站？"
+  },
+  {
+    "id": 284,
+    "text": "The conference ended at five.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "linking"
+    ],
+    "zh": "會議在五點鐘結束。"
+  },
+  {
+    "id": 285,
+    "text": "Don't be afraid to ask questions.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "不要害怕發問。"
+  },
+  {
+    "id": 286,
+    "text": "If you pass this test, you could graduate next month.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "extra_vowel"
+    ],
+    "zh": "如果你通過這個考試，你下個月就可以畢業了。"
+  },
+  {
+    "id": 287,
+    "text": "It's time to eat lunch.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "vowel_length"
+    ],
+    "zh": "午餐時間到了。"
+  },
+  {
+    "id": 288,
+    "text": "That way is very far, so we took a taxi.",
+    "category": "travel",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "那路當然挺遠的，我們打的去算了。"
+  },
+  {
+    "id": 289,
+    "text": "We didn't know on which train they'd be coming.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "vowel_length"
+    ],
+    "zh": "我們不知道他們乘哪趟列車來。"
+  },
+  {
+    "id": 290,
+    "text": "We don't need to attend that meeting.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "final_consonant"
+    ],
+    "zh": "我們不必參加那場會議。"
+  },
+  {
+    "id": 291,
+    "text": "The mail train lost most of its mail in the fire.",
+    "category": "travel",
+    "difficulty": "hard",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "那場火災把郵車上的郵件燒掉了一大半。"
+  },
+  {
+    "id": 292,
+    "text": "The train has already gone.",
+    "category": "travel",
+    "difficulty": "easy",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "列車已經出發。"
+  },
+  {
+    "id": 293,
+    "text": "Look at me when I talk to you!",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "vowel_length",
+      "linking"
+    ],
+    "zh": "我跟你說話的時候看著我！"
+  },
+  {
+    "id": 294,
+    "text": "Let me have a look at those photos.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "linking",
+      "final_consonant"
+    ],
+    "zh": "讓我看看那些照片。"
+  },
+  {
+    "id": 295,
+    "text": "Everyone must learn on their own in the end.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "到了最後，大家一定要靠自己學習。"
+  },
+  {
+    "id": 296,
+    "text": "The website manager is very busy.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "網站的管理者很忙。"
+  },
+  {
+    "id": 297,
+    "text": "We must consider the financial aspects of this project.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "stress"
+    ],
+    "zh": "我們必須從財政方面考慮一下這個計劃。"
+  },
+  {
+    "id": 298,
+    "text": "You must look over the contract before you sign it.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "final_consonant",
+      "r_l"
+    ],
+    "zh": "你在簽字前必須仔細看合同。"
+  },
+  {
+    "id": 299,
+    "text": "How long did it take you to write this report?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "final_consonant"
+    ],
+    "zh": "你寫這份報告花了多長時間？"
+  },
+  {
+    "id": 300,
+    "text": "What movies are playing this week?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "n_ng"
+    ],
+    "zh": "這週放什麼電影？"
+  },
+  {
+    "id": 301,
+    "text": "Many small companies went bankrupt.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "stress"
+    ],
+    "zh": "許多小公司倒閉了。"
+  },
+  {
+    "id": 302,
+    "text": "Please think no more about it.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ],
+    "zh": "請不要再想這事了。"
+  },
+  {
+    "id": 303,
+    "text": "You can stay as long as you like.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "你想要待多久就待多久。"
+  },
+  {
+    "id": 304,
+    "text": "Life is what happens to you while you're busy making other plans.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "生活就是當你忙著進行你的計劃時總有其他的事情發生。"
+  },
+  {
+    "id": 305,
+    "text": "A car passed by at top speed.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "plural_ed"
+    ],
+    "zh": "一輛車全速經過。"
+  },
+  {
+    "id": 306,
+    "text": "Is that your boss by the window?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "plural_ed"
+    ],
+    "zh": "站在視窗的是你們的老闆嗎？"
+  },
+  {
+    "id": 307,
+    "text": "Our staff will contact you in three working days.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ],
+    "zh": "我們的工作人員會在三個工作日內聯絡您。"
+  },
+  {
+    "id": 308,
+    "text": "The conference will end tomorrow.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "會議明天就結束了。"
+  },
+  {
+    "id": 309,
+    "text": "My grandfather is five times as old as I am.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "祖父的年齡比我大五倍。"
+  },
+  {
+    "id": 310,
+    "text": "This style of hat is now in fashion.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "這種款式的帽子現在很流行。"
+  },
+  {
+    "id": 311,
+    "text": "Don't tell anyone our plan.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "stress",
+      "linking"
+    ],
+    "zh": "不要把我們的計劃告訴任何人。"
+  },
+  {
+    "id": 312,
+    "text": "The whole school agreed to the proposal.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "th"
+    ],
+    "zh": "全校學生都贊成了這個建議。"
+  },
+  {
+    "id": 313,
+    "text": "They carried out the project.",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "final_consonant"
+    ],
+    "zh": "他們實現了那個計劃。"
+  },
+  {
+    "id": 314,
+    "text": "Fish cannot live out of water.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "魚離開水就無法生存。"
+  },
+  {
+    "id": 315,
+    "text": "The dragon is an imaginary creature.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "linking"
+    ],
+    "zh": "龍是人幻想出來的生物。"
+  },
+  {
+    "id": 316,
+    "text": "You should especially not drink on an empty stomach.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "vowel_length"
+    ],
+    "zh": "你尤其不該空腹喝酒。"
+  },
+  {
+    "id": 317,
+    "text": "My boss made me work overtime.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "stress"
+    ],
+    "zh": "我的老闆要我加班。"
+  },
+  {
+    "id": 318,
+    "text": "The conference closed at five.",
+    "category": "work",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "extra_vowel"
+    ],
+    "zh": "會議在五點鐘結束。"
+  },
+  {
+    "id": 319,
+    "text": "It seemed to be cheap.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "vowel_length"
+    ],
+    "zh": "似乎很便宜。"
+  },
+  {
+    "id": 320,
+    "text": "Don't forget to put a stamp on your letter.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "final_consonant",
+      "vowel_length"
+    ],
+    "zh": "別忘了在你的信上貼張郵票。"
+  },
+  {
+    "id": 321,
+    "text": "What kind of music do you like?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "final_consonant"
+    ],
+    "zh": "你喜歡什麼風格的音樂？"
+  },
+  {
+    "id": 322,
+    "text": "Have you turned in your report?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel"
+    ],
+    "zh": "你交報告了嗎？"
+  },
+  {
+    "id": 323,
+    "text": "Why did they turn down your proposal?",
+    "category": "work",
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "r_l"
+    ],
+    "zh": "他們為什麼否決了你的建議呢？"
+  },
+  {
+    "id": 324,
+    "text": "Who is that old woman?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "final_consonant"
+    ],
+    "zh": "這老婦是誰？"
+  },
+  {
+    "id": 325,
+    "text": "Go straight down this street and turn right at the third light.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "final_consonant",
+      "th"
+    ],
+    "zh": "沿著這條路直走，到第三個紅綠燈的地方右轉。"
+  },
+  {
+    "id": 326,
+    "text": "The wind is cold today.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "th"
+    ],
+    "zh": "今天刮冷風。"
+  },
+  {
+    "id": 327,
+    "text": "The teacher gave us homework.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "th"
+    ],
+    "zh": "老師給我們佈置了家庭作業。"
+  },
+  {
+    "id": 328,
+    "text": "The problem is how we cope with the present difficulties.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "th"
+    ],
+    "zh": "問題是我們如何應付目前的困難。"
+  },
+  {
+    "id": 329,
+    "text": "That's because you're a girl.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "th"
+    ],
+    "zh": "那是因為妳是女生。"
+  },
+  {
+    "id": 330,
+    "text": "We used to play in the park.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "r_l",
+      "extra_vowel"
+    ],
+    "zh": "我們過去常在公園玩。"
+  },
+  {
+    "id": 331,
+    "text": "We are badly in need of food.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "我們非常需要食物。"
+  },
+  {
+    "id": 332,
+    "text": "Write your name in capital letters.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "r_l",
+      "stress"
+    ],
+    "zh": "寫下你名字的大寫字母。"
+  },
+  {
+    "id": 333,
+    "text": "The whole class is present once a week.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "r_l"
+    ],
+    "zh": "全班同學每週出席一次。"
+  },
+  {
+    "id": 334,
+    "text": "To control a class calls for all your skills as a teacher.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "plural_ed"
+    ],
+    "zh": "控制一個班級需要你做老師的所有技能。"
+  },
+  {
+    "id": 335,
+    "text": "How long will you stay here?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ],
+    "zh": "你會在這裡逗留多久？"
+  },
+  {
+    "id": 336,
+    "text": "Thank you very much for your help.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ],
+    "zh": "非常感謝你幫忙。"
+  },
+  {
+    "id": 337,
+    "text": "Not wanting is the same as having.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "n_ng"
+    ],
+    "zh": "沒有慾望就等於擁有。"
+  },
+  {
+    "id": 338,
+    "text": "Don't expect others to think for you!",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "extra_vowel"
+    ],
+    "zh": "別指望別人來為你考慮！"
+  },
+  {
+    "id": 339,
+    "text": "Our plan went wrong from the beginning.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "stress"
+    ],
+    "zh": "我們的計劃從一開始就出錯了。"
+  },
+  {
+    "id": 340,
+    "text": "It seems to be becoming hard to get a good job.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "n_ng"
+    ],
+    "zh": "好工作似乎愈來愈難找了。"
+  },
+  {
+    "id": 341,
+    "text": "Well, the night is quite long, isn't it?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "linking"
+    ],
+    "zh": "夜晚很長，不是嗎？"
+  },
+  {
+    "id": 342,
+    "text": "Something has happened to my car.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "我的車出了點事。"
+  },
+  {
+    "id": 343,
+    "text": "My father is getting better by degrees.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "我父親逐漸好轉了。"
+  },
+  {
+    "id": 344,
+    "text": "All that which is invented, is true.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ],
+    "zh": "所有被發明的都是真的。"
+  },
+  {
+    "id": 345,
+    "text": "Our child likes dogs, but I prefer cats.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "plural_ed"
+    ],
+    "zh": "我們的孩子喜歡狗，但我更喜歡貓。"
+  },
+  {
+    "id": 346,
+    "text": "Some people like volleyball, others enjoy tennis.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "plural_ed"
+    ],
+    "zh": "有些人喜歡排球，其他人喜歡網球。"
+  },
+  {
+    "id": 347,
+    "text": "That job is pretty much finished.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "plural_ed",
+      "final_consonant"
+    ],
+    "zh": "那個工作幾乎被完成了。"
+  },
+  {
+    "id": 348,
+    "text": "It is easy to read this book.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "vowel_length",
+      "plural_ed"
+    ],
+    "zh": "讀這本書很容易。"
+  },
+  {
+    "id": 349,
+    "text": "Whether you succeed or not depends on your own efforts.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "linking",
+      "plural_ed"
+    ],
+    "zh": "你成功與否取決於你自身的努力。"
+  },
+  {
+    "id": 350,
+    "text": "Both of my sisters are married.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "plural_ed",
+      "linking"
+    ],
+    "zh": "我的兩個姐妹都結婚了。"
+  },
+  {
+    "id": 351,
+    "text": "It is our rainy season.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "linking"
+    ],
+    "zh": "這是我們多雨的季節。"
+  },
+  {
+    "id": 352,
+    "text": "An accident delayed us for half an hour.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "linking",
+      "stress"
+    ],
+    "zh": "事故耽誤了我們半小時。"
+  },
+  {
+    "id": 353,
+    "text": "We made it out of there.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "linking"
+    ],
+    "zh": "我們從那裡逃了出來。"
+  },
+  {
+    "id": 354,
+    "text": "Must I go there at once?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "linking"
+    ],
+    "zh": "我一定要馬上去嗎？"
+  },
+  {
+    "id": 355,
+    "text": "The fire spread out in a fan-shape.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "linking",
+      "final_consonant"
+    ],
+    "zh": "火勢以扇形迅速蔓延。"
+  },
+  {
+    "id": 356,
+    "text": "Can I rest a bit?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "linking",
+      "final_consonant"
+    ],
+    "zh": "我能休息一會兒嗎？"
+  },
+  {
+    "id": 357,
+    "text": "It rained for a week.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "final_consonant",
+      "vowel_length"
+    ],
+    "zh": "雨下了一週。"
+  },
+  {
+    "id": 358,
+    "text": "A fire broke out in my neighborhood last night.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "final_consonant",
+      "stress"
+    ],
+    "zh": "昨晚我領居家著火了。"
+  },
+  {
+    "id": 359,
+    "text": "They didn't swim because it was cold.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "final_consonant"
+    ],
+    "zh": "他們之所以沒有游泳，就因為天氣很冷。"
+  },
+  {
+    "id": 360,
+    "text": "What kind of food do you have?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "final_consonant"
+    ],
+    "zh": "你們有什麼菜？"
+  },
+  {
+    "id": 361,
+    "text": "The lake is deepest at this point.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "th",
+      "final_consonant"
+    ],
+    "zh": "這是湖的最深處。"
+  },
+  {
+    "id": 362,
+    "text": "What is the date today?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "th",
+      "final_consonant"
+    ],
+    "zh": "今天是幾月幾號？"
+  },
+  {
+    "id": 363,
+    "text": "Please help yourself to the cake.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "extra_vowel",
+      "th"
+    ],
+    "zh": "你自己拿蛋糕吃吧。"
+  },
+  {
+    "id": 364,
+    "text": "Sorry, but can you show me the way to the next village?",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "th"
+    ],
+    "zh": "能不能麻煩你告訴我去鄰村怎麼走？"
+  },
+  {
+    "id": 365,
+    "text": "They left there the day before yesterday.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "stress"
+    ],
+    "zh": "前天，他們離開了那兒。"
+  },
+  {
+    "id": 366,
+    "text": "Can you answer this question?",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "th",
+      "vowel_length"
+    ],
+    "zh": "你能回答這條問題嗎？"
+  },
+  {
+    "id": 367,
+    "text": "There appears to be a party in that house.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "vowel_length",
+      "th"
+    ],
+    "zh": "這房子裡似乎在辦派對。"
+  },
+  {
+    "id": 368,
+    "text": "This is the worst movie I have ever seen.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "vowel_length"
+    ],
+    "zh": "這是我看過的最差勁的電影了。"
+  },
+  {
+    "id": 369,
+    "text": "It has been ten years since I came here.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "vowel_length",
+      "extra_vowel"
+    ],
+    "zh": "我來這裡已有十年了。"
+  },
+  {
+    "id": 370,
+    "text": "Do you take part in any community activities?",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "vowel_length"
+    ],
+    "zh": "你參加社團活動嗎？"
+  },
+  {
+    "id": 371,
+    "text": "We usually sleep in this room.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "stress",
+      "vowel_length"
+    ],
+    "zh": "我們通常在這房間睡。"
+  },
+  {
+    "id": 372,
+    "text": "Everyone had a good time at the party.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "stress"
+    ],
+    "zh": "這場派對大家都玩得很開心。"
+  },
+  {
+    "id": 373,
+    "text": "Don't interfere in my affairs.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "stress",
+      "extra_vowel"
+    ],
+    "zh": "不要插手我的事。"
+  },
+  {
+    "id": 374,
+    "text": "Be kind to little animals.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "extra_vowel"
+    ],
+    "zh": "善待小動物。"
+  },
+  {
+    "id": 375,
+    "text": "By and by the party ended and everyone went home.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "extra_vowel"
+    ],
+    "zh": "不久派對完結，大家也都回家去了。"
+  },
+  {
+    "id": 376,
+    "text": "The rumor turned out to be false.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "r_l",
+      "extra_vowel"
+    ],
+    "zh": "謠言最後被證明是假的。"
+  },
+  {
+    "id": 377,
+    "text": "My parents aren't old yet.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "extra_vowel",
+      "r_l"
+    ],
+    "zh": "我父母還不老。"
+  },
+  {
+    "id": 378,
+    "text": "You'll have to start at once.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "v_w",
+      "r_l"
+    ],
+    "zh": "你必須馬上開始。"
+  },
+  {
+    "id": 379,
+    "text": "We won't go out unless it stops raining.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ],
+    "zh": "除非雨停了，我們才會出去。"
+  },
+  {
+    "id": 380,
+    "text": "My uncle lives near the school.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "n_ng",
+      "r_l"
+    ],
+    "zh": "我叔叔住在學校附近。"
+  },
+  {
+    "id": 381,
+    "text": "Will you pick me up at seven tomorrow morning?",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "v_w",
+      "n_ng"
+    ],
+    "zh": "你明早7點來接我嗎？"
+  },
+  {
+    "id": 382,
+    "text": "Before taking a journey, I got a haircut.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "n_ng",
+      "linking"
+    ],
+    "zh": "旅行前，我剪了頭髮。"
+  },
+  {
+    "id": 383,
+    "text": "It is me that is wrong.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "是我錯了。"
+  },
+  {
+    "id": 384,
+    "text": "Please stay as long as you wish.",
+    "category": "daily",
+    "difficulty": "easy",
+    "focus": [
+      "n_ng",
+      "plural_ed"
+    ],
+    "zh": "你想待多久就待多久。"
+  },
+  {
+    "id": 385,
+    "text": "This is the house I lived in when I was young.",
+    "category": "daily",
+    "difficulty": "hard",
+    "focus": [
+      "v_w",
+      "plural_ed"
+    ],
+    "zh": "這是我年輕時候住的房子。"
+  },
+  {
+    "id": 386,
+    "text": "This is a free newspaper.",
+    "category": "daily",
+    "difficulty": "medium",
+    "focus": [
+      "stress",
+      "plural_ed"
+    ],
+    "zh": "這是免費報紙。"
   }
 ]

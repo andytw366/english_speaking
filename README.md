@@ -2,7 +2,7 @@
 
 本機執行的網頁 App：顯示英文練習句 → 聽示範發音 → 錄下自己唸的版本 → 交給 Gemini 給繁體中文的發音講評。
 
-**目前進度：階段 1～8 已完成。**
+**目前進度：階段 1～9 已完成。**
 
 階段 5 包含練習紀錄（`localStorage`）、依情境／難度篩選、錄音波形視覺化，
 另外加了兩件原本不在規劃裡的東西：**可切換分析用的 Gemini model**，
@@ -20,6 +20,10 @@
 
 階段 8 把句庫從 27 句擴到 **81 句**，並且**把發音問題接回抽句**：
 每一句標了它在練哪些音，抽句時會多給你最近常錯的那些音。
+
+階段 9 讓句庫可以**自動長大**：從 Tatoeba 語料匯入，用 CMU 發音字典自動標
+「這句在練哪些音」、用語料詞頻自動分難度。句庫因此變成 **386 句**，
+而且新的句子附帶**中文意思**。
 
 > ✅ **階段 1～5 已用真實金鑰端對端驗證過**（2026-08）。
 > 成功路徑、五個可選 model、無人聲偵測、白名單擋非法 model 都實測通過；
@@ -372,6 +376,96 @@ structured output 有 schema，但 schema 是「請模型照這個格式」，�
 
 ---
 
+## 句庫從哪裡來（階段 9）
+
+手寫 81 句已經是極限了 —— 而且 `focus`（這句在練哪些音）要一句一句標，
+標到後面必然開始亂標。這一階段把句庫變成**可以自動長大**的東西。
+
+### 來源：Tatoeba
+
+`npm run sentences:import` 從 [Tatoeba](https://tatoeba.org/) 的中英句對匯入。
+選它的理由是**它本來就是給語言學習者用的例句庫**：短、口語、現代，
+而且附中文翻譯（用 OpenCC 轉成台灣正體之後直接顯示在句子下面）。
+
+資料透過 npm 套件 `tatoeba-sentence-pairs-in-mandarin-chinese-english` 取得
+（7.6 萬組句對），所以不用手動下載。
+
+> **出處與授權：** 練習句來自 [Tatoeba](https://tatoeba.org/)，授權為
+> [CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)。
+
+### 評估過但沒有採用的來源
+
+| 來源 | 授權 | 為什麼沒用 |
+|---|---|---|
+| [Mozilla Common Voice](https://github.com/common-voice/common-voice) 的 `server/data/en` | **CC0**（最寬鬆） | 6.1 萬句，但多半來自公版小說。過濾到剩三千句還是有一半讀起來像十九世紀對白（"Are you a beast of the field?"），練不到「旅遊／職場」的情境 |
+| Common Voice 的 `wiki.en.txt` | CC0 | 從維基百科抓的，是百科條目不是對話 |
+| [Harvard／IEEE 720 句](https://en.wikipedia.org/wiki/Harvard_sentences) | 公有領域 | 音素平衡，但內容是為了測電話線路設計的（"The birch canoe slid on the smooth planks"），不是拿來跟人講話的 |
+
+CC0 那一批授權更好、也不用標出處，**但授權寬鬆不等於內容合用**。
+
+### 清洗規則
+
+7.6 萬組句對最後只留下 305 句，擋掉的都是「文法沒錯但拿來練口說沒有意義」的：
+
+| 擋掉什麼 | 為什麼 |
+|---|---|
+| 5 字以下、13 字以上 | 太短練不到連音，太長一口氣唸不完、錄音容易中斷 |
+| 句中出現大寫字 | 專有名詞。句子會變得很特定，而且那個字換掉就不通了 |
+| 句首是專有名詞 | Tatoeba 有 **5,825 句以 Tom 開頭**（佔位用的人名）。判斷方式是「這個字在語料裡會不會以小寫出現」—— `Tom` 不會，`Please` 會。寫死一份人名清單永遠會漏 |
+| 第三人稱敘事（he／she） | 「He left his office in a hurry.」是在講故事，不是在對話 |
+| `said`／`replied` 等對白標記、`But`／`So` 開頭 | 這句原本有前一句，單獨看不成立 |
+| 古語與古英文語序（`thou`、`are not you`） | 混進來整份句庫會讀起來像老小說 |
+| 阿拉伯數字 | 「300,000」唸出來是什麼取決於使用者怎麼讀，而目標句要拿去跟 AI 聽到的內容**逐字比對** —— 一定對不上 |
+| 有字查不到發音、或太冷僻 | 練習句不該同時考單字 |
+| 令人不舒服的內容 | Tatoeba 是通用語料，什麼都有。「An old woman was burnt to death.」通過了上面每一道清洗，但沒有人想在練發音的時候唸這句 |
+| 沒有明顯練習重點的句子 | 見下方 |
+
+內容過濾用的是關鍵字，那是**鈍器**：擋不掉全部，也一定會誤傷。
+所以清單只放「出現了幾乎一定不合適」的字 —— `afraid` 就不能放進去，
+不然「I'm afraid my luggage didn't arrive」跟「Don't be afraid to ask questions」
+都會被砍掉。剩下的還是要有人看過。
+
+### 中文意思
+
+Tatoeba 的中文翻譯有簡有繁，用 [OpenCC](https://github.com/nk2028/opencc-js) 轉成台灣正體之後
+顯示在句子下面。知道自己在說什麼，練起來才不是在唸音節。
+
+簡體的「发」對應正體的「發」與「髮」兩個字，OpenCC 靠詞組判斷 ——
+詞組表沒收的組合（例如「被发明」）會轉成「被髮明」。305 句裡中了一句，
+補一張小的修正表解決，`test/sentences.test.js` 有一條會掃這些型樣，
+下次匯入撞到別的就加進去。
+
+### 自動標「這句在練哪些音」
+
+`scripts/phonetics.js` 用 [CMU 發音字典](https://github.com/cmusphinx/cmudict)（13.5 萬字）查音素。
+
+第一版寫成「句子裡有 TH 就標 th」，拿現有 81 句人工標的當對照跑出來：
+人工標的 90% 有抓到，**但每句被多抓 5～7 個** —— 因為隨便一句英文都含 R 和 L、
+都有字尾子音。標籤掛滿等於沒有標籤。
+
+所以改成算**密度**，而且**除以那個音在語料庫裡的平均**再比：
+
+| 音 | 語料庫平均密度 |
+|---|---|
+| `final_consonant` | 0.2249 |
+| `linking` | 0.1480 |
+| … | … |
+| `v_w` | 0.0191 |
+
+`final_consonant` 的平均是 `v_w` 的**十二倍** —— 兩者的絕對分數本來就不能直接比。
+正規化之後比的是「比一般句子強多少倍」，只留最強的兩個、而且要超過 1.6 倍。
+
+這張表由 `npm run corpus:baseline` 重算，換語料庫要重跑（不然門檻會偏掉）。
+
+### 順手修好了人工標的錯
+
+用同一套規則把原本 81 句重標，**74 句的 focus 有變**。多數不是演算法比較笨，
+是人工標的本來就錯 —— 例如把「I usually grab a coffee on my way to work.」標成 `v_w`，
+但那句只有 W 沒有 V，**根本練不到 v／w 的分辨**，畫面上卻會出現「這句在練 v / w」。
+`test/phonetics.test.js` 有一條測試專門釘住這件事。
+
+---
+
 ## 依弱點音抽句（階段 8）
 
 階段 7 的總結會告訴你「這一組有三句都是 th」，但**下一組不會因此多給你 th 的句子** ——
@@ -508,9 +602,13 @@ english_speaking/
 ├── .env.example
 ├── .gitignore
 ├── package.json
-├── sentences.json        # 81 句練習句，含 id / text / category / difficulty / focus
+├── sentences.json        # 386 句練習句，含 id / text / category / difficulty / focus / zh
 ├── .github/workflows/
 │   └── ci.yml            # 每次 push 跑 npm test 與 npm run test:ui（都不需要金鑰）
+├── scripts/
+│   ├── phonetics.js      # 用 CMU 發音字典判斷「這句適合練哪些音」（純函式）
+│   ├── import-sentences.mjs  # 從 Tatoeba 匯入練習句，自動標 focus 與難度
+│   └── corpus-baseline.mjs   # 重算 phonetics.js 的基準線
 ├── server/
 │   ├── index.js          # Express：靜態檔、/api/health、/api/models、/api/sentences、
 │   │                     #   /api/pronunciation-feedback；呼叫 Gemini 前的無人聲把關
@@ -522,6 +620,7 @@ english_speaking/
 │   ├── text-diff.test.js # 目標句與 transcript 逐字比對的回歸測試（不需網路與金鑰）
 │   ├── gemini.test.js    # Gemini 回應的整理與防禦（不需網路與金鑰）
 │   ├── sentences.test.js # sentences.json 的資料檢查（不需網路與金鑰）
+│   ├── phonetics.test.js # 自動標音的回歸測試（不需網路與金鑰）
 │   ├── ui.mjs            # Playwright 前端測試（需伺服器，**不需金鑰**）
 │   ├── e2e.mjs           # Playwright 端對端測試（需伺服器與金鑰）
 │   └── fixtures/
@@ -678,7 +777,11 @@ npm test
 **分數低的要真的比較常被抽到**（跑 3000 次抽樣，用固定亂數序列所以不會偶爾紅一次），
 以及**練得好的句子不可以完全抽不到**。
 
-`test/sentences.test.js` 驗的是 `sentences.json` 這份手寫資料。
+`test/phonetics.test.js` 驗的是自動標音。標錯不會讓任何東西壞掉，
+只會讓「這句在練 th 音」變成一句謊話 —— 那種錯誤從畫面上看不出來。
+特別測了「只有 w 沒有 v 的句子不可以標成 v_w」，因為那正是人工標的時候犯過的錯。
+
+`test/sentences.test.js` 驗的是 `sentences.json` 這份資料。
 它擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯（那句就永遠不會
 因為弱點被抽到，畫面上完全看不出來）、id 重複（練習紀錄會對到錯的句子）、
 某個音的句子太少（「多給你這個音」會變成「一直給你同樣那三句」）、
@@ -741,15 +844,14 @@ npx playwright install chromium
 但「真的錄一次音 → 真的呼叫 Gemini → 拿到結構化的 `problem_words`」這條路徑
 只在階段 5 的形狀下跑過。7-② 改了回應的 schema，那是最該重新驗一次的地方。
 
-**二、句子還可以再多。** 81 句配上每天 5～10 句，大約兩週會走完一輪。
-擴充成本很低（`sentences.json` 加資料即可，情境選單是從資料長出來的），
-但 `focus` 要人工標。比較有意思的做法是讓 Gemini 依情境與指定的音生成句子，
-那要另外處理品質、重複與 `focus` 標得對不對。
+**二、句庫還可以再多。** 386 句配上每天 5～10 句大約兩個月會走完一輪，
+而 `npm run sentences:import` 的候選池還有 **1.5 萬句**沒收進來（`QUOTA` 調高就有）。
+沒有一次全收是因為每一句都會被抽到，多不等於好。
+面試情境只有 33 句（Tatoeba 裡那類句子本來就少），要補的話得換來源。
 
-**三、`focus` 目前是人工標的。** `test/sentences.test.js` 已經擋掉了幾種會安靜失效的錯誤
-（代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的），
-但它證明不了「這句真的有 th」。要再往下就得用發音字典去查每個字的音素，
-那是另一個層級的東西（也要處理多音字與重音）。
+**三、清洗規則是啟發式的，不是理解句意。** 現在擋得掉「不完整」與「不像對話」，
+擋不掉「文法正確但沒人會這樣講」。要再往上就得有人看過，或用 AI 做一次品質評分
+（那是離線一次性的成本，不是執行期的）。
 
 **四、跨裝置。** 練習紀錄只存在單一瀏覽器裡。要跨裝置就得有後端儲存與帳號，
 面積比看起來大很多（同步衝突、隱私、刪除帳號…）。

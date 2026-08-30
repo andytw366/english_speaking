@@ -10,7 +10,9 @@
     "dev": "node --watch server/index.js",
     "test": "node --test test/*.test.js",
     "test:ui": "node test/ui.mjs",
-    "test:e2e": "node test/e2e.mjs"
+    "test:e2e": "node test/e2e.mjs",
+    "sentences:import": "node scripts/import-sentences.mjs",
+    "corpus:baseline": "node scripts/corpus-baseline.mjs"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -22,6 +24,9 @@
     "multer": "^2.0.2"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "cmu-pronouncing-dictionary": "^3.0.0",
+    "opencc-js": "^1.4.2",
+    "tatoeba-sentence-pairs-in-mandarin-chinese-english": "^0.20260520.0"
   }
 }

@@ -119,6 +119,14 @@ check('統計有練習次數', (await page.textContent('#history-stats')).includ
 check('只有一筆時不畫趨勢圖', await page.locator('#history-trend').isHidden());
 check('紀錄有「重練這句」鍵', (await page.locator('.history__replay').count()) === 1);
 check('句子旁顯示這句練過幾次', (await page.textContent('#sentence-past')).includes('練過 1 次'));
+// 剛練完的句子不該馬上被標成「該複習了」（間隔重複最短也是 6 小時）
+check('剛練完不會叫你複習', !(await page.textContent('#sentence-past')).includes('該複習了'));
+
+// 階段 7：一次真實練習之後，今天的進度與連續天數要跟著動
+check('今天的句數變成 1', (await page.textContent('#today-count')).startsWith('1 /'), await page.textContent('#today-count'));
+check('連續天數至少 1 天', Number(await page.textContent('#streak-count')) >= 1);
+check('這一組的進度有顯示', /這一組：1 \/ \d+ 句/.test(await page.textContent('#set-progress')), await page.textContent('#set-progress'));
+check('才練一句時還不會跳出一組的總結', await page.locator('#set-card').isHidden());
 
 console.log('\n【6】重整後仍在（localStorage）');
 await page.reload({ waitUntil: 'networkidle' });

@@ -1,0 +1,68 @@
+# CI：跑得起來的都跑，需要金鑰的一律不跑。
+#
+# 這裡刻意**不跑** test/e2e.mjs —— 那支要 GEMINI_API_KEY，而且會吃免費層配額。
+# 把它掛進 CI 的話，每一個 push 都在燒別人的配額，額度用完時 CI 會紅得莫名其妙。
+# e2e 留給人在本機手動跑（見 README 的「瀏覽器端對端測試」）。
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  unit:
+    name: 單元測試 (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 是 package.json engines 的下限，22 是開發環境用的版本。
+        # 兩個都跑，因為「在我機器上可以」正是這個專案 README 提過的坑。
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  ui:
+    name: 前端 UI 測試 (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # ui.mjs 需要一個跑著的伺服器，但**不需要金鑰**（它不呼叫 Gemini）。
+      # 等 /api/health 回應再往下跑，不要用 sleep 猜啟動要多久。
+      - name: 啟動伺服器
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then
+              echo "伺服器已就緒"; exit 0
+            fi
+            sleep 1
+          done
+          echo "伺服器 30 秒內沒有起來"; exit 1
+
+      - run: npm run test:ui
+        env:
+          SHOTS: screenshots
+
+      # 失敗時把截圖撈出來，不然 headless 的錯誤只剩下一行文字
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-screenshots
+          path: screenshots/
+          if-no-files-found: ignore

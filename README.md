@@ -282,6 +282,8 @@ english_speaking/
 ├── .gitignore
 ├── package.json
 ├── sentences.json        # 27 句練習句，含 id / text / category / difficulty
+├── .github/workflows/
+│   └── ci.yml            # 每次 push 跑 npm test 與 npm run test:ui（都不需要金鑰）
 ├── server/
 │   ├── index.js          # Express：靜態檔、/api/health、/api/models、/api/sentences、
 │   │                     #   /api/pronunciation-feedback；呼叫 Gemini 前的無人聲把關
@@ -290,6 +292,7 @@ english_speaking/
 ├── test/
 │   ├── audio.test.js     # 無人聲門檻的回歸測試（不需網路與金鑰）
 │   ├── practice.test.js  # 抽句加權與紀錄彙整的回歸測試（不需網路與金鑰）
+│   ├── text-diff.test.js # 目標句與 transcript 逐字比對的回歸測試（不需網路與金鑰）
 │   ├── ui.mjs            # Playwright 前端測試（需伺服器，**不需金鑰**）
 │   ├── e2e.mjs           # Playwright 端對端測試（需伺服器與金鑰）
 │   └── fixtures/
@@ -297,11 +300,24 @@ english_speaking/
 └── public/
     ├── index.html
     ├── style.css
-    ├── app.js            # 例句、篩選、示範發音、錄音、上傳、講評、練習紀錄
+    ├── app.js            # 主控：把流程與畫面狀態接起來（其他都在下面的模組裡）
+    ├── recorder.js       # 麥克風、MediaRecorder、WAV 轉檔（不碰 DOM）
+    ├── api.js            # 後端呼叫與錯誤訊息
+    ├── speech.js         # 示範發音（speechSynthesis）
     ├── wav-encoder.js    # 錄音 → 16 kHz 單聲道 WAV，附帶音量分析
     ├── waveform.js       # AnalyserNode 即時波形與音量指示
     ├── practice.js       # 抽句加權、依句子彙整成績、趨勢圖資料（純函式）
+    ├── text-diff.js      # 目標句與 transcript 的 LCS 逐字比對（純函式）
+    ├── feedback-view.js  # 講評卡片與目標句標色
+    ├── history-view.js   # 練習紀錄卡片、統計磚、紀錄清單
+    ├── trend-chart.js    # 分數趨勢圖的 inline SVG
+    ├── labels.js         # 顯示字串與分數門檻（60 / 80）
     └── storage.js        # localStorage 練習紀錄與偏好設定
+
+前端拆成這些模組，是因為原本的 `app.js` 長到 1000 行以上，
+而其中「值得被測試釘住的規則」（抽句加權、逐字比對）跟「畫面怎麼長」混在同一個檔案裡，
+純函式沒辦法在 Node 裡直接 import 進來測。現在 `app.js` 只留流程與畫面狀態，
+規則都在旁邊的純函式模組，`npm test` 直接測得到。
 ```
 
 ### API
@@ -396,6 +412,15 @@ WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏�
 
 ## 測試
 
+### CI
+
+`.github/workflows/ci.yml` 在每次 push 與 PR 上跑兩件事：
+`npm test`（Node 20 與 22 各跑一次，20 是 `package.json` 的 `engines` 下限）
+以及 `npm run test:ui`（起伺服器 + Playwright）。**兩者都不需要金鑰。**
+
+`test/e2e.mjs` 刻意不掛進 CI —— 它要 `GEMINI_API_KEY`、而且會吃免費層配額，
+掛上去等於每次 push 都在燒配額，額度用完那天 CI 會紅得莫名其妙。那支留給人在本機手動跑。
+
 ### 單元測試（不需網路與金鑰）
 
 ```bash
@@ -411,6 +436,10 @@ npm test
 `test/practice.test.js` 驗的是抽句加權，一樣是兩個方向：
 **分數低的要真的比較常被抽到**（跑 3000 次抽樣，用固定亂數序列所以不會偶爾紅一次），
 以及**練得好的句子不可以完全抽不到**。
+
+`test/text-diff.test.js` 驗的是目標句與 transcript 的逐字比對。
+比對壞掉的症狀是「整句都標紅」或「明明唸錯卻沒標」，兩種都很容易被誤會成模型的問題 ——
+所以特別測了「漏唸中間一個字時，只有那個字被標紅」（逐字對位的實作會讓後面全部偏移一格）。
 
 ### 前端 UI 測試（需伺服器，不需金鑰）
 

@@ -23,10 +23,17 @@ import {
   loadPrefs,
   savePrefs,
 } from './storage.js';
-import { sentenceStats, pickSentence } from './practice.js';
+import { sentenceStats, pickSentence, isDue } from './practice.js';
 import { renderFeedback } from './feedback-view.js';
 import { renderHistory } from './history-view.js';
-import { categoryLabel, difficultyLabel, DIFFICULTY_ORDER, CATEGORY_LABEL, DIFFICULTY_LABEL } from './labels.js';
+import {
+  categoryLabel,
+  difficultyLabel,
+  relativeTime,
+  DIFFICULTY_ORDER,
+  CATEGORY_LABEL,
+  DIFFICULTY_LABEL,
+} from './labels.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -174,7 +181,7 @@ function onWeightedChange() {
   // 不立刻換句 —— 使用者可能正想練現在這句，換掉會很煩。下一次「換一句」才生效。
   setStatus(
     el.prefWeighted.checked
-      ? '之後換句時會優先抽出你分數比較低的句子。'
+      ? '之後換句時會優先抽出你分數比較低、而且有一陣子沒練的句子。'
       : '之後換句時會從符合條件的句子裡等機率隨機抽。'
   );
 }
@@ -224,23 +231,34 @@ function renderCurrentSentence() {
 }
 
 /**
- * 句子旁邊顯示這句以前練得怎麼樣。
+ * 句子旁邊顯示這句以前練得怎麼樣、上次是什麼時候。
  *
- * 這也是加權抽句唯一看得見的地方 —— 沒有它的話，「為什麼又是這句」
- * 只會像是隨機抽壞了，而不是「因為你這句只有 42 分」。
+ * 這是加權抽句唯一看得見的地方 —— 沒有它的話，「為什麼又是這句」
+ * 只會像是隨機抽壞了，而不是「因為你這句只有 42 分，而且上星期就沒再碰過」。
+ * 間隔重複加進來之後更需要這一行：時間也在影響抽句，不寫出來就完全看不出來。
  */
 function renderPastChip() {
   const stat = current ? stats.get(current.id) : null;
   if (!stat) {
     el.sentencePast.hidden = true;
     el.sentencePast.textContent = '';
+    el.sentencePast.classList.remove('chip--due');
     return;
   }
+
+  const parts = [
+    stat.count === 1 ? '練過 1 次' : `練過 ${stat.count} 次`,
+    stat.count === 1 ? `${stat.last} 分` : `平均 ${stat.average} 分`,
+  ];
+  const since = relativeTime(stat.lastAt);
+  if (since) parts.push(since);
+
+  const due = isDue(stat);
+  if (due && since) parts.push('該複習了');
+
   el.sentencePast.hidden = false;
-  el.sentencePast.textContent =
-    stat.count === 1
-      ? `練過 1 次・${stat.last} 分`
-      : `練過 ${stat.count} 次・平均 ${stat.average} 分`;
+  el.sentencePast.textContent = parts.join('・');
+  el.sentencePast.classList.toggle('chip--due', due && Boolean(since));
 }
 
 /** 從練習紀錄指定重練某一句。找不到就當作沒按（sentences.json 可能改過）。 */

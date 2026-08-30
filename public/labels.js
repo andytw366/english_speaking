@@ -37,3 +37,31 @@ export function scoreClass(score) {
   if (score >= 60) return 'score--ok';
   return 'score--low';
 }
+
+/**
+ * 「上次練是多久以前」。
+ *
+ * 用相對時間而不是絕對時間，是因為這個字串要跟間隔重複的安排對得起來 ——
+ * 使用者要判斷的是「這句擱著多久了」，不是「那天是幾月幾號」。
+ *
+ * @param {string} iso
+ * @param {number} [now] 注入現在時間，測試用
+ * @returns {string} 無效時間回空字串
+ */
+export function relativeTime(iso, now = Date.now()) {
+  const then = Date.parse(iso ?? '');
+  if (Number.isNaN(then)) return '';
+
+  const minutes = Math.floor((now - then) / 60_000);
+  if (minutes < 0) return '剛剛'; // 時鐘被調過；講「-3 分鐘前」只會更奇怪
+  if (minutes < 60) return minutes < 2 ? '剛剛' : `${minutes} 分鐘前`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小時前`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return days === 1 ? '昨天' : `${days} 天前`;
+
+  const months = Math.floor(days / 30);
+  return months < 12 ? `${months} 個月前` : `${Math.floor(months / 12)} 年前`;
+}

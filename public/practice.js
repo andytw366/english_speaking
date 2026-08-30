@@ -46,12 +46,12 @@ export function sentenceStats(history) {
 }
 
 /**
- * 一個句子被抽中的權重。分數越低權重越高，但不會高到把其他句子完全擠掉。
+ * 分數對應的基礎權重。分數越低權重越高，但不會高到把其他句子完全擠掉。
  *
  * 沒練過的句子給 3 —— 比「練過而且練得好」高（要鼓勵覆蓋沒碰過的句子），
  * 但比「練過而且練得爛」低（那些才是最該回頭練的）。
  *
- * | 狀態 | 權重 |
+ * | 狀態 | 基礎權重 |
  * |---|---|
  * | 沒練過 | 3 |
  * | 平均 100 分 | 1 |
@@ -61,10 +61,89 @@ export function sentenceStats(history) {
  * 最低是 1 而不是 0：練得好的句子只是變罕見，不會從池子裡消失，
  * 不然使用者會發現某些句子再也抽不到。
  */
-export function sentenceWeight(stat) {
-  if (!stat || typeof stat.average !== 'number') return 3;
+export function scoreWeight(stat) {
+  if (!stat || typeof stat.average !== 'number' || Number.isNaN(stat.average)) return 3;
   const weight = 1 + (100 - stat.average) / 25;
   return Math.min(5, Math.max(1, weight));
+}
+
+// ─── 間隔重複（spaced repetition）─────────────────────────────────────────
+//
+// 只看分數的話有個很明顯的破綻：**剛剛才練完的句子，下一秒還是最該練的那一句。**
+// 分數低的句子權重高，練完那一輪分數通常也不會立刻變高，於是它又被抽中，
+// 使用者會覺得「怎麼一直卡在同一句」。反過來，練得好的句子一旦沉下去就再也不回來，
+// 但發音這種東西放兩個星期是會退的。
+//
+// 所以除了分數，再乘上一個「該不該複習了」的係數：剛練過的壓低、久沒練的回升。
+// 這是 Anki／SuperMemo 那一系的簡化版 —— 沒有 ease factor、沒有評分等級，
+// 因為這裡每次練習本來就會拿到一個 0～100 的分數，直接拿它決定下次該隔多久就夠了。
+
+/** 平均 50 分的句子的複習間隔。其他分數以它為基準往上下推。 */
+export const SRS_BASE_HOURS = 24;
+
+/** 剛練完當下的係數。不是 0 —— 同一輪裡想再練一次那句，也不該完全抽不到。 */
+export const DUE_MIN = 0.25;
+
+/** 拖很久沒練的上限。再高會蓋過分數本身的差距，變成「只看多久沒練」。 */
+export const DUE_MAX = 2;
+
+/**
+ * 這句下次該隔多久再練（小時）。
+ *
+ * 每差 25 分間隔就差一倍：0 分 6 小時、50 分 24 小時、100 分 96 小時。
+ * 用指數而不是線性，是因為「練得好」與「練得爛」該有數量級的差距 ——
+ * 差兩倍的話，練到 90 分的句子隔天照樣會一直冒出來。
+ */
+export function reviewIntervalHours(average) {
+  const clamped = Math.min(100, Math.max(0, typeof average === 'number' ? average : 50));
+  return SRS_BASE_HOURS * 2 ** ((clamped - 50) / 25);
+}
+
+/**
+ * 「該複習了」的係數：剛練完 0.25，到了該複習的時間點約 1.1，拖很久趨近 2。
+ *
+ * 沒練過、或紀錄裡的時間壞掉（localStorage 是使用者改得動的）都當作 1 ——
+ * 也就是「完全該練」，不要因為一個爛掉的時間字串就讓某句永遠抽不到。
+ */
+export function dueFactor(stat, now = Date.now()) {
+  if (!stat) return 1;
+  const last = Date.parse(stat.lastAt ?? '');
+  if (Number.isNaN(last)) return 1;
+
+  const elapsedHours = Math.max(0, (now - last) / 3_600_000);
+  const ratio = elapsedHours / reviewIntervalHours(stat.average);
+  // 1 - e^-x：一開始爬得快（剛練完的壓抑很快就鬆開），之後平緩地趨近上限
+  return DUE_MIN + (DUE_MAX - DUE_MIN) * (1 - Math.exp(-ratio));
+}
+
+/**
+ * 一個句子被抽中的權重 = 分數權重 × 該複習了沒。
+ *
+ * 兩者相乘的效果（以沒練過的 3 當基準）：
+ *
+ * | 狀態 | 權重 |
+ * |---|---|
+ * | 昨天練的，平均 0 分 | 約 9.8 |
+ * | 沒練過 | 3 |
+ * | 剛剛練完，平均 0 分 | 約 1.25 |
+ * | 昨天練的，平均 100 分 | 約 0.6 |
+ * | 剛剛練完，平均 100 分 | 0.25 |
+ *
+ * 最低仍然不是 0 —— 這條規則比加權本身更重要，`test/practice.test.js` 有測試釘住。
+ */
+export function sentenceWeight(stat, now = Date.now()) {
+  return scoreWeight(stat) * dueFactor(stat, now);
+}
+
+/**
+ * 這句是不是已經到了該複習的時間。只用來在畫面上說明，不影響抽句
+ * （抽句是連續的權重，不是「到期／沒到期」的二分法）。
+ */
+export function isDue(stat, now = Date.now()) {
+  if (!stat) return true;
+  const last = Date.parse(stat.lastAt ?? '');
+  if (Number.isNaN(last)) return true;
+  return (now - last) / 3_600_000 >= reviewIntervalHours(stat.average);
 }
 
 /**
@@ -76,6 +155,7 @@ export function sentenceWeight(stat) {
  * @param {boolean} [options.weighted] false 就退回等機率隨機
  * @param {*} [options.excludeId] 上一句的 id，池子多於一句時避免連續抽到同一句
  * @param {() => number} [options.random] 注入亂數來源，測試用
+ * @param {number} [options.now] 現在時間（毫秒），間隔重複用；注入是為了測試
  * @returns {object|null}
  */
 export function pickSentence(pool, options = {}) {
@@ -84,6 +164,7 @@ export function pickSentence(pool, options = {}) {
     weighted = true,
     excludeId = null,
     random = Math.random,
+    now = Date.now(),
   } = options;
 
   if (!Array.isArray(pool) || pool.length === 0) return null;
@@ -99,7 +180,7 @@ export function pickSentence(pool, options = {}) {
 
   if (!weighted) return pickAt(Math.floor(random() * list.length));
 
-  const weights = list.map((s) => sentenceWeight(stats.get(s.id)));
+  const weights = list.map((s) => sentenceWeight(stats.get(s.id), now));
   const total = weights.reduce((sum, w) => sum + w, 0);
   let threshold = random() * total;
   for (let i = 0; i < list.length; i += 1) {

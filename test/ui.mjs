@@ -35,10 +35,15 @@ if (!Array.isArray(sentences) || sentences.length < 3) {
   process.exit(1);
 }
 
-/** 造一批假的練習紀錄（由新到舊），塞進 localStorage 當成之前練過的成績。 */
+/**
+ * 造一批假的練習紀錄（由新到舊），塞進 localStorage 當成之前練過的成績。
+ *
+ * spec 是 `[句子索引, 分數, 幾小時前]`；第三個省略時就依序往前排一小時。
+ * 「幾小時前」會影響間隔重複的權重與「該複習了」的提示，所以要能指定。
+ */
 function fakeHistory(specs) {
-  return specs.map(([index, score], i) => ({
-    at: new Date(Date.now() - (i + 1) * 3_600_000).toISOString(),
+  return specs.map(([index, score, hoursAgo], i) => ({
+    at: new Date(Date.now() - (hoursAgo ?? i + 1) * 3_600_000).toISOString(),
     sentenceId: sentences[index].id,
     sentenceText: sentences[index].text,
     category: sentences[index].category,
@@ -158,7 +163,27 @@ for (let i = 0; i < DRAWS; i += 1) {
 check(`${DRAWS} 次換句抽到過幾乎所有句子`, seen.size >= sentences.length - 2, `${seen.size} / ${sentences.length} 句`);
 check('0 分的兩句一定抽得到', seen.has(sentences[1].text) && seen.has(sentences[2].text));
 
-console.log('\n【8】清除紀錄');
+console.log('\n【8】間隔重複：久沒練的句子會被標成「該複習了」');
+// 90 分的複習間隔約 3.5 天，所以 10 天前練的那句一定過期；1 小時前的那句一定沒有。
+await seed(fakeHistory([[8, 90, 1], [9, 90, 240]]));
+await page.locator('.history__replay').first().click();
+await page.waitForTimeout(200);
+const freshChip = await page.textContent('#sentence-past');
+check('剛練過的句子顯示相對時間', /小時前|剛剛/.test(freshChip), freshChip);
+check('剛練過的句子不會催你複習', !freshChip.includes('該複習了'), freshChip);
+
+await page.locator('.history__replay').nth(1).click();
+await page.waitForTimeout(200);
+const staleChip = await page.textContent('#sentence-past');
+check('久沒練的句子顯示天數', /天前/.test(staleChip), staleChip);
+check('久沒練的句子被標成該複習了', staleChip.includes('該複習了'), staleChip);
+check(
+  '該複習的 chip 有自己的樣式（不然這行字混在灰字裡看不見）',
+  await page.locator('#sentence-past.chip--due').isVisible()
+);
+await shot(page, 'ui-03-該複習了');
+
+console.log('\n【9】清除紀錄');
 page.once('dialog', (d) => d.accept());
 await page.click('#btn-clear-history');
 await page.waitForTimeout(200);
@@ -166,14 +191,14 @@ check('紀錄卡片收起來', await page.locator('#history-card').isHidden());
 check('趨勢圖也收起來', await page.locator('#history-trend').isHidden());
 check('句子旁的成績 chip 收起來', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【9】沒有紀錄時的初始畫面');
+console.log('\n【10】沒有紀錄時的初始畫面');
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => !document.getElementById('sentence').textContent.includes('載入中'));
 check('紀錄卡片是隱藏的', await page.locator('#history-card').isHidden());
 check('趨勢圖是隱藏的', await page.locator('#history-trend').isHidden());
 check('成績 chip 是隱藏的', await page.locator('#sentence-past').isHidden());
 
-console.log('\n【10】JS 錯誤');
+console.log('\n【11】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

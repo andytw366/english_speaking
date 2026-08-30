@@ -32,9 +32,16 @@
           <span id="filter-count" class="hint filters__count"></span>
         </div>
 
+        <!-- 依練習紀錄加權抽句：分數低的句子比較常被抽到 -->
+        <label class="check">
+          <input id="pref-weighted" type="checkbox" checked />
+          <span>優先練分數低的句子</span>
+        </label>
+
         <div class="card__meta">
           <span id="category" class="chip"></span>
           <span id="difficulty" class="chip chip--muted"></span>
+          <span id="sentence-past" class="chip chip--past" hidden></span>
         </div>
 
         <p id="sentence" class="sentence">載入中…</p>
@@ -96,6 +103,10 @@
       <section id="history-card" class="card" aria-labelledby="history-heading" hidden>
         <h2 id="history-heading" class="card__title">練習紀錄</h2>
         <div id="history-stats" class="stats"></div>
+        <figure id="history-trend" class="trend" hidden>
+          <figcaption id="trend-caption" class="hint"></figcaption>
+          <div id="trend-chart" class="trend__chart"></div>
+        </figure>
         <ol id="history-list" class="history"></ol>
         <div class="row history__actions">
           <button id="btn-clear-history" class="btn" type="button">清除所有紀錄</button>

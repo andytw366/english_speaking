@@ -1,7 +1,8 @@
 // 瀏覽器端對端測試（Playwright + headless Chromium）。
 //
 // 跟 audio.test.js 不同，這支**需要伺服器在跑，也會真的呼叫 Gemini API**，
-// 所以不放進 `npm test`。單獨執行：
+// 所以不放進 `npm test`。不需要金鑰的前端測試在 test/ui.mjs（npm run test:ui）。
+// 單獨執行：
 //
 //   npm start                       # 另一個終端機，或用 BASE 指到別的埠
 //   npm run test:e2e
@@ -114,6 +115,10 @@ await page.waitForSelector('#history-card:not([hidden])', { timeout: 5000 });
 check('紀錄卡片出現', await page.locator('#history-card').isVisible());
 check('有一筆紀錄', (await page.locator('.history__item').count()) === 1);
 check('統計有練習次數', (await page.textContent('#history-stats')).includes('練習次數'));
+// 一個點連不成線，所以只練一次時趨勢圖不該出現（多筆的情形在 ui.mjs 測）
+check('只有一筆時不畫趨勢圖', await page.locator('#history-trend').isHidden());
+check('紀錄有「重練這句」鍵', (await page.locator('.history__replay').count()) === 1);
+check('句子旁顯示這句練過幾次', (await page.textContent('#sentence-past')).includes('練過 1 次'));
 
 console.log('\n【6】重整後仍在（localStorage）');
 await page.reload({ waitUntil: 'networkidle' });

@@ -1,27 +1,21 @@
-# 英語口說練習 App（speaking-coach）
+# 英語學習 App（speaking-coach）
 
-本機執行的網頁 App：顯示英文練習句 → 聽示範發音 → 錄下自己唸的版本 → 交給 Gemini 給繁體中文的發音講評。
+本機執行的網頁 App，六種練習模式。**沒有 build step** —— 純 HTML + CSS + ES modules + Express。
 
-**目前進度：階段 1～5 已完成，另外做完了階段 6（把練習紀錄真正用起來）。**
+| 模式 | 內容 |
+|---|---|
+| 🗂️ 單字卡 | 10,040 字（精選 40 + 依詞頻分級的 10 個級距各 1,000），Leitner 盒子制間隔重複 |
+| 🎧 聽力 | 81 組 / 226 題 |
+| ✍️ 中翻英 | 279 題（填空 161 / 整句 118） |
+| 💬 情境對話 | 61 段 / 427 句台詞，角色扮演 |
+| 🗣️ 跟讀 | 2,041 句，錄音後拿到**逐音素**的發音評估 |
+| ⚙️ 設定 | 金鑰、練習範圍、語音、學習資料 |
 
-階段 5 包含練習紀錄（`localStorage`）、依情境／難度篩選、錄音波形視覺化，
-另外加了兩件原本不在規劃裡的東西：**可切換分析用的 Gemini model**，
-以及**無人聲偵測**（修掉一個會給出完全錯誤評分的問題，見下方）。
-
-階段 6 把紀錄從「唯讀的清單」變成會回頭影響練習的東西：**分數趨勢圖**、
-每一筆紀錄的**「重練這句」**、以及**優先抽出分數低的句子**（見下方「加權抽句」）。
-
-> ✅ **階段 1～5 已用真實金鑰端對端驗證過**（2026-08）。
-> 成功路徑、五個可選 model、無人聲偵測、白名單擋非法 model 都實測通過；
-> 前端也用 Playwright 在真實瀏覽器裡跑過完整流程（錄音用假麥克風餵真實語音檔），
-> 34 項檢查全過，見 `npm run test:e2e`。
-> 驗證用的語音是拿 Gemini TTS 產生的真人語音樣本，不是合成訊號 ——
-> 樣本留在 `test/fixtures/speech-16k.wav`，單元測試與 E2E 都用它。
->
-> ⚠️ **階段 6 是用不需要金鑰的兩支測試驗的**：`npm test` 25 項、
-> `npm run test:ui` 32 項（Playwright 真實瀏覽器，假紀錄塞進 `localStorage`），
-> 深色模式也看過。`e2e.mjs` 另外加了 3 項與階段 6 有關的檢查，
-> 但**那 3 項還沒有拿真金鑰跑過** —— 手上沒有可用的金鑰，跑了會停在 500。
+> **這個 repo 曾經有兩個平行發展的 App**：一邊把「口說」一種模式做深（間隔重複、
+> 音素級回饋、2,041 句句庫、CI、Docker 部署），一邊把「六種模式」做廣
+> （單字、聽力、中翻英、情境對話、跟讀，加上 Azure 發音評估）。
+> 兩邊都占用 repo 根目錄的同名檔案，所以做了一次整合：**以六模式為外殼，
+> 口說那一整套收進「跟讀」模式**，發音評分改用 Azure。功能沒有捨棄任何一邊的。
 
 ---
 
@@ -29,197 +23,271 @@
 
 | 項目 | 需求 |
 |---|---|
-| Node.js | **>= 20.0.0**（`@google/genai` 2.17.1 的 `engines` 欄位要求）。⚠️ 見下方說明 |
+| Node.js | **>= 20.0.0**（`@google/genai` 的 `engines` 要求）。開發環境用 v22 |
 | 瀏覽器 | Chrome / Edge 建議。Safari 可用（錄音格式會是 mp4/aac，程式會自動轉成 WAV） |
-| 網址 | **必須用 `http://localhost:3000`** —— 原因見下方「已知限制」 |
-
-> **Node 版本**：`@google/genai` 的 `engines` 要求 `>= 20.0.0`，但 npm 預設不會強制擋，
-> 所以在 Node 18 上照樣裝得起來也跑得動 —— 那是「剛好能動」，不是官方支援的組合。
-> 開發環境已用 nvm 升到 **v22.23.2**（`nvm alias default 22`，新開的終端機會自動生效）。
-> 如果 `node -v` 還顯示舊版：
->
-> ```bash
-> nvm use 22
-> ```
+| 網址 | 直接 `npm start` 時**必須用 `http://localhost:3000`**，原因見「已知限制」。要在手機上用請看「用 Docker 跑在自己的機器上」 |
 
 ## 安裝與啟動
 
 ```bash
 npm install
-
-# 設定金鑰（階段 3 才會真的用到，階段 2 不填也能跑）
-cp .env.example .env
-# 編輯 .env，把 GEMINI_API_KEY 換成你的金鑰
-
-npm start
+cp .env.example .env      # 兩組金鑰都是選填的，不填也啟動得起來
+npm start                 # http://localhost:3000
 ```
 
-開啟 <http://localhost:3000>。
+**不填金鑰的話，六種模式裡有五種完全可用** —— 只有「跟讀」的發音評分需要 API。
+單純想練發音的話，聽示範 → 錄音 → 自己比對就很有幫助了。
+
+---
+
+## 兩組金鑰，各自負責不同的事
+
+```
+錄音 ──► Azure Speech ──► 客觀分數（逐字、逐音素）──► Gemini ──► 中文教練建議
+                │                                        │
+         沒設定就退回                              沒設定就用本地摘要
+         Gemini 給主觀分數                        （分數照樣看得到）
+```
+
+**為什麼這樣分工：** 讓語言模型「聽」音訊給發音分數，本質上是要它做聲學比對 ——
+它會給出看起來合理但不可靠的數字（詳見下方「無人聲偵測」，同一段靜音在五個 model
+裡有三個給 95 分以上）。Azure 的發音評估是專門做這件事的服務，回的是
+準確度／流暢度／完整度／語調四個面向加上**每個音素的分數**。
+
+Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖輕觸上齒」這種可執行的建議。
+而且它吃的是一小段 JSON 而不是音訊，成本比原本低很多。
+
+### 怎麼拿 Azure Speech 金鑰
+
+1. 到 [Azure 入口網站](https://portal.azure.com) 建立一個「語音服務 (Speech service)」資源
+2. 在「金鑰與端點」頁面複製 **KEY 1** 與**位置/區域**
+3. 填進 `.env`：
+
+   ```
+   AZURE_SPEECH_KEY=你的金鑰
+   AZURE_SPEECH_REGION=eastasia
+   ```
+
+`AZURE_SPEECH_REGION` 必須跟建立資源時選的區域一致（`eastasia`、`japaneast`、`westus`…），
+填錯會得到認證失敗。
+
+> **計費（請自行確認最新數字）：** 查到的資料是即時語音轉文字 $1/小時、
+> 發音評估再加 $0.30/小時，合計約 $1.30/小時 —— 一句 5 秒的練習約 $0.0018。
+> **這個數字沒有在 Microsoft 官方頁面上確認過**（開發環境的 egress 連不到），
+> 請自己開 [Azure Speech 定價頁](https://azure.microsoft.com/en-us/pricing/details/speech/)
+> 核對，並確認免費層 (F0) 的額度。
 
 ### 怎麼拿 Gemini 金鑰
 
-1. 到 <https://aistudio.google.com/apikey> 建立 API key
-2. 把它填進專案根目錄的 `.env`：
+到 <https://aistudio.google.com/apikey> 建立 API key，填進 `.env` 的 `GEMINI_API_KEY`。
+`@google/genai` 預設就是讀這個環境變數名稱，不要改名。
 
-   ```
-   GEMINI_API_KEY=AIza...
-   ```
+> **計費提醒：** Google AI Pro／Ultra 訂閱**不包含** Gemini API 額度 ——
+> 訂閱福利只在 AI Studio 網頁介面內有效，用 API key 呼叫是分開計費的。
+> 那個「每月 $10 額度」來自 **Google Developer Program 的 Premium 方案**。
+> **不過 Gemini API 本身有免費層，這個專案用免費層跑就夠了。**
 
-`@google/genai` 的 SDK 預設就是讀 `GEMINI_API_KEY` 這個環境變數名稱，不要改名。
+講評用哪個 model 可以在「設定」頁選，清單寫死在後端（`server/gemini.js` 的 `MODELS`），
+送上來的值也會再驗一次 —— **選單是 UI，不是權限**。少了這道檢查就等於讓瀏覽器
+把任意字串塞進 API 呼叫。
 
-> **計費提醒：** Google AI Pro／Ultra 訂閱**不包含** Gemini API 額度 —— 官方文件寫得很明白，
-> 訂閱福利只在 Google AI Studio 網頁介面內有效，直接用 API key 呼叫是分開計費的。
-> 那個「每月 $10 額度」來自 **Google Developer Program 的 Premium 方案**，要拿到它必須是
-> Premium 等級 + 有啟用 Cloud Billing 的 GCP 專案 + 把 API 專案綁到該帳單帳戶。
-> **不過 Gemini API 本身有免費層，這個專案用免費層跑就夠了**，不需要為了額度卡住開發。
-> 一句 5 秒的練習句約 160 tokens（音訊計費是 32 tokens/秒），成本可以忽略。
+| model | 備註 |
+|---|---|
+| `gemini-3.7-flash` | 最新 |
+| `gemini-3.6-flash` | **預設**，實測穩定 |
+| `gemini-3.5-flash` | 明顯較慢（實測約 13 秒） |
+| `gemini-3.5-flash-lite` | 快 |
+| `gemini-3.1-flash-lite` | 最快，品質較陽春 |
+
+清單是實測出來的，不是照 `ListModels` 抄的 —— `ListModels` 只說某個 model 支援
+`generateContent`，不會告訴你它吃不吃得下音訊、structured output 回不回得了 JSON。
+被排除的：Pro 系列（免費層直接 429）、`gemini-2.5-flash`（`output_text` 不是 JSON）、
+`gemini-2.5-flash-lite`（404「no longer available to new users」）。
 
 ### `.env` 的位置
 
-`.env` 放在**專案根目錄**（不是 `server/` 底下）。
+`.env` 放在**專案根目錄**（不是 `server/` 底下）。`dotenv` 預設從 process 的 cwd 找，
+所以 `server/index.js` 明確指定了根目錄的路徑，從任何 cwd 執行都讀得到。
 
-`dotenv` 預設是從 process 的 cwd 找 `.env`，所以放在 `server/` 底下、又從根目錄執行 `npm start`
-的話會讀不到。這裡在 `server/index.js` 明確指定了根目錄的路徑，所以從任何 cwd 執行都讀得到：
+`.env` 已列在 `.gitignore`。前端程式碼裡沒有任何金鑰 —— Azure 與 Gemini 的呼叫都在後端，
+錄音是 POST 到自己的伺服器再轉送出去。
 
-```js
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-dotenv.config({ path: path.join(ROOT, '.env') });
-```
+### 從設定頁填金鑰 —— 安全邊界
 
-`.env` 已列在 `.gitignore`，不會被 commit。前端程式碼裡沒有任何金鑰，所有 Gemini 呼叫都在後端。
+設定頁可以直接填金鑰，伺服器會寫進 `.env`（權限 `600`）並立即套用，不用重啟。
+前端永遠拿不到完整金鑰：`GET /api/settings` 只回「是否已設定」與末四碼。
 
----
+**`/api/settings` 只接受來自 loopback（`127.0.0.1` / `::1`）的請求**，其他一律 403。
 
-## 可以選哪些 model
-
-頁面上「分析用的 model」下拉選單可以即時切換，選擇會記在 `localStorage`。
-也可以用 `.env` 的 `GEMINI_MODEL` 改預設值（值一樣要在白名單內，否則會警告並退回預設）：
-
-```
-GEMINI_MODEL=gemini-3.7-flash
-```
-
-清單寫死在後端（`server/gemini.js` 的 `MODELS`），前端只能從裡面挑，
-送上來的值也會在後端再驗一次 —— **選單是 UI，不是權限**。
-少了這道檢查就等於讓瀏覽器把任意字串塞進 API 呼叫。
-
-| model | 實測延遲 | 備註 |
-|---|---|---|
-| `gemini-3.7-flash` | 4.3s | 最新 |
-| `gemini-3.6-flash` | 4.7s | **預設** |
-| `gemini-3.5-flash` | 12.9s | 明顯較慢 |
-| `gemini-3.5-flash-lite` | 4.1s | 對無人聲的判斷最嚴格 |
-| `gemini-3.1-flash-lite` | 3.8s | 最快，品質較陽春 |
-
-### 為什麼要等這麼久（不是因為要分析音訊）
-
-實測結論：**延遲跟音訊幾乎無關，主要花在模型的內部推理上。**
-
-| 測法 | 結果 |
-|---|---|
-| 完全不送音訊（純文字同樣的 prompt） | 仍要 **6.6 秒** |
-| 音訊 1.5 秒 → 6 秒 → 24 秒 | 延遲**沒有隨長度上升**（變異比差異還大） |
-| 音訊的 token 量 | 1.5 秒 = 38 tokens，24 秒 = 600 tokens，佔比極小 |
-
-真正的成本在回應的 `usage` 裡看得到。`gemini-3.6-flash` 一次呼叫大約是：
-
-```
-total_input_tokens    53      ← 提示詞
-total_output_tokens  154      ← 實際回給你的 JSON
-total_thought_tokens 676      ← 模型自己在心裡想的，看不到但要算時間
-```
-
-**推理用掉的 token 是實際輸出的 4 倍以上**，那才是等待的來源。
-對照組：`gemini-3.1-flash-lite` 的 `total_thought_tokens` 是 **0**，所以它一直是最快的。
-
-想再快一點，`generation_config.thinking_level` 可以設 `minimal` / `low` / `medium` / `high`：
-
-```js
-ai.interactions.create({
-  model, input, response_format,
-  generation_config: { thinking_level: 'minimal' },
-});
-```
-
-⚠️ 但這個沒有在 `gemini-3.6-flash` 上驗證過 —— 測到一半就把免費層的配額打到 429 了。
-在 flash-lite 上測是沒有差別的（它本來就不推理）。要用之前請自己確認品質有沒有掉。
-
-### 為什麼清單這麼短
-
-這份清單是實測出來的，不是照 `ListModels` 抄的 —— `ListModels` 只會告訴你某個 model
-支援 `generateContent`，不會告訴你它吃不吃得下音訊、structured output 回不回得了 JSON。
-實際拿音訊 + schema 測過之後，被排除的有：
-
-| 被排除的 | 原因 |
-|---|---|
-| `gemini-3.1-pro-preview`、`gemini-pro-latest` | **免費層直接回 429**。Pro 系列要付費帳戶才用得到，放進選單等於挖坑 |
-| `gemini-2.5-flash` | 走 Interactions API 時 `output_text` **不是 JSON**，會觸發 `bad_json` 502 |
-| `gemini-2.5-flash-lite` | 回 404「no longer available to new users」 |
-
-要加新 model 進白名單，請先跑過同樣的「音訊 + structured output」測試再加。
+> ⚠️ 這一關在**反向代理後面的行為要看代理怎麼接**：
+> - 用本專案的 Docker 部署（Caddy 在另一個容器，走 `app:3000`）→ 來源是容器 IP，
+>   **會被正確擋掉**，那種情況金鑰請直接寫在 `.env` 裡。
+> - 如果代理跟 App 跑在同一台、而且是 `reverse_proxy localhost:3000` →
+>   來源會變成 `127.0.0.1`，**檢查就失效了**，任何連得到代理的人都能寫你的 `.env`。
+>   那種部署一定要先移除這兩個端點或加上真正的身分驗證。
 
 ---
 
-## 加權抽句與分數趨勢（階段 6）
+## 六種模式
 
-練習紀錄原本只是一份唯讀清單 —— 練完寫進去，然後就沒有下文了。
-階段 6 讓它回頭影響練習：
+### 🗂️ 單字卡
 
-**① 分數趨勢圖。** 練習紀錄卡片上會畫出最近 20 次的分數走勢（左舊右新），
-用 inline SVG 畫而不是 canvas —— 資料點最多 20 個，靜態圖不需要每秒重畫 60 次，
-用 SVG 才能靠 CSS 變數在深色模式下換色、縮放也不糊。只有一筆紀錄時不畫，
-一個點連不成線，畫出來只會讓人以為壞了。格線用 60 / 80 分，
-跟紀錄清單上分數變色的門檻是同一組。
+10,040 字，分成 11 個牌組：精選 40 字（手寫，含例句與中譯）＋依詞頻分級的 10 個級距
+各 1,000 字。用 **Leitner 盒子制**（1～5 盒，答對往上一盒、間隔拉長；答錯回第 1 盒），
+而不是 SM-2 —— 行為好預測、出問題也容易看懂。
 
-**② 每一筆紀錄都有「重練這句」。** 按下去直接跳回那一句。
-這裡刻意**不動篩選條件** —— 偷偷把使用者選的條件改掉，比句子跑出範圍還難理解。
-如果那句不在目前的條件內，會用一行提示講清楚「按換一句就會回到符合條件的句子」。
-例句被改掉、對不到 id 的舊紀錄不會長出這個按鈕。
+> **SRS 的鍵一定要有牌組前綴。** 不同牌組的 id 會重複（精選第 1 張與第一級距第 1 張
+> 都是 id 1），沒前綴的話兩張不同的卡會共用複習進度。見 `lib/storage.js` 的 `srsKeyOf()`。
 
-**③ 優先抽出分數低的句子。** 「換一句」不再是等機率隨機，而是照練習紀錄加權：
+### 🎧 聽力 ／ ✍️ 中翻英 ／ 💬 情境對話
 
-| 狀態 | 權重 |
+題目與例句都是**開發時寫好的靜態檔**，不做執行期 AI 生成 ——
+執行期少一個失敗點，也不必為了出題付 API 費用。
+
+中翻英的自由作答用 `lib/grade.js` 在前端批改（正規化後比對關鍵字與長度），
+不呼叫任何 API。
+
+### 🗣️ 跟讀
+
+這個模式是整合的落點，也是唯一會呼叫 API 的模式。詳見下一節。
+
+### ⚙️ 設定
+
+金鑰、練習範圍（情境與難度，八種情境的清單從 `lib/labels.js` 長出來）、
+講評用的 model、TTS 語音與語速、學習資料的清除。
+
+---
+
+## 跟讀模式：練習紀錄會回頭決定下一句
+
+練習紀錄在這裡不只是「看過的清單」。下一句抽什麼由三件事相乘決定：
+
+```
+權重 = 分數權重 × 該複習了沒 × 這句練不練得到你的弱點
+```
+
+規則全部在 `public/lib/practice.js`，**刻意只放純函式**（不碰 DOM、不碰 localStorage），
+`npm test` 才能直接在 Node 裡跑 3,000 次抽樣驗機率分布 ——
+加權調錯的症狀是「一直重複同幾句」或「某幾句抽不到」，那種東西用眼睛看很難發現。
+
+### ① 分數權重
+
+| 狀態 | 基礎權重 |
 |---|---|
 | 練過，平均 0 分 | 5 |
 | 練過，平均 50 分 | 3 |
 | 沒練過 | 3 |
 | 練過，平均 100 分 | 1 |
 
-沒練過的句子給 3：比「練得好」高（要鼓勵覆蓋沒碰過的句子），
-比「練得爛」低（那些才是最該回頭練的）。
+沒練過的給 3：比「練得好」高（要鼓勵覆蓋沒碰過的句子），比「練得爛」低。
 
-**最低權重是 1 而不是 0**，這一點比加權本身更重要 —— 練得好的句子只是變罕見，
-不會從池子裡消失。權重歸零的話某幾句會再也抽不到，那比完全不加權還糟，
-而且使用者只會覺得「這個 App 壞了」。`test/practice.test.js` 有一條測試專門釘住這件事。
+**最低是 1 而不是 0**，這一點比加權本身更重要 —— 練得好的句子只是變罕見，
+不會從池子裡消失。權重歸零的話某幾句會再也抽不到，那比完全不加權還糟。
 
-加權可以在頁面上關掉（選擇記在 `localStorage`），關掉就退回等機率隨機。
-另外句子旁邊會顯示「練過 3 次・平均 82 分」—— 沒有這個 chip 的話，
-「怎麼又是這句」看起來只像是隨機抽壞了，而不是「因為你這句只有 42 分」。
+### ② 該複習了沒（間隔重複）
 
-規則本身寫在 `public/practice.js`，刻意只放純函式（不碰 DOM、不碰 `localStorage`），
-`npm test` 才能直接在 Node 裡跑 3000 次抽樣驗機率分布 —— 抽句加權調錯的症狀是
-「一直重複同幾句」或「某幾句抽不到」，那種東西用眼睛看很難發現。
+只看分數有個很明顯的破綻：**剛剛才練完的句子，下一秒還是「最該練」的那一句**。
+反過來，練到 95 分的句子一旦沉下去就再也不回來，但發音擱兩個星期是會退的。
+
+複習間隔由分數決定，**每差 25 分就差一倍**：
+
+| 平均分數 | 下次該練的間隔 |
+|---|---|
+| 0 分 | 6 小時 |
+| 50 分 | 24 小時（基準） |
+| 100 分 | 96 小時 |
+
+用指數而不是線性，是因為「練得好」與「練得爛」該有數量級的差距 ——
+只差兩倍的話，練到 90 分的句子隔天照樣一直冒出來。
+
+係數是 **0.25～2 的連續值**（`1 - e^-x`，x 是「過了幾個間隔」），不是到期／沒到期的二分法。
+剛練完 0.25，到了該複習的時間點約 1.36，拖很久趨近 2。
+
+沒做完整的 SM-2：那一套的輸入是使用者自評「記得／不記得」，
+而這裡每次練習本來就會拿到一個 0～100 的客觀分數，直接拿它決定間隔就夠了。
+
+### ③ 這句練不練得到你的弱點
+
+`content/sentences.json` 的每一句都標了 `focus`（這句在練哪些音）。
+把最近 30 筆紀錄裡的問題音統計起來，一句話涵蓋你越多問題，倍率越高（1～2 倍）。
+
+只看最近 30 筆是刻意的：一年前就改掉的問題不該一直綁住現在的練習。
+下限一樣是 1 而不是 0 —— `focus` 是人工／自動標的，本來就不會完美，
+全部只餵弱點音會讓練習變得很窄。
+
+**弱點是從真實評分算出來的，不是猜的。** Azure 回的是每個音素的分數，
+`lib/azure-issues.js` 把它翻成分類：
+
+| Azure 給的 | 對應到 |
+|---|---|
+| θ / ð 分數低 | `th` |
+| ɹ / l 分數低 | `r_l` |
+| v / w 分數低 | `v_w` |
+| ŋ 分數低 | `n_ng` |
+| i / ɪ / u / ʊ / æ / ɛ / e 分數低 | `vowel_length` |
+| 字尾的 p b t d k ɡ 分數低 | `final_consonant` |
+| `errorType: Monotone` 或語調分數低 | `stress` |
+| `errorType: UnexpectedBreak` / `MissingBreak` | `linking` |
+
+判斷順序是刻意的：**先看具體的音素，再看字層的錯誤類型**。「th 唸錯」比
+「這個字準確度低」有用得多，反過來排的話具體資訊會被蓋掉。幾個刻意的取捨：
+
+- **不收 `n`，只收 `ŋ`。** n 在英文裡太常見，一旦誤判就會把所有問題都算成 `n_ng`。
+- `Insertion`（多唸一個字）**不對應** `extra_vowel`。後者指的是字尾多加母音
+  （and 唸成 an-de），是音素層的事，硬對過去會讓弱點統計失真。
+- `Omission`（漏字）不列進弱點：那是「沒唸」不是「唸錯」。
+- `heard`（你唸成什麼）留空。Azure 給分數，不給那個資訊 ——
+  硬要從 recognizedText 猜哪個字對哪個字只會編出錯的東西。
+
+### 看得見，不然使用者只會覺得壞了
+
+三個維度都在影響抽句，不寫出來就完全看不出來：
+
+- 句子旁：`練過 3 次・平均 82 分・10 天前・該複習了`（到期那段是琥珀色）
+- 命中弱點時：`這句在練 th 音`（綠色 —— 它講的是「這句對你有用」，
+  不是「你又錯了」；紅色在這頁已經是「唸錯的字」的意思）
+- 一組練完的總結會說「接下來會多抽一些練得到這些音的句子」
+
+加權可以在模式裡直接關掉，關掉就退回等機率隨機 ——「怎麼一直抽到同幾句」要有辦法關掉。
+
+### 每日目標、連續天數、一組 5 句
+
+練習紀錄回答的是「我練得怎麼樣」，但**沒有回答「我今天練了嗎」**。
+
+- **今天的進度**：今天幾句 / 目標幾句（可選 3/5/10/20）。達標時數字才變綠 ——
+  平常就是彩色的話，達標與否就看不出差別。
+- **連續天數**：**今天還沒練不會馬上歸零**，從昨天開始往回算；前天以前才練過才是 0。
+  早上打開看到「連續 0 天」會讓人覺得昨天的努力已經沒了，而那正好是最不該讓人放棄的
+  時間點。說明文字也一律不寫「你今天還沒練，連續天數要斷了」——
+  用罰的去推人回來短期有效，長期只會讓人不想打開。
+  一天的界線用**本地時間**切（用 UTC 的話台灣晚上八點以後練的都會被算成隔天）。
+- **一組 5 句**：「換一句、再換一句」是沒有終點的，很容易練兩句就關掉。練完給一份總結：
+  句數、平均、最高最低，以及**這一組最常出現的問題類型**。
+  最後那一項才是重點 ——「五句裡有三句都是 th」是可以拿去練的結論，「平均 72 分」不是。
+
+### 中文意思
+
+匯入的句子附中文翻譯（Tatoeba 的，用 OpenCC 轉成台灣正體），顯示在句子下面。
+知道自己在說什麼，練起來才不是在唸音節。早期手寫的句子沒有中文，就不顯示那一行。
 
 ---
 
 ## 無人聲偵測（為什麼不能相信模型自己判斷）
 
-**踩到的問題：** 送一段完全沒有人聲的錄音進去，模型會把提示裡的目標句
-原封不動當成「聽到的內容」回傳，給 95～98 分，還稱讚「雙元音發得相當到位」。
+**踩到的問題：** 送一段完全沒有人聲的錄音給 Gemini，它會把提示裡的目標句原封不動
+當成「聽到的內容」回傳，給 95～98 分，還稱讚「雙元音發得相當到位」。
 
-這不是 prompt 沒寫清楚。舊版 prompt 已經明確寫了「幾乎聽不到人聲就給 0 分」，
-改版後又加上 `speech_detected` 布林欄位、把判斷步驟拉到最前面、明講「你看得到目標句
-但那不是你聽到的內容」—— 用**純數位靜音**（所有樣本都是 0）實測的結果：
+這不是 prompt 沒寫清楚。加上 `speech_detected` 布林欄位、把判斷步驟拉到最前面、
+明講「你看得到目標句但那不是你聽到的內容」之後，用**純數位靜音**實測：
 
 | | 3.7-flash | 3.6-flash | 3.5-flash | 3.5-flash-lite | 3.1-flash-lite |
 |---|---|---|---|---|---|
 | 合成噪音 | ❌ 95 分 | ✅ 0 分 | ❌ 95 分 | ✅ | ✅ |
 | 純數位靜音 | ❌ 95 分 | ❌ 98 分 | ❌ 95 分 | ✅ | ✅ |
 
-五個 model 有三個照樣給高分，`speech_detected` 也照樣填 `true`。
-**結論：這件事不能交給模型判斷。**
+五個 model 有三個照樣給高分。**結論：這件事不能交給模型判斷。**
 
-所以改成在呼叫 Gemini 之前，直接用訊號本身判斷（`server/audio.js`）：
+所以改成在呼叫任何 API 之前，直接用訊號本身判斷（`server/audio.js`）：
 
 | 指標 | 門檻 | 擋掉什麼 |
 |---|---|---|
@@ -227,20 +295,103 @@ ai.interactions.create({
 | 有聲音框佔比 | `< 2%` | 整段幾乎都是空的 |
 | 音量變異係數 | `< 0.08` | 音量夠大但從頭到尾不變的嗡嗡聲／電流聲 |
 
-三個指標任一命中就直接回傳「沒聽到人聲」，**完全不呼叫 Gemini**（省一次 API 用量）。
-這一關擋掉之後不會計入練習紀錄，也不會顯示成「0 分」——
-「沒錄到東西」跟「發音很差」給使用者的訊息完全不同。
+三個指標任一命中就直接回「沒聽到人聲」，**兩條路徑都不呼叫**。
+Azure 對靜音會正確回 `NoMatch`，但一樣是白跑一趟 —— 免費層併發數很低。
+擋掉之後不計入練習紀錄，也不顯示成「0 分」——「沒錄到東西」跟「發音很差」
+給使用者的訊息完全不同。
 
-門檻是拿**真實語音**校準的，不是拍腦袋定的。真人語音的變異係數實測約 1.19，
-穩定正弦波約 0.008，中間差兩個數量級；音量降到原本的 5%（峰值 0.044，很小聲但聽得到）
-仍然能通過。`npm test` 會用 `test/fixtures/speech-16k.wav` 驗這件事：
+門檻是拿**真實語音**校準的：真人語音的變異係數實測約 1.19，穩定正弦波約 0.008，
+中間差兩個數量級；音量降到原本的 5%（很小聲但聽得到）仍然通得過。
 
-```bash
-npm test
-```
-
-前端 `public/wav-encoder.js` 有一份等價的檢查，但那份只是為了即時提示與省一次上傳 ——
+前端 `lib/wav-encoder.js` 有一份等價的檢查，那份是為了即時提示與省一次上傳 ——
 **後端那份才是把關**，因為前端送什麼上來都不能信。兩邊的門檻值要一起改。
+
+---
+
+## 句庫從哪裡來
+
+### 練習句：Tatoeba + 手寫面試句
+
+`npm run sentences:import` 從 [Tatoeba](https://tatoeba.org/) 的中英句對匯入。
+選它的理由是**它本來就是給語言學習者用的例句庫**：短、口語、現代，而且附中文翻譯。
+資料透過 npm 套件 `tatoeba-sentence-pairs-in-mandarin-chinese-english` 取得
+（7.6 萬組），不用手動下載。
+
+> **出處與授權：** 練習句來自 [Tatoeba](https://tatoeba.org/)，授權
+> [CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)。
+
+八種情境，每種 230～280 句：
+
+| 情境 | 句數 | | 情境 | 句數 |
+|---|---|---|---|---|
+| 日常對話 | 278 | | 學習 | 250 |
+| 旅遊 | 272 | | 健康 | 250 |
+| 職場 | 263 | | 購物 | 250 |
+| 餐飲 | 250 | | 面試 | 228 |
+
+**面試那 228 句是手寫的**（`data/interview.txt`）。Tatoeba 的面試類句子只有 95 句
+（其他情境都上千）—— 通用語料本來就不會有「What does success look like in the first
+three months?」這種東西，而這一類剛好是最該有品質的。要自己加句子也走這條路：
+在 `data/` 放一個 `<情境>.txt` 就會被收進去，難度與 `focus` 自動算，
+不通過清洗會印出原因。
+
+`QUOTA`（每個情境 250 句）算的是**這個情境總共要幾句**，不是這一次要收幾句 ——
+所以句庫滿了之後重跑會印「新增 0 句」，不會再疊上去。
+（原本是從 0 起算的，句子有去重所以不會出現重複句，症狀只是句庫安靜地膨脹到兩倍：
+daily 從 278 變 528。這種「跑起來沒報錯、資料悄悄壞掉」的東西最難發現，
+所以現在 `--write` 之前先看那一行印出來的數字。）
+
+清洗（7.6 萬組句對 → 通過清洗 16,520 句 → 去重後 15,310 句候選 → 依配額收進句庫）
+擋掉的都是「文法沒錯但練口說沒意義」的：
+
+| 擋掉什麼 | 為什麼 |
+|---|---|
+| 5 字以下、13 字以上 | 太短練不到連音，太長一口氣唸不完 |
+| 句首是專有名詞 | Tatoeba 有 **5,825 句以 Tom 開頭**。判斷方式是「這個字在語料裡會不會以小寫出現」—— `Tom` 不會，`Please` 會；寫死人名清單永遠會漏 |
+| 句中出現大寫字 | 專有名詞。句子會變得很特定 |
+| 第三人稱敘事（he／she） | 「He left his office in a hurry.」是在講故事，不是在對話 |
+| `said`／`replied`、`But`／`So` 開頭 | 這句原本有前一句，單獨看不成立 |
+| 古語與古英文語序 | 混進來整份句庫會讀起來像老小說 |
+| 阿拉伯數字 | 目標句要跟聽到的內容**逐字比對**，「300,000」唸出來是什麼取決於使用者怎麼讀 |
+| 令人不舒服的內容 | 「An old woman was burnt to death.」通過了上面每一道清洗，但沒有人想在練發音時唸這句 |
+
+內容過濾用的是關鍵字，那是**鈍器**：擋不掉全部，也一定會誤傷。所以清單只放
+「出現了幾乎一定不合適」的字 —— `afraid` 就不能放進去，不然
+「I'm afraid my luggage didn't arrive」跟「Don't be afraid to ask questions」都會被砍掉。
+
+### 自動標「這句在練哪些音」
+
+`scripts/phonetics.js` 用 [CMU 發音字典](https://github.com/cmusphinx/cmudict)（13.5 萬字）查音素。
+
+第一版寫成「句子裡有 TH 就標 th」，拿人工標的 81 句當對照：命中 90%，
+**但每句被多抓 5～7 個** —— 因為隨便一句英文都含 R 和 L、都有字尾子音。
+標籤掛滿等於沒有標籤。
+
+所以改成算**密度**，而且**除以那個音在語料庫裡的平均**再比。`final_consonant`
+的平均是 `v_w` 的**十二倍**，兩者的絕對分數本來就不能直接比。正規化之後比的是
+「比一般句子強多少倍」，只留最強的兩個、且要超過 1.6 倍。
+基準線由 `npm run corpus:baseline` 重算，換語料庫要重跑。
+
+用同一套規則把原本人工標的 81 句重標，**74 句有變**。多數不是演算法比較笨，
+是人工標的本來就錯 —— 例如把「I usually grab a coffee on my way to work.」標成 `v_w`，
+但那句只有 W 沒有 V，**根本練不到 v／w 的分辨**，畫面上卻會出現「這句在練 v / w」。
+
+### 單字庫：ECDICT
+
+`npm run build:vocabulary` 從 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT）
+依詞頻分級。原始資料很髒：釋義是簡體、音標混用非 IPA 字元
+（`ә` 是西里爾字母、`^` 其實是 `ɡ`、`\` 是 `ɜ`），清理邏輯都在
+`scripts/build-vocabulary.mjs`，改那個檔前先讀註解。
+
+### 評估過但沒有採用的來源
+
+| 來源 | 授權 | 為什麼沒用 |
+|---|---|---|
+| [Mozilla Common Voice](https://github.com/common-voice/common-voice) 的 `server/data/en` | **CC0** | 6.1 萬句、授權更寬鬆，但多半來自公版小說。過濾到剩三千句還是有一半讀起來像十九世紀對白（"Are you a beast of the field?"） |
+| Common Voice 的 `wiki.en.txt` | CC0 | 維基百科條目，不是對話 |
+| [Harvard／IEEE 720 句](https://en.wikipedia.org/wiki/Harvard_sentences) | 公有領域 | 音素平衡，但是為了測電話線路設計的（"The birch canoe slid on the smooth planks"） |
+
+**授權寬鬆不等於內容合用。**
 
 ---
 
@@ -250,24 +401,21 @@ npm test
 
 | 情境 | HTTP | 說明 |
 |---|---|---|
-| `.env` 沒有 `GEMINI_API_KEY` | 500 | 伺服器啟動時也會在 console 警告 |
-| 金鑰格式不對（沒換掉範例值） | 401 | 送出前先擋掉，不浪費一次 API 呼叫 |
-| 金鑰無效 | 400 | **注意：Gemini 對無效金鑰回的是 400 不是 401**，見下方 |
-| 額度用盡 | 429 | 提示免費層有每分鐘／每日限制 |
-| Gemini 服務異常 | 502 | |
-| 逾時（60 秒） | 504 | |
+| 兩組金鑰都沒設定 | 500 | 伺服器啟動時也會在 console 警告 |
+| Gemini 金鑰格式不對 | 401 | 送出前先擋掉，不浪費一次呼叫 |
+| Gemini 金鑰無效 | 400 | **注意：Gemini 對無效金鑰回的是 400 不是 401**，而且訊息裡看不到 `API_KEY_INVALID`，所以 400 的說明會同時提示金鑰與音檔兩種可能 |
+| Azure 金鑰／區域錯誤 | 401 | |
+| Azure 聽不出任何內容 | 422 | 通常是錄音裡沒有清楚的英文 |
+| Azure 併發超限 | 429 | 免費層的併發數很低 |
+| 額度用盡 | 429 | |
+| 服務異常 | 502 | |
+| 逾時 | 504 | Gemini 60 秒、Azure 30 秒 |
 | 錄音檔超過 8 MB | 413 | |
 | model 不在白名單 | 400 | 前端只送得出清單內的值，這關擋的是繞過 UI 的呼叫 |
-| 錄音裡沒有人聲 | 200 | 不算錯誤：回 `speech_detected: false`，不呼叫 Gemini、不計入紀錄 |
+| 錄音裡沒有人聲 | 200 | 不算錯誤：回 `speech_detected: false`，不呼叫任何 API、不計入紀錄 |
 | 麥克風權限被拒／找不到裝置／被占用 | — | 前端各自對應不同提示 |
-| 瀏覽器不支援 `MediaRecorder`／非 secure context | — | 整頁橫幅提示 |
-| `localStorage` 不可用（無痕模式等） | — | 練習紀錄靜默停用，App 其他功能照常 |
-
-> **實測發現：金鑰無效時 Gemini 回的是 HTTP 400，不是 401/403**，而且 SDK 的錯誤訊息裡
-> 看不到 `API_KEY_INVALID` 這個原因。所以 400 的訊息會同時提示「可能是金鑰無效」與
-> 「可能是音檔問題」兩種可能，而不是只講音檔格式 —— 否則使用者會被引導去查錯方向。
-> 另外程式在送出前會先檢查金鑰是不是 `AIza` 開頭，把「忘了換掉 `.env` 範例值」這種
-> 最常見的狀況提早擋下來。
+| 瀏覽器不支援 `MediaRecorder`／非 secure context | — | 模式內橫幅提示 |
+| `localStorage` 不可用（無痕模式等） | — | 紀錄靜默停用，其他功能照常 |
 
 完整的錯誤內容只寫進伺服器 console，回給前端的訊息不含金鑰或 stack。
 
@@ -277,187 +425,360 @@ npm test
 
 ```
 english_speaking/
-├── .env                  # 你自己建立（已 gitignore）
+├── .env                       # 你自己建立（已 gitignore）
 ├── .env.example
-├── .gitignore
-├── package.json
-├── sentences.json        # 27 句練習句，含 id / text / category / difficulty
+├── Dockerfile                 # 只裝正式相依套件的執行映像檔
+├── docker-compose.yml         # App + Caddy（補 HTTPS，手機才能用麥克風）
+├── docker-compose.duckdns.yml # 憑證改用 Let's Encrypt + DuckDNS 的疊加設定
+├── Caddyfile / Caddyfile.duckdns
+├── .github/workflows/ci.yml   # 每次 push 跑 npm test 與 npm run test:ui（都不需要金鑰）
+├── content/
+│   ├── sentences.json         # 2,041 句練習句：id / text / category / difficulty / focus / zh
+│   ├── listening.json         # 81 組 / 226 題
+│   ├── translation.json       # 279 題
+│   ├── dialogues.json         # 61 段 / 427 句台詞
+│   └── vocabulary/            # index + curated + band-01..10（共 10,040 字）
+├── data/
+│   └── interview.txt          # 手寫的面試句（一行一句，# 是註解）
+├── scripts/
+│   ├── phonetics.js           # 用 CMU 發音字典判斷「這句適合練哪些音」（純函式）
+│   ├── import-sentences.mjs   # 從 Tatoeba 匯入，自動標 focus 與難度
+│   ├── corpus-baseline.mjs    # 重算 phonetics.js 的基準線
+│   ├── build-vocabulary.mjs   # 從 ECDICT 建單字庫
+│   └── generate-content.mjs   # 題庫生成與**結構驗證**
 ├── server/
-│   ├── index.js          # Express：靜態檔、/api/health、/api/models、/api/sentences、
-│   │                     #   /api/pronunciation-feedback；呼叫 Gemini 前的無人聲把關
-│   ├── gemini.js         # 封裝 Gemini 呼叫、model 白名單、structured output schema、錯誤分類
-│   └── audio.js          # WAV 能量分析（峰值／有聲比例／音量變異），判斷有沒有人聲
-├── test/
-│   ├── audio.test.js     # 無人聲門檻的回歸測試（不需網路與金鑰）
-│   ├── practice.test.js  # 抽句加權與紀錄彙整的回歸測試（不需網路與金鑰）
-│   ├── ui.mjs            # Playwright 前端測試（需伺服器，**不需金鑰**）
-│   ├── e2e.mjs           # Playwright 端對端測試（需伺服器與金鑰）
-│   └── fixtures/
-│       └── speech-16k.wav  # 真實語音樣本；單元測試與 E2E 的假麥克風都用它
-└── public/
-    ├── index.html
-    ├── style.css
-    ├── app.js            # 例句、篩選、示範發音、錄音、上傳、講評、練習紀錄
-    ├── wav-encoder.js    # 錄音 → 16 kHz 單聲道 WAV，附帶音量分析
-    ├── waveform.js       # AnalyserNode 即時波形與音量指示
-    ├── practice.js       # 抽句加權、依句子彙整成績、趨勢圖資料（純函式）
-    └── storage.js        # localStorage 練習紀錄與偏好設定
+│   ├── index.js               # Express：靜態檔、內容端點、發音評估、設定
+│   ├── azure-pronunciation.js # Azure Speech 發音評估（逐字、逐音素）
+│   ├── gemini.js              # Gemini：講評 + 沒有 Azure 時的主觀評分、model 白名單
+│   ├── audio.js               # WAV 能量分析，判斷有沒有人聲
+│   └── settings.js            # 從設定頁寫 .env（只接受 loopback）
+├── public/
+│   ├── index.html
+│   ├── app.js                 # 應用外殼：模式切換
+│   ├── style.css
+│   ├── lib/
+│   │   ├── dom.js             # h() 與會過濾的 append()
+│   │   ├── practice.js        # 間隔重複、弱點音加權、連續天數、一組總結（純函式）
+│   │   ├── azure-issues.js    # Azure 音素分數 → 弱點音分類（純函式）
+│   │   ├── text-diff.js       # 目標句與聽到的內容做 LCS 逐字比對（純函式）
+│   │   ├── labels.js          # 顯示字串、分數門檻、發音問題的中文標籤
+│   │   ├── grade.js           # 中翻英的前端批改
+│   │   ├── recorder.js        # 麥克風與 MediaRecorder
+│   │   ├── wav-encoder.js     # 錄音 → 16 kHz 單聲道 WAV + 音量分析
+│   │   ├── waveform.js        # AnalyserNode 即時波形
+│   │   ├── tts.js             # 示範發音
+│   │   ├── storage.js         # localStorage：單字 SRS 與練習紀錄
+│   │   ├── settings.js        # 前端偏好設定
+│   │   ├── stat-tile.js / trend-chart.js
+│   └── modes/
+│       ├── vocabulary.js / listening.js / translation.js / dialogue.js
+│       ├── shadowing.js       # 跟讀（整合的落點）
+│       ├── shadowing-views.js # 今天的進度、一組總結、練習紀錄
+│       ├── assessment-view.js # 發音評估的呈現（Azure 與 Gemini 兩種形狀）
+│       └── settings.js
+└── test/                      # 見「測試」
 ```
 
 ### API
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/api/health` | 回 `{ ok: true, geminiConfigured: boolean }` |
-| GET | `/api/models` | 回 `{ models: [{ id, label, note }], default }` —— 前端 model 選單的來源 |
-| GET | `/api/sentences` | 回 `sentences.json` |
-| POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV 檔）+ `sentence`（目標句）+ `model`（選填） |
+| GET | `/api/health` | `{ ok, azureConfigured, geminiConfigured }` |
+| GET | `/api/models` | Gemini model 白名單與預設值 |
+| GET | `/api/content/:name` | `sentences` / `listening` / `translation` / `dialogues` |
+| GET | `/api/vocabulary/:file` | `index.json` / `curated.json` / `band-NN.json` |
+| GET | `/api/sentences` | 307 轉到 `/api/content/sentences`（舊路徑，口說分支用過） |
+| GET / POST | `/api/settings` | 讀寫金鑰設定（**只接受 loopback**） |
+| POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV）+ `sentence` + `model`（選填） |
 
-`/api/pronunciation-feedback` 成功時回傳：
-
-```json
-{
-  "speech_detected": true,
-  "transcript": "AI 實際聽到的英文內容",
-  "score": 78,
-  "problem_words": ["thoroughly", "scheduled"],
-  "feedback_zh": "• 條列講評…",
-  "model": "gemini-3.6-flash"
-}
-```
-
-沒偵測到人聲時（HTTP 一樣是 200）：
+`/api/pronunciation-feedback` 有 Azure 時回：
 
 ```json
 {
-  "speech_detected": false,
-  "transcript": "",
-  "score": 0,
-  "problem_words": [],
-  "feedback_zh": "• 這段錄音裡幾乎沒有聲音。…",
-  "model": null,
-  "gated_by": "silence"
+  "provider": "azure",
+  "referenceText": "I think so.",
+  "recognizedText": "I sink so.",
+  "scores": { "pronunciation": 72, "accuracy": 68, "fluency": 85,
+              "completeness": 100, "prosody": 55 },
+  "words": [
+    { "word": "think", "accuracy": 40, "errorType": "Mispronunciation",
+      "phonemes": [{ "phoneme": "θ", "accuracy": 20 }] }
+  ],
+  "feedback_zh": "• …",
+  "narrationSource": "gemini"
 }
 ```
 
-前端拿 `transcript` 跟目標句做 LCS 逐字比對，把沒對上的字、以及 `problem_words` 點名的字標紅。
-`score` 在 UI 上明確標示為「參考分數」，並註明是 AI 主觀評估、不是標準化測驗分數。
+沒有 Azure 時退回 Gemini 的主觀評分（`provider: "gemini"`，含 `score`、`transcript`、
+結構化的 `problem_words`）。沒偵測到人聲時回 `speech_detected: false` 與 `gated_by: "silence"`。
 
-### 為什麼錄音要轉成 WAV
+### 為什麼錄音要轉成 16 kHz 單聲道 WAV
 
-Gemini API 的 audio 文件列的支援格式是 `wav / mp3 / aiff / aac / ogg / flac`，
-Firebase AI Logic 的輸入需求頁則多列了 `webm` 等格式 —— 兩份官方文件不一致，
-而 `audio/webm` 正好是瀏覽器 `MediaRecorder` 的預設輸出格式，落在有爭議的那一邊。
+Gemini 的兩份官方文件對 `audio/webm` 的支援說法不一致，而那正好是 `MediaRecorder`
+的預設輸出。後來確認 `@google/genai` 的 `AudioContentMimeType` 型別裡**完全沒有** webm。
 
-所以這個專案一律在瀏覽器端轉成 `audio/wav` 再送（`public/wav-encoder.js`）：
+`MediaRecorder` → `blob.arrayBuffer()` → `decodeAudioData()` → `OfflineAudioContext`
+重取樣成單聲道 16 kHz → 自己寫的 44-byte RIFF header 編成 16-bit PCM WAV。
 
-`MediaRecorder` → `blob.arrayBuffer()` → `decodeAudioData()` → `OfflineAudioContext` 重取樣成
-單聲道 16 kHz → 自己寫的 44-byte RIFF header 編成 16-bit PCM WAV。
-
-好處：`audio/wav` 在兩份文件裡都明確支援；不需要 ffmpeg 之類的外部依賴；
-16 kHz 單聲道對語音辨識綽綽有餘（每秒約 32 KB，離單次請求 20 MB 上限很遠）；
-而且 Safari 的 `MediaRecorder` 吐的是 mp4/aac 而非 webm，走這條路兩邊格式就統一了。
+附帶好處：**Azure Speech SDK 的預設輸入格式正好也是 16 kHz 16-bit 單聲道 PCM**，
+接上 Azure 時音訊管線一個 byte 都不用改。而且 Safari 吐的是 mp4/aac 而非 webm，
+走這條路兩邊格式就統一了。
 
 ### 為什麼不用 Web Speech API 做辨識
 
-`SpeechRecognition` 只接受**即時**麥克風輸入，介面上沒有任何方式可以餵進錄好的 File / Blob，
-所以「錄完再拿去辨識」這條路不存在。而且 Chrome 的實作是送到 Google 伺服器辨識、
-MDN 標記為 "Limited availability"、Firefox 支援有問題。
-
-改用的做法（階段 4）：讓 Gemini 在**同一次呼叫**裡一起回傳 transcript 和分數，
-一次 API 呼叫解決，跨瀏覽器一致，不需要第二套依賴。
+`SpeechRecognition` 只接受**即時**麥克風輸入，介面上沒有任何方式可以餵進錄好的
+File / Blob，所以「錄完再拿去辨識」這條路不存在。而且 Chrome 的實作是送到 Google
+伺服器辨識、MDN 標記為 "Limited availability"、Firefox 支援有問題。
 
 ---
 
-## 已知限制
+## 用 Docker 跑在自己的機器上
 
-- **必須用 `localhost` 開啟。** `getUserMedia` 需要 secure context；`localhost` 算 secure，
-  但用區網 IP（例如 `http://192.168.1.5:3000`）開啟時瀏覽器會直接擋掉麥克風。
-  要在手機或其他機器上測試，得先架 HTTPS。
-- `speechSynthesis` 的語音品質取決於作業系統安裝的語音包，各平台聽起來會不一樣。
-- 單次錄音上限 60 秒，上傳上限 8 MB。
-- **練習紀錄只存在這台瀏覽器**，換瀏覽器或清掉網站資料就沒了。上限 200 筆，超過會丟掉最舊的。
-- **無人聲偵測擋得掉「沒有聲音」，擋不掉「有聲音但不是在唸這句話」。**
-  播音樂、講中文、隨便亂唸都會通過門檻進到 Gemini，此時就得靠模型判斷 ——
-  實測模型在**有實際語音**的情況下判斷是準的（拿正確語音配錯誤目標句測，會誠實回報不符並給低分），
-  出問題的只有完全沒有音訊內容的情形，而那一種已經被門檻擋掉了。
-- Pro 系列 model 需要付費帳戶，免費層會回 429，所以沒有放進選單。
+想在**手機上練**（口說練習的實際場景多半在手機），就得解決一件事：
+`getUserMedia` 只在 secure context 下可用，也就是 `localhost` 或 `https://`。
+從別的裝置連 `http://10.0.0.5:3000` 的話，麥克風會被瀏覽器直接擋掉。
+
+所以用兩個容器：App 本身，加上在前面補 HTTPS 的 [Caddy](https://caddyserver.com/)。
+
+```bash
+cp .env.example .env
+# 編輯 .env：金鑰、SITE_ADDRESS（你會用哪個位址連過來）、BIND_ADDR
+
+docker compose up -d --build
+```
+
+然後從同一個網路（VPN 或區網）的裝置開 `https://<SITE_ADDRESS>:8443`。
+
+| 檔案 | 做什麼 |
+|---|---|
+| `Dockerfile` | 只裝正式相依套件。devDependencies 裡的 Tatoeba 語料有 7 MB，那是匯入句子時才用的 |
+| `Caddyfile` | HTTPS、gzip（`content/sentences.json` 有 450 KB）、反向代理 |
+| `docker-compose.yml` | 兩個服務。**App 刻意不對外開埠** —— 直接開 3000 的話那條路是 http，麥克風照樣不能用，只會讓人以為壞了 |
+
+> 容器裡**沒有** `.env`（Dockerfile 不複製它），金鑰是靠 compose 的 `environment:`
+> 從主機的 `.env` 轉進去的。所以**程式碼開始讀一個新的環境變數時，compose 也要跟著加**
+> —— 漏了的話容器照樣起得來、healthcheck 照樣過，只有那個功能安靜地死掉。
+> （真的發生過：階段 11 接上 Azure 之後，compose 的 `environment:` 只列了 Gemini 那兩個，
+> 於是走 Docker 部署時 `.env` 填了 Azure 金鑰也進不到容器裡。）
+> 檢查方式：
+>
+> ```bash
+> grep -rhoE "process\.env\.[A-Z_]+" server public | sort -u
+> ```
+
+`BIND_ADDR` 決定埠綁在哪個介面：填 VPN 介面的 IP，區網與公網那一側就掃不到。
+留空會綁 `0.0.0.0`，**這個 App 沒有帳號密碼也沒有 rate limit，不要就這樣放在有公網的機器上。**
+
+### 憑證：兩條路
+
+**① Caddy 自己的本機 CA（預設，不需要網域）**
+
+`Caddyfile` 裡的 `tls internal`。Caddy 會自己簽，**連 IP 位址都簽得出來**，
+所以 `SITE_ADDRESS` 直接填 VPN 的內網 IP 就行。代價是每台裝置都得裝一次根憑證：
+
+```bash
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt
+```
+
+- **Android**：設定 →「安全性」→「加密與憑證」→「安裝憑證」→「CA 憑證」
+- **iOS**：傳過去安裝成描述檔，**然後還要**到設定 →「一般」→「關於本機」→
+  「憑證信任設定」把它打開 —— 少了這一步不會生效，而且 iOS 不會告訴你原因
+
+> ⚠️ `caddy_data` 這個 volume 裡有本機 CA 的私鑰。**刪掉它等於換一張 CA**，
+> 每台裝置都要重裝根憑證。
+
+> **另一個雷：SNI 規格不允許放 IP**（RFC 6066），所以瀏覽器連
+> `https://<IP>:8443` 時**不會送 SNI**。Caddy 的退路是拿連線的本機 IP 去找憑證，
+> 但在 Docker 的埠轉發後面，容器只看得到 172.x 的內部位址，比對不到就直接回
+> TLS alert 80 斷線 —— 瀏覽器只顯示「無法安全連線」，Caddy 的 log 裡也沒有線索。
+> `Caddyfile` 用 `default_sni` 解掉這件事。
+>
+> 測試時還有一個陷阱：**Windows 內建的 `curl.exe` 走 schannel，對純 IP 做 TLS
+> 一定失敗**（`SEC_E_INTERNAL_ERROR`），看起來像服務壞了其實沒有。
+> 要用 `openssl s_client -noservername` 才驗得準。
+
+**② Let's Encrypt（比較省事，而且網域可以是免費的）**
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.duckdns.yml up -d --build
+```
+
+走 **DNS-01 挑戰**，所以**不需要對外開 80／443** ——
+[Let's Encrypt 驗的是「你控制這個網域」，不是「這個 IP 連得到」](https://letsencrypt.org/docs/challenge-types/)，
+A 記錄指向 VPN 的內網 IP 也照樣簽得出來。好處是每台裝置都直接信任，不用裝根憑證。
+
+免費網域兩個選擇（要的其實不是「網域」，是**一個你能寫 TXT 記錄的 DNS 名字**）：
+
+| 服務 | 名字 | 說明 |
+|---|---|---|
+| [DuckDNS](https://www.duckdns.org/) | `你的名字.duckdns.org` | 免費、5 個子網域、有官方 [caddy-dns 模組](https://github.com/caddy-dns/duckdns)。**A 記錄可以指向私有 IP** |
+| [deSEC](https://desec.io/) | `你的名字.dedyn.io` | 非營利、完整 API 與 DNSSEC。要**萬用字元憑證**用這個 —— DuckDNS 一次只存得下一筆 TXT |
+
+> ⚠️ **不要用 `.tk` / `.ml` / `.ga`。** 提供它們的 Freenom
+> [在 2024 年退出網域生意](https://domainincite.com/29668-freenom-shuts-down-12-6-million-domains-report)，
+> 約 1,260 萬個網域直接停止解析。網路上很多舊教學還在推薦它。
+
+`duckdns.org` 與 `dedyn.io` 都在 [Public Suffix List](https://publicsuffix.org/) 上
+（實際抓下來確認過），所以 Let's Encrypt 的速率限制**各子網域各算**。
+
+DuckDNS 的 A 記錄要指向內網 IP —— 網頁上的欄位會自動填你的**公開** IP，用 API 明確指定：
+
+```bash
+curl "https://www.duckdns.org/update?domains=my-speaking&token=<你的token>&ip=10.0.0.5"
+```
+
+要退回自簽憑證：`docker compose up -d`（不帶 override）。
+
+> ⚠️ **DuckDNS 的權威 nameserver 不回應 TCP/53**，而 Caddy 預設會繞過遞迴解析器、
+> 直接去問權威 NS「`_acme-challenge` 的 TXT 出現了嗎」。於是那個檢查永遠做不完，
+> Caddy 就一直不通知 Let's Encrypt 來驗證，卡在這個重試迴圈裡：
+>
+> ```
+> could not get certificate from issuer ... checking DNS propagation of
+> "_acme-challenge.<name>.duckdns.org." ... dial tcp 99.79.16.64:53: i/o timeout
+> ```
+>
+> 排除過防火牆：從同一個容器連 `1.1.1.1:53`（TCP）與 `1.1.1.1:443` 都通，
+> 只有 DuckDNS 的 NS 連不上。`Caddyfile.duckdns` 的解法是 `resolvers 1.1.1.1 8.8.8.8`
+> ＋ `propagation_timeout -1`（關掉檢查）＋ `propagation_delay 60s`（改成固定等待）。
+> 改完重啟，50 秒就拿到憑證。
+>
+> 這類失敗發生在**通知 LE 之前**，所以不會消耗失敗驗證的額度；但 delay 設太短
+> 而導致真的驗證失敗就會 —— 所以寧可設寬一點。
+
+### 沒有做的事
+
+- **沒有帳號密碼、沒有 rate limit。** 現在的假設是「只有 VPN／區網內的自己人連得到」。
+  要放公開網址的話這兩件事是必須的 —— 後端拿著你的金鑰，一個迴圈就能把免費層打光。
+- **學習資料仍然只存在瀏覽器裡。** 手機和電腦的紀錄不會合併，連續天數也是各算各的。
 
 ---
-
-## 在 WSL 上開發
-
-建議把專案放在 **WSL 自己的檔案系統**（例如 `~/english_speaking`），
-不要放在 `/mnt/c/...` —— `node_modules` 在 Windows 掛載點上讀寫會慢很多。
-
-WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏覽器開
-`http://localhost:3000`，瀏覽器會認定這是 localhost，secure context 成立、麥克風可以用。
-這點對這個專案很關鍵，因為改用區網 IP 開就會被瀏覽器擋掉麥克風。
 
 ## 測試
 
-### 單元測試（不需網路與金鑰）
+### CI
+
+`.github/workflows/ci.yml` 在每次 push 與 PR 上跑 `npm test`（Node 20 與 22）
+以及 `npm run test:ui`（起伺服器 + Playwright）。**兩者都不需要金鑰。**
+
+`test/e2e.mjs` 不掛進 CI —— 它有一部分要金鑰、會吃配額，掛上去等於每次 push
+都在燒配額，額度用完那天 CI 會紅得莫名其妙。
+
+### 單元測試（125 項，不需要網路與金鑰）
 
 ```bash
 npm test
 ```
 
-`test/audio.test.js` 驗的是無人聲偵測的門檻。它同時測兩個方向：
-**該擋的要擋**（靜音、極低噪音、平穩嗡嗡聲），以及**真實語音在各種音量下都不可以被擋**
-（門檻調太嚴造成誤擋，比原本的 bug 更糟）。
+| 檔案 | 驗什麼 |
+|---|---|
+| `audio.test.js` | 無人聲門檻。**兩個方向**：該擋的要擋（靜音、極低噪音、平穩嗡嗡聲），以及**真實語音在各種音量下都不可以被擋**（誤擋比原本的 bug 更糟）。正向樣本用真實語音而不是合成訊號 —— 合成訊號的能量分布跟真人差太多，測不出誤擋 |
+| `practice.test.js` | 間隔重複、弱點音加權、連續天數、一組總結。跑 3,000 次抽樣驗機率分布，**一律注入 `now`** —— 這些函式全部跟時間有關，用真實時鐘的話測試會在半夜跑的時候紅一次、隔天自己又好了 |
+| `azure-issues.test.js` | Azure 音素 → 弱點音分類。其中一條釘住「每個對應出來的代碼都在 `ISSUE_CODES` 裡」—— 代碼會被拿去查中文標籤，漏一個就會讓代碼原文出現在畫面上 |
+| `text-diff.test.js` | 目標句與聽到的內容逐字比對。特別測「漏唸中間一個字時只有那個字被標紅」（逐字對位的寫法會讓後面全部偏移、整句標紅） |
+| `phonetics.test.js` | 自動標音。特別測「只有 w 沒有 v 的句子不可以標成 `v_w`」，因為那正是人工標的時候犯過的錯 |
+| `gemini.test.js` | Gemini 回應的整理與防禦。structured output 有 schema，但 schema 是「請模型照這個格式」，不是「保證一定是這個格式」 |
+| `sentences.test.js` | `content/sentences.json` 這份資料，以及匯入時的配額。擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的、簡繁轉換踩到一對多陷阱、每個情境的句數跑出 200～300 之外、重跑匯入把句庫疊成兩倍 |
 
-正向樣本用的是真實語音而不是合成訊號 —— 合成訊號的能量分布跟真人說話差太多，測不出誤擋。
-
-`test/practice.test.js` 驗的是抽句加權，一樣是兩個方向：
-**分數低的要真的比較常被抽到**（跑 3000 次抽樣，用固定亂數序列所以不會偶爾紅一次），
-以及**練得好的句子不可以完全抽不到**。
-
-### 前端 UI 測試（需伺服器，不需金鑰）
-
-```bash
-npm start          # 另一個終端機（不用設 GEMINI_API_KEY 也能跑這支）
-npm run test:ui
-```
-
-`test/ui.mjs` 把假的練習紀錄直接塞進 `localStorage`，驗趨勢圖、「重練這句」、
-加權開關這些讀紀錄的畫面與互動。**不呼叫 Gemini，所以不吃配額、不需要金鑰。**
-
-為什麼要跟 `e2e.mjs` 分開：這些功能都要有一批紀錄才測得到，
-用真的錄音去生資料的話一次只生得出一筆，還要燒掉一次 API 呼叫。
-
-環境變數：`BASE`、`SHOTS`（同下），另外 `CHROMIUM` 可以指向機器上現成的
-Chromium 執行檔，省掉 `npx playwright install`。
-
-### 瀏覽器端對端測試（需伺服器與金鑰）
+### 前端 UI 測試（74 項，需要伺服器，不需要金鑰）
 
 ```bash
 npm start          # 另一個終端機
+npm run test:ui
+```
+
+把假的練習紀錄塞進 `localStorage`，驗六個模式都載入得起來、今天的進度與連續天數、
+練習紀錄與趨勢圖、重練這句、弱點音會回頭影響抽句、中文意思、加權不會餓死句子、
+Azure 與 Gemini 兩條講評路徑、一組總結、設定頁、清除紀錄。
+
+講評與總結那兩段直接在頁面裡 `import` 模組餵資料進去 ——
+走真實流程要金鑰也要錄音，而要驗的只是「拿到這樣的資料時畫成什麼」。
+
+環境變數：`BASE`、`SHOTS`（存截圖的目錄）、`CHROMIUM`（指向現成的 Chromium 執行檔）。
+
+### 瀏覽器端對端測試（需要伺服器；其中三段不需要金鑰）
+
+```bash
+npm start
 npm run test:e2e
 ```
 
-用 Playwright 開 headless Chromium 跑完整流程。關鍵是 Chromium 的
-`--use-file-for-fake-audio-capture` 可以把 WAV 檔當成麥克風輸入，
-所以 `getUserMedia` → `MediaRecorder` → 轉 WAV → 能量檢查 → 上傳 → Gemini →
-顯示講評 → 寫進 `localStorage` 這整條路徑都是真的在跑，沒有任何假資料。
+用 Chromium 的 `--use-file-for-fake-audio-capture` 把 WAV 檔當成麥克風輸入，
+所以 `getUserMedia` → `MediaRecorder` → 轉 16 kHz WAV → 能量檢查 → 上傳 →
+Azure／Gemini → 顯示講評 → 寫進 `localStorage` → 影響下一次抽句，整條路徑都是真的在跑。
 
-環境變數：`BASE`（預設 `http://localhost:3000`）、`MODEL`（預設 `gemini-3.1-flash-lite`，
-最省配額）、`SHOTS`（設成目錄路徑就會存下各步驟的截圖）。
+**【1】【2】【4】不需要任何金鑰**（無人聲把關在後端呼叫 API 之前就擋掉了），
+所以手上沒有金鑰也驗得到那幾段。【3】【5】沒金鑰時會自動跳過。
 
-**WSL 可以直接跑 headless，不需要 X server 或 WSLg。** 安裝：
+環境變數：`BASE`、`MODEL`（預設 `gemini-3.1-flash-lite`，最省配額）、`SHOTS`、`CHROMIUM`。
+
+### 內容驗證
 
 ```bash
-npm install
-npx playwright install chromium
+node --input-type=module -e "
+import fs from 'node:fs';
+const { TYPES } = await import('./scripts/generate-content.mjs');
+for (const [t, spec] of Object.entries(TYPES)) {
+  const items = JSON.parse(fs.readFileSync('content/' + spec.file, 'utf8'));
+  const bad = items.filter((x) => spec.validate(x));
+  console.log(t, items.length, bad.length ? '❌' + bad.length : '✅');
+}"
 ```
+
+> **解析不能只是把英文原句抄一遍加中文句號。** 這是這個專案裡反覆犯的錯，
+> 三個聽力批次分別被驗證擋下 12、0、5 筆，全是同一個問題。新增內容一定要跑過這套驗證。
+
+---
+
+## 已知限制
+
+- **直接 `npm start` 時必須用 `localhost` 開啟。** `getUserMedia` 需要 secure context；
+  區網 IP 會被瀏覽器擋掉麥克風。要在手機上用請走 Docker 那條路。
+- `speechSynthesis` 的語音品質取決於作業系統安裝的語音包，各平台聽起來不一樣。
+- 單次錄音上限 60 秒，上傳上限 8 MB。
+- **學習資料只存在這台瀏覽器**（單字 SRS、練習紀錄、設定）。換瀏覽器或清掉網站資料就沒了。
+- **無人聲偵測擋得掉「沒有聲音」，擋不掉「有聲音但不是在唸這句話」。**
+  播音樂、講中文都會通過門檻 —— 此時 Azure 會回 `NoMatch` 或很低的完整度，
+  Gemini 則會誠實回報不符並給低分（實測在**有實際語音**的情況下判斷是準的）。
+- **Azure 的實際呼叫在開發容器裡從來沒成功跑過** —— egress policy 擋掉
+  `*.stt.speech.microsoft.com` 與 `*.api.cognitive.microsoft.com`（CONNECT 回 403），
+  連認證失敗的路徑都測不到。已驗證的是 SDK 參數形狀（對照型別定義）、
+  結果解析（用真實 Azure JSON 的 `NBest[0]` 結構）、以及前端渲染（mock 回應）。
+  **使用者說在他本機測過可以動，但這裡沒有證據，不要假設它一定沒問題。**
+- Prosody（語調）評估目前只支援 `en-US`。
+
+## 在 WSL 上開發
+
+建議把專案放在 **WSL 自己的檔案系統**（例如 `~/english_speaking`），不要放在 `/mnt/c/...` ——
+`node_modules` 在 Windows 掛載點上讀寫會慢很多。
+
+WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏覽器開
+`http://localhost:3000`，secure context 成立、麥克風可以用。
+
+> `pkill -f "node server/index.js"` 會連自己的 shell 一起殺掉（exit 144），
+> 改用 `ps` 找 PID 再 kill。
+
+---
 
 ## 接下來
 
-階段 1～6 都完成了。還可以做的：
+**一、拿真金鑰把 Azure 那條路跑完。** 這是目前唯一沒被實際驗證的一段，
+而它現在是發音評分的主要路徑。`npm run test:e2e` 的【3】【5】就是為它寫的。
 
-- 用 `thinking_level` 換取速度（見上方「為什麼要等這麼久」）。
-  改的是 `server/gemini.js` 的一行，但**要先跑品質對照才算數** ——
-  上次測到一半就把免費層打到 429 了，所以這件事卡在配額，不是卡在程式。
-- 練習紀錄只存在單一瀏覽器裡。要跨裝置就得有後端儲存與帳號，面積比看起來大很多。
-- 趨勢圖目前是「每一次練習」的時序，可以再加上「每一句的進步幅度」
-  （`practice.js` 的 `sentenceStats()` 已經有 count / average / last，資料是夠的）。
-- 支援其他 AI 供應商（會需要第二組金鑰與另一套錯誤分類，錯誤處理的面積會變兩倍）。
+**二、手機版。** Docker + HTTPS 那條路已經能在手機瀏覽器上用了，
+但介面還沒為觸控調整（觸控目標放大、單字卡適合單手操作、錄音按鈕移到拇指區）。
+再往下有 PWA（加 manifest + service worker）與 Capacitor（可上架、麥克風是原生權限）
+兩條路 —— 兩條都要先面對「介面在手機上順不順」，所以先做 PWA 比較划算。
+
+**三、跨裝置的學習資料。** 手機和電腦各自存在自己的瀏覽器裡，分數不會合併、
+連續天數也是各算各的。要解就得有後端儲存與帳號，面積比看起來大很多。
+
+**四、幾個沒做完的小功能。** 情境對話的進度沒有存進 `localStorage`（重新整理就重來）；
+單字卡的複習紀錄有寫入但沒有檢視畫面。
+
+**五、公開部署要先補存取控制與 rate limit。** 後端拿著兩組金鑰，
+公開網址等於任何人都能一直送錄音上來燒配額。
+
+**六、`focus` 標籤與內容清洗都是啟發式的。** 擋得掉「不完整」與「不像對話」，
+擋不掉「文法正確但沒人會這樣講」。要再往上就得有人看過，
+或用 AI 做一次離線的品質評分（那是一次性成本，不是執行期的）。

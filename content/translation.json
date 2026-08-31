@@ -1,0 +1,4403 @@
+[
+  {
+    "id": 1,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "開會前我們去買杯咖啡吧。",
+    "sentence": "Let's ___ a coffee before the meeting.",
+    "answer": "grab",
+    "accept": [
+      "grab",
+      "get"
+    ],
+    "hint_zh": "口語常用，「順手拿／買」的意思",
+    "explain_zh": "grab a coffee 是很道地的說法，比 buy a coffee 自然。get 也可以。"
+  },
+  {
+    "id": 2,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "抱歉，我會晚一點到。",
+    "sentence": "Sorry, I'm ___ a bit late.",
+    "answer": "running",
+    "accept": [
+      "running"
+    ],
+    "hint_zh": "跟「跑」同一個字，但這裡是「進度落後」",
+    "explain_zh": "run late 是固定用法，比 I will be late 更自然口語。"
+  },
+  {
+    "id": 3,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "請確認收到這封郵件。",
+    "sentence": "Please ___ receipt of this email.",
+    "answer": "acknowledge",
+    "accept": [
+      "acknowledge",
+      "confirm"
+    ],
+    "hint_zh": "a 開頭，商務郵件常見",
+    "explain_zh": "acknowledge receipt 是商務書信的固定搭配。confirm 也通。"
+  },
+  {
+    "id": 4,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我們得把穩定性放在新功能之前。",
+    "sentence": "We need to ___ reliability over new features.",
+    "answer": "prioritize",
+    "accept": [
+      "prioritize",
+      "prioritise"
+    ],
+    "hint_zh": "跟 priority（優先）同字根",
+    "explain_zh": "prioritize A over B 是「把 A 看得比 B 重要」。英式拼 prioritise。"
+  },
+  {
+    "id": 5,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我有一筆訂位，姓陳。",
+    "sentence": "I have a ___ under Chen.",
+    "answer": "reservation",
+    "accept": [
+      "reservation",
+      "booking"
+    ],
+    "hint_zh": "訂位、訂房都用這個字",
+    "explain_zh": "under + 姓氏 表示「掛在誰名下」。英式常說 booking。"
+  },
+  {
+    "id": 6,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我比較想要走道的位子。",
+    "sentence": "I'd prefer an ___ seat.",
+    "answer": "aisle",
+    "accept": [
+      "aisle"
+    ],
+    "hint_zh": "s 不發音，唸起來像 I'll",
+    "explain_zh": "aisle /aɪl/ 走道；相對的是 window seat 靠窗。"
+  },
+  {
+    "id": 7,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我準備好承擔更多責任。",
+    "sentence": "I'm ready to ___ on more responsibility.",
+    "answer": "take",
+    "accept": [
+      "take"
+    ],
+    "hint_zh": "跟 on 搭配的動詞",
+    "explain_zh": "take on 是「承接、承擔」，面試很常用。"
+  },
+  {
+    "id": 8,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "那跟我的長期目標很一致。",
+    "sentence": "That ___ well with my long-term goals.",
+    "answer": "aligns",
+    "accept": [
+      "aligns",
+      "align"
+    ],
+    "hint_zh": "g 不發音，「對齊、一致」",
+    "explain_zh": "align with 是「與…一致」。主詞 That 是第三人稱單數，要加 s。"
+  },
+  {
+    "id": 9,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我完全忘記了。",
+    "sentence": "It completely ___ my mind.",
+    "answer": "slipped",
+    "accept": [
+      "slipped"
+    ],
+    "hint_zh": "「滑掉」的過去式",
+    "explain_zh": "slip one's mind 比 I forgot 委婉，聽起來不是故意的。"
+  },
+  {
+    "id": 10,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "那個時程真的可行嗎？",
+    "sentence": "Is that timeline actually ___?",
+    "answer": "feasible",
+    "accept": [
+      "feasible",
+      "doable",
+      "realistic"
+    ],
+    "hint_zh": "f 開頭，「可行的」",
+    "explain_zh": "feasible 比 possible 更強調「實務上做得到」。doable 較口語。"
+  },
+  {
+    "id": 11,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "你週末過得如何？",
+    "answer": "How was your weekend?",
+    "accept": [
+      "How was your weekend?",
+      "How was your weekend"
+    ],
+    "keywords": [
+      "how",
+      "was",
+      "your",
+      "weekend"
+    ],
+    "explain_zh": "問過去的事用 was。也可以說 How did your weekend go?"
+  },
+  {
+    "id": 12,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "抱歉，我沒聽清楚。可以再說一次嗎？",
+    "answer": "Sorry, I didn't catch that. Could you say it again?",
+    "accept": [
+      "Sorry, I didn't catch that. Could you say it again?",
+      "Sorry, I didn't catch that. Could you repeat that?"
+    ],
+    "keywords": [
+      "sorry",
+      "catch",
+      "again"
+    ],
+    "explain_zh": "catch 在這裡是「聽清楚」。didn't catch that 是最自然的說法。"
+  },
+  {
+    "id": 13,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "請問最近的地鐵站在哪裡？",
+    "answer": "Could you tell me where the nearest subway station is?",
+    "accept": [
+      "Could you tell me where the nearest subway station is?",
+      "Where is the nearest subway station?"
+    ],
+    "keywords": [
+      "where",
+      "nearest",
+      "subway",
+      "station"
+    ],
+    "explain_zh": "間接問句的語序是 where the station is，不是 where is the station。"
+  },
+  {
+    "id": 14,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "你們有素食的選擇嗎？",
+    "answer": "Do you have a vegetarian option?",
+    "accept": [
+      "Do you have a vegetarian option?",
+      "Do you have any vegetarian options?"
+    ],
+    "keywords": [
+      "do",
+      "have",
+      "vegetarian",
+      "option"
+    ],
+    "explain_zh": "option 指「可選的品項」，比 food 精確。"
+  },
+  {
+    "id": 15,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我們下週找時間聊聊吧。",
+    "answer": "Let's catch up sometime next week.",
+    "accept": [
+      "Let's catch up sometime next week.",
+      "Let's catch up next week."
+    ],
+    "keywords": [
+      "let's",
+      "catch up",
+      "next week"
+    ],
+    "explain_zh": "catch up 是「敘舊／同步近況」，比 talk 自然。"
+  },
+  {
+    "id": 16,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我徹底審閱了需求之後才安排會議。",
+    "answer": "I thoroughly reviewed the requirements before I scheduled the meeting.",
+    "accept": [
+      "I thoroughly reviewed the requirements before I scheduled the meeting.",
+      "I thoroughly reviewed the requirements before scheduling the meeting."
+    ],
+    "keywords": [
+      "thoroughly",
+      "reviewed",
+      "requirements",
+      "before",
+      "scheduled"
+    ],
+    "explain_zh": "before 之後可以接完整子句，也可以接 V-ing。"
+  },
+  {
+    "id": 17,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我最大的優點是在事情變動很快的時候還能保持冷靜。",
+    "answer": "My greatest strength is staying calm when priorities shift quickly.",
+    "accept": [
+      "My greatest strength is staying calm when priorities shift quickly.",
+      "My greatest strength is staying calm when things change quickly."
+    ],
+    "keywords": [
+      "strength",
+      "staying calm",
+      "quickly"
+    ],
+    "explain_zh": "be 動詞後面接動名詞 staying，不要用 stay。"
+  },
+  {
+    "id": 18,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "可以說明一下這裡典型的一週是什麼樣子嗎？",
+    "answer": "Could you walk me through what a typical week looks like here?",
+    "accept": [
+      "Could you walk me through what a typical week looks like here?",
+      "Could you describe what a typical week looks like here?"
+    ],
+    "keywords": [
+      "walk me through",
+      "typical week",
+      "looks like"
+    ],
+    "explain_zh": "walk someone through 是「帶著某人逐步了解」，面試反問很好用。"
+  },
+  {
+    "id": 19,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "那家餐廳的食物那麼好，價格卻意外地實惠。",
+    "answer": "That restaurant was surprisingly affordable for such good food.",
+    "accept": [
+      "That restaurant was surprisingly affordable for such good food.",
+      "The restaurant was surprisingly affordable for such good food."
+    ],
+    "keywords": [
+      "surprisingly",
+      "affordable",
+      "such good food"
+    ],
+    "explain_zh": "for 在這裡表示「以…而言」。such + 形容詞 + 名詞 表示程度。"
+  },
+  {
+    "id": 20,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "如果可以把期限往後延一週，我對品質會比較有信心。",
+    "answer": "If we can push the deadline back by one week, I'd feel much better about the quality.",
+    "accept": [
+      "If we can push the deadline back by one week, I'd feel much better about the quality.",
+      "If we could push the deadline back a week, I'd feel better about the quality."
+    ],
+    "keywords": [
+      "push",
+      "deadline",
+      "back",
+      "week",
+      "quality"
+    ],
+    "explain_zh": "push back 是延後；by + 時間長度 表示延後的幅度。"
+  },
+  {
+    "id": 21,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我通常七點左右起床。",
+    "sentence": "I usually ___ up around seven.",
+    "answer": "get",
+    "accept": [
+      "get",
+      "wake"
+    ],
+    "hint_zh": "跟 up 搭配的動詞",
+    "explain_zh": "get up 是起床離開床鋪；wake up 是醒來，兩者略有不同。"
+  },
+  {
+    "id": 22,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "外面下大雨，記得帶傘。",
+    "sentence": "It's ___ heavily outside, remember to take an umbrella.",
+    "answer": "raining",
+    "accept": [
+      "raining",
+      "pouring"
+    ],
+    "hint_zh": "進行式",
+    "explain_zh": "rain heavily 或 pour 都指大雨，pour 語氣更強。"
+  },
+  {
+    "id": 23,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "這附近有藥局嗎？",
+    "sentence": "Is there a ___ around here?",
+    "answer": "pharmacy",
+    "accept": [
+      "pharmacy",
+      "drugstore",
+      "chemist"
+    ],
+    "hint_zh": "美式與英式說法不同",
+    "explain_zh": "美式 pharmacy/drugstore，英式 chemist。"
+  },
+  {
+    "id": 24,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我對花生過敏。",
+    "sentence": "I'm ___ to peanuts.",
+    "answer": "allergic",
+    "accept": [
+      "allergic"
+    ],
+    "hint_zh": "名詞是 allergy",
+    "explain_zh": "be allergic to + 過敏原。點餐時很重要的一句。"
+  },
+  {
+    "id": 25,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我昨天感冒了，今天好多了。",
+    "sentence": "I ___ a cold yesterday, but I feel much better today.",
+    "answer": "caught",
+    "accept": [
+      "caught",
+      "got"
+    ],
+    "hint_zh": "catch 的過去式",
+    "explain_zh": "catch a cold 是固定用法，比 get a cold 更道地。"
+  },
+  {
+    "id": 26,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這件事我再考慮一下。",
+    "sentence": "Let me ___ it over.",
+    "answer": "think",
+    "accept": [
+      "think"
+    ],
+    "hint_zh": "跟 over 搭配",
+    "explain_zh": "think it over 是「仔細考慮」，比 think about it 更有「需要時間」的意味。"
+  },
+  {
+    "id": 27,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我跟他不太熟。",
+    "sentence": "I don't know him very ___.",
+    "answer": "well",
+    "accept": [
+      "well"
+    ],
+    "hint_zh": "副詞",
+    "explain_zh": "know someone well 是「跟某人熟」。不能用 good。"
+  },
+  {
+    "id": 28,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我不是故意的。",
+    "sentence": "I didn't do it on ___.",
+    "answer": "purpose",
+    "accept": [
+      "purpose"
+    ],
+    "hint_zh": "p 開頭，「目的」",
+    "explain_zh": "on purpose 是故意；反義是 by accident 或 accidentally。"
+  },
+  {
+    "id": 29,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "別放在心上，他只是在開玩笑。",
+    "sentence": "Don't ___ it personally, he was just joking.",
+    "answer": "take",
+    "accept": [
+      "take"
+    ],
+    "hint_zh": "跟 personally 搭配",
+    "explain_zh": "take something personally 是「把話往心裡去」。"
+  },
+  {
+    "id": 30,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我們該出發了，不然會遲到。",
+    "sentence": "We should get ___, or we'll be late.",
+    "answer": "going",
+    "accept": [
+      "going",
+      "moving"
+    ],
+    "hint_zh": "go 的 -ing",
+    "explain_zh": "get going 是「動身出發」，比 leave 口語。"
+  },
+  {
+    "id": 31,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我等一下把檔案寄給你。",
+    "sentence": "I'll ___ you the file later.",
+    "answer": "send",
+    "accept": [
+      "send",
+      "email"
+    ],
+    "hint_zh": "最基本的動詞",
+    "explain_zh": "send someone something 是雙賓語結構。email 也可以直接當動詞用。"
+  },
+  {
+    "id": 32,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "這個會議大概要開一小時。",
+    "sentence": "The meeting should ___ about an hour.",
+    "answer": "last",
+    "accept": [
+      "last",
+      "take"
+    ],
+    "hint_zh": "「持續」的意思",
+    "explain_zh": "last 指持續多久；take 指花費多少時間，這裡兩者都通。"
+  },
+  {
+    "id": 33,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我需要更多時間來完成這份報告。",
+    "sentence": "I need more time to ___ the report.",
+    "answer": "finish",
+    "accept": [
+      "finish",
+      "complete"
+    ],
+    "hint_zh": "完成",
+    "explain_zh": "complete 比 finish 正式，書面報告兩者都常用。"
+  },
+  {
+    "id": 34,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我先跟團隊確認一下再回覆你。",
+    "sentence": "Let me ___ with the team and get back to you.",
+    "answer": "check",
+    "accept": [
+      "check",
+      "confirm"
+    ],
+    "hint_zh": "跟 with 搭配",
+    "explain_zh": "check with someone 是「跟某人確認」；get back to you 是「稍後回覆你」。"
+  },
+  {
+    "id": 35,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這不在我的職責範圍內。",
+    "sentence": "That's outside my ___ of responsibility.",
+    "answer": "scope",
+    "accept": [
+      "scope",
+      "area"
+    ],
+    "hint_zh": "範圍",
+    "explain_zh": "scope of responsibility 是職責範圍，會議中劃清界線時常用。"
+  },
+  {
+    "id": 36,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我們得先釐清需求再動工。",
+    "sentence": "We need to ___ the requirements before we start.",
+    "answer": "clarify",
+    "accept": [
+      "clarify",
+      "nail down"
+    ],
+    "hint_zh": "clear 的動詞形",
+    "explain_zh": "clarify 是釐清；口語也可說 nail down（敲定）。"
+  },
+  {
+    "id": 37,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這個決定要往上呈報。",
+    "sentence": "This decision needs to be ___ to management.",
+    "answer": "escalated",
+    "accept": [
+      "escalated"
+    ],
+    "hint_zh": "e 開頭，「升級、上呈」",
+    "explain_zh": "escalate 在職場指把問題往上層呈報，不是「惡化」。"
+  },
+  {
+    "id": 38,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我們把這件事排進下一個階段。",
+    "sentence": "Let's ___ this for the next phase.",
+    "answer": "defer",
+    "accept": [
+      "defer",
+      "postpone"
+    ],
+    "hint_zh": "d 開頭，「延後」",
+    "explain_zh": "defer 比 postpone 正式，常用於專案規劃。"
+  },
+  {
+    "id": 39,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "這班車幾點開？",
+    "sentence": "What time does this train ___?",
+    "answer": "leave",
+    "accept": [
+      "leave",
+      "depart"
+    ],
+    "hint_zh": "離開",
+    "explain_zh": "depart 較正式，車站廣播常用；日常說 leave。"
+  },
+  {
+    "id": 40,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我可以看一下菜單嗎？",
+    "sentence": "Could I ___ the menu, please?",
+    "answer": "see",
+    "accept": [
+      "see",
+      "have"
+    ],
+    "hint_zh": "最簡單的動詞",
+    "explain_zh": "Could I see/have the menu 都自然，比 Give me the menu 禮貌得多。"
+  },
+  {
+    "id": 41,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我的行李還沒出來。",
+    "sentence": "My luggage hasn't ___ up yet.",
+    "answer": "shown",
+    "accept": [
+      "shown",
+      "turned"
+    ],
+    "hint_zh": "show 的過去分詞",
+    "explain_zh": "show up 是「出現」；turn up 同義，英式較常用。"
+  },
+  {
+    "id": 42,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "請問這個位子有人坐嗎？",
+    "sentence": "Excuse me, is this seat ___?",
+    "answer": "taken",
+    "accept": [
+      "taken",
+      "occupied"
+    ],
+    "hint_zh": "take 的過去分詞",
+    "explain_zh": "Is this seat taken? 是最標準的問法。"
+  },
+  {
+    "id": 43,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我想確認一下我的回程班機。",
+    "sentence": "I'd like to ___ my return flight.",
+    "answer": "confirm",
+    "accept": [
+      "confirm",
+      "reconfirm"
+    ],
+    "hint_zh": "c 開頭，「確認」",
+    "explain_zh": "confirm a flight 是確認訂位仍有效。"
+  },
+  {
+    "id": 44,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "這個價格含稅嗎？",
+    "sentence": "Does this price ___ tax?",
+    "answer": "include",
+    "accept": [
+      "include"
+    ],
+    "hint_zh": "包含",
+    "explain_zh": "include tax 含稅；不含稅說 plus tax 或 excluding tax。"
+  },
+  {
+    "id": 45,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "easy",
+    "zh": "謝謝你今天抽空見我。",
+    "sentence": "Thank you for ___ the time to meet me today.",
+    "answer": "taking",
+    "accept": [
+      "taking"
+    ],
+    "hint_zh": "take 的 -ing",
+    "explain_zh": "take the time to 是「特地撥時間」，面試開場的客套話。"
+  },
+  {
+    "id": 46,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我想更了解這個團隊的運作方式。",
+    "sentence": "I'd like to learn more about how the team ___.",
+    "answer": "operates",
+    "accept": [
+      "operates",
+      "works"
+    ],
+    "hint_zh": "運作",
+    "explain_zh": "how the team operates/works 都可以，operates 略正式。"
+  },
+  {
+    "id": 47,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我在壓力下也能保持專注。",
+    "sentence": "I can stay ___ under pressure.",
+    "answer": "focused",
+    "accept": [
+      "focused",
+      "calm"
+    ],
+    "hint_zh": "focus 的形容詞形",
+    "explain_zh": "stay focused 保持專注；under pressure 在壓力下。"
+  },
+  {
+    "id": 48,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我想找一個能持續成長的環境。",
+    "sentence": "I'm looking for an environment where I can ___ growing.",
+    "answer": "keep",
+    "accept": [
+      "keep",
+      "continue"
+    ],
+    "hint_zh": "跟 -ing 搭配",
+    "explain_zh": "keep growing 持續成長。keep + V-ing 表示持續。"
+  },
+  {
+    "id": 49,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我從那次失敗學到很多。",
+    "sentence": "I learned a lot ___ that failure.",
+    "answer": "from",
+    "accept": [
+      "from"
+    ],
+    "hint_zh": "介系詞",
+    "explain_zh": "learn from + 來源。面試談挫折時的標準句型。"
+  },
+  {
+    "id": 50,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我希望能在三個月內上手。",
+    "sentence": "I hope to get up to ___ within three months.",
+    "answer": "speed",
+    "accept": [
+      "speed"
+    ],
+    "hint_zh": "跟 up to 搭配",
+    "explain_zh": "get up to speed 是「進入狀況、上手」，職場高頻片語。"
+  },
+  {
+    "id": 51,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "你今天過得怎麼樣？",
+    "answer": "How was your day?",
+    "accept": [
+      "How was your day?",
+      "How did your day go?"
+    ],
+    "keywords": [
+      "how",
+      "your day"
+    ],
+    "explain_zh": "問「今天過得如何」用過去式 was，因為在問已經過去的時間。"
+  },
+  {
+    "id": 52,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我等一下再打給你。",
+    "answer": "I'll call you back later.",
+    "accept": [
+      "I'll call you back later.",
+      "I'll give you a call later."
+    ],
+    "keywords": [
+      "call",
+      "later"
+    ],
+    "explain_zh": "call someone back 是回撥；give someone a call 是打給某人。"
+  },
+  {
+    "id": 53,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "不好意思，我可以借過一下嗎？",
+    "answer": "Excuse me, could I get past?",
+    "accept": [
+      "Excuse me, could I get past?",
+      "Excuse me, may I get through?"
+    ],
+    "keywords": [
+      "excuse me",
+      "get past"
+    ],
+    "explain_zh": "get past 是從別人旁邊擠過去，比 pass 更精確。"
+  },
+  {
+    "id": 54,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我最近工作很忙，都沒時間運動。",
+    "answer": "I've been really busy with work and haven't had time to exercise.",
+    "accept": [
+      "I've been really busy with work and haven't had time to exercise.",
+      "I've been so busy with work that I haven't had time to work out."
+    ],
+    "keywords": [
+      "busy",
+      "work",
+      "time"
+    ],
+    "explain_zh": "現在完成進行式 I've been busy 表示從過去持續到現在的狀態。"
+  },
+  {
+    "id": 55,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這家店的東西真的很好吃，你一定要試試。",
+    "answer": "The food here is really good, you should definitely try it.",
+    "accept": [
+      "The food here is really good, you should definitely try it.",
+      "The food at this place is amazing, you have to try it."
+    ],
+    "keywords": [
+      "food",
+      "really good",
+      "try"
+    ],
+    "explain_zh": "推薦用 you should 或 you have to，後者語氣更強。"
+  },
+  {
+    "id": 56,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我搞不清楚該搭哪一班車。",
+    "answer": "I'm not sure which train I should take.",
+    "accept": [
+      "I'm not sure which train I should take.",
+      "I can't figure out which train to take."
+    ],
+    "keywords": [
+      "not sure",
+      "which train"
+    ],
+    "explain_zh": "間接問句語序是 which train I should take，助動詞不倒裝。"
+  },
+  {
+    "id": 57,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "抱歉讓你久等了。",
+    "answer": "Sorry to keep you waiting.",
+    "accept": [
+      "Sorry to keep you waiting.",
+      "Sorry for the wait."
+    ],
+    "keywords": [
+      "sorry",
+      "waiting"
+    ],
+    "explain_zh": "keep someone waiting 是讓某人等候，比 make you wait 自然。"
+  },
+  {
+    "id": 58,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我原本想去，但臨時有事走不開。",
+    "answer": "I was going to go, but something came up at the last minute.",
+    "accept": [
+      "I was going to go, but something came up at the last minute.",
+      "I planned to go, but something came up last minute."
+    ],
+    "keywords": [
+      "going to",
+      "came up"
+    ],
+    "explain_zh": "something came up 是「臨時有事」的固定說法；was going to 表示原本的打算沒實現。"
+  },
+  {
+    "id": 59,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "與其在這裡等，不如我們先走。",
+    "answer": "Rather than waiting here, we might as well get going.",
+    "accept": [
+      "Rather than waiting here, we might as well get going.",
+      "Instead of waiting here, we should just leave."
+    ],
+    "keywords": [
+      "rather than",
+      "waiting"
+    ],
+    "explain_zh": "rather than + V-ing 是「與其…」；might as well 是「不如就…」。"
+  },
+  {
+    "id": 60,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我不太確定，但我猜大概三十分鐘。",
+    "answer": "I'm not entirely sure, but I'd guess about thirty minutes.",
+    "accept": [
+      "I'm not entirely sure, but I'd guess about thirty minutes.",
+      "I'm not totally sure, but my guess is around thirty minutes."
+    ],
+    "keywords": [
+      "not",
+      "sure",
+      "guess"
+    ],
+    "explain_zh": "I'd guess 是 I would guess 的縮寫，表示不確定的推測。"
+  },
+  {
+    "id": 61,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我這邊沒問題。",
+    "answer": "That works for me.",
+    "accept": [
+      "That works for me.",
+      "That's fine with me."
+    ],
+    "keywords": [
+      "works",
+      "me"
+    ],
+    "explain_zh": "That works for me 是同意安排的常用回應，比 No problem 更精確。"
+  },
+  {
+    "id": 62,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我明天早上會把資料準備好。",
+    "answer": "I'll have the materials ready by tomorrow morning.",
+    "accept": [
+      "I'll have the materials ready by tomorrow morning.",
+      "I'll get the materials ready by tomorrow morning."
+    ],
+    "keywords": [
+      "ready",
+      "tomorrow morning"
+    ],
+    "explain_zh": "have something ready 是「把某物準備好」；by + 時間表示期限。"
+  },
+  {
+    "id": 63,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我想確認一下我理解得對不對。",
+    "answer": "I'd like to make sure I understand correctly.",
+    "accept": [
+      "I'd like to make sure I understand correctly.",
+      "Let me make sure I've got this right."
+    ],
+    "keywords": [
+      "make sure",
+      "understand"
+    ],
+    "explain_zh": "開會時確認理解的標準句型，比直接說 I don't understand 得體。"
+  },
+  {
+    "id": 64,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這件事可能要花比預期更久的時間。",
+    "answer": "This might take longer than expected.",
+    "accept": [
+      "This might take longer than expected.",
+      "This could take longer than we expected."
+    ],
+    "keywords": [
+      "take longer",
+      "expected"
+    ],
+    "explain_zh": "longer than expected 是「比預期久」，回報延遲時的委婉說法。"
+  },
+  {
+    "id": 65,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "可以請你再說明一次嗎？我沒有完全跟上。",
+    "answer": "Could you explain that again? I didn't quite follow.",
+    "accept": [
+      "Could you explain that again? I didn't quite follow.",
+      "Could you go over that again? I didn't quite catch it."
+    ],
+    "keywords": [
+      "explain",
+      "again",
+      "follow"
+    ],
+    "explain_zh": "didn't quite follow 是「沒完全跟上」，比 I don't understand 委婉。"
+  },
+  {
+    "id": 66,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "如果需求一直變，時程就很難抓。",
+    "answer": "If the requirements keep changing, it's hard to commit to a timeline.",
+    "accept": [
+      "If the requirements keep changing, it's hard to commit to a timeline.",
+      "If requirements keep shifting, it's difficult to estimate a timeline."
+    ],
+    "keywords": [
+      "requirements",
+      "changing",
+      "timeline"
+    ],
+    "explain_zh": "commit to a timeline 是「承諾一個時程」，keep + V-ing 表示反覆發生。"
+  },
+  {
+    "id": 67,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我想先了解一下這個決定背後的考量。",
+    "answer": "I'd like to understand the reasoning behind this decision.",
+    "accept": [
+      "I'd like to understand the reasoning behind this decision.",
+      "I'd like to know what's behind this decision."
+    ],
+    "keywords": [
+      "reasoning",
+      "behind",
+      "decision"
+    ],
+    "explain_zh": "the reasoning behind 是「背後的考量」，比 why 更專業也更不像質疑。"
+  },
+  {
+    "id": 68,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我把這件事接下來，但需要一點支援。",
+    "answer": "I can take this on, but I'll need some support.",
+    "accept": [
+      "I can take this on, but I'll need some support.",
+      "I'm happy to take this on, but I'd need some help."
+    ],
+    "keywords": [
+      "take this on",
+      "support"
+    ],
+    "explain_zh": "take on 是承接任務；先答應再提條件，比直接拒絕好談。"
+  },
+  {
+    "id": 69,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "請問洗手間在哪裡？",
+    "answer": "Excuse me, where is the restroom?",
+    "accept": [
+      "Excuse me, where is the restroom?",
+      "Excuse me, where's the bathroom?"
+    ],
+    "keywords": [
+      "where",
+      "restroom"
+    ],
+    "explain_zh": "美式 restroom/bathroom，英式 toilet。公共場合說 restroom 最保險。"
+  },
+  {
+    "id": 70,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我要一張到台北的來回票。",
+    "answer": "I'd like a round-trip ticket to Taipei.",
+    "accept": [
+      "I'd like a round-trip ticket to Taipei.",
+      "Could I get a return ticket to Taipei?"
+    ],
+    "keywords": [
+      "round-trip",
+      "ticket"
+    ],
+    "explain_zh": "美式 round-trip，英式 return。單程是 one-way 或 single。"
+  },
+  {
+    "id": 71,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我們可以坐靠窗的位子嗎？",
+    "answer": "Could we have a table by the window?",
+    "accept": [
+      "Could we have a table by the window?",
+      "Could we sit by the window?"
+    ],
+    "keywords": [
+      "table",
+      "window"
+    ],
+    "explain_zh": "餐廳說 a table by the window；飛機上說 a window seat。"
+  },
+  {
+    "id": 72,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "這附近有推薦的餐廳嗎？",
+    "answer": "Is there a restaurant you'd recommend around here?",
+    "accept": [
+      "Is there a restaurant you'd recommend around here?",
+      "Could you recommend a good restaurant nearby?"
+    ],
+    "keywords": [
+      "recommend",
+      "restaurant"
+    ],
+    "explain_zh": "you'd recommend 是 you would recommend，用假設語氣比較客氣。"
+  },
+  {
+    "id": 73,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我的班機取消了，可以幫我改到明天嗎？",
+    "answer": "My flight was cancelled. Could you rebook me for tomorrow?",
+    "accept": [
+      "My flight was cancelled. Could you rebook me for tomorrow?",
+      "My flight got cancelled. Can you put me on tomorrow's flight?"
+    ],
+    "keywords": [
+      "cancelled",
+      "tomorrow"
+    ],
+    "explain_zh": "rebook 是改訂；口語也可說 put me on + 班次。"
+  },
+  {
+    "id": 74,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "easy",
+    "zh": "我對這個職位很有興趣。",
+    "answer": "I'm very interested in this position.",
+    "accept": [
+      "I'm very interested in this position.",
+      "I'm really interested in this role."
+    ],
+    "keywords": [
+      "interested",
+      "position"
+    ],
+    "explain_zh": "position 與 role 都可指職位，role 更強調角色與職責。"
+  },
+  {
+    "id": 75,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我最近在學後端開發，希望能實際應用。",
+    "answer": "I've been learning backend development and I'd like to apply it in practice.",
+    "accept": [
+      "I've been learning backend development and I'd like to apply it in practice.",
+      "I've been studying backend development and want to put it into practice."
+    ],
+    "keywords": [
+      "learning",
+      "backend",
+      "apply"
+    ],
+    "explain_zh": "put something into practice 是「付諸實行」，比 use 更有主動學習的意味。"
+  },
+  {
+    "id": 76,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我離開上一份工作是想尋求新的挑戰。",
+    "answer": "I left my last job to look for new challenges.",
+    "accept": [
+      "I left my last job to look for new challenges.",
+      "I left my previous role to take on new challenges."
+    ],
+    "keywords": [
+      "left",
+      "new challenges"
+    ],
+    "explain_zh": "談離職原因要正向。避免批評前公司，focus 在自己想要什麼。"
+  },
+  {
+    "id": 77,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我認為我的經驗跟這個職位的需求很吻合。",
+    "answer": "I believe my experience aligns well with what this role requires.",
+    "accept": [
+      "I believe my experience aligns well with what this role requires.",
+      "I think my background is a good fit for this position."
+    ],
+    "keywords": [
+      "experience",
+      "aligns",
+      "role"
+    ],
+    "explain_zh": "align with 是「與…吻合」；a good fit for 是「適合」，兩者都是面試高頻用法。"
+  },
+  {
+    "id": 78,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "關於薪資，我想先了解貴公司的區間。",
+    "answer": "Regarding salary, I'd like to know your range first.",
+    "accept": [
+      "Regarding salary, I'd like to know your range first.",
+      "As for compensation, could you share the range for this role?"
+    ],
+    "keywords": [
+      "salary",
+      "range"
+    ],
+    "explain_zh": "先問對方區間是談薪常見策略。compensation 比 salary 涵蓋更廣（含獎金福利）。"
+  },
+  {
+    "id": 79,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我不介意從基礎做起，只要能學到東西。",
+    "answer": "I don't mind starting from the basics as long as I can learn.",
+    "accept": [
+      "I don't mind starting from the basics as long as I can learn.",
+      "I'm fine starting from the ground up as long as I'm learning."
+    ],
+    "keywords": [
+      "mind",
+      "basics",
+      "learn"
+    ],
+    "explain_zh": "as long as 是「只要…就」；from the ground up 是「從零開始」。"
+  },
+  {
+    "id": 80,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我想這裡面應該有誤會。",
+    "answer": "I think there's been a misunderstanding.",
+    "accept": [
+      "I think there's been a misunderstanding.",
+      "I believe there may be some misunderstanding."
+    ],
+    "keywords": [
+      "think",
+      "misunderstanding"
+    ],
+    "explain_zh": "there's been a misunderstanding 用完成式，是處理糾紛時最不傷和氣的開場。"
+  },
+  {
+    "id": 81,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我早餐通常只喝咖啡。",
+    "sentence": "I usually just have coffee for ___.",
+    "answer": "breakfast",
+    "accept": [
+      "breakfast"
+    ],
+    "hint_zh": "三餐之一",
+    "explain_zh": "三餐前面不加冠詞：for breakfast / lunch / dinner。"
+  },
+  {
+    "id": 82,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我要去倒垃圾。",
+    "sentence": "I'm going to take out the ___.",
+    "answer": "trash",
+    "accept": [
+      "trash",
+      "rubbish",
+      "garbage"
+    ],
+    "hint_zh": "美式與英式說法不同",
+    "explain_zh": "美式 trash/garbage，英式 rubbish。take out the trash 是倒垃圾。"
+  },
+  {
+    "id": 83,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "這件衣服可以用洗衣機洗嗎？",
+    "sentence": "Can this be put in the washing ___?",
+    "answer": "machine",
+    "accept": [
+      "machine"
+    ],
+    "hint_zh": "機器",
+    "explain_zh": "washing machine 是洗衣機；烘衣機是 dryer 或 tumble dryer。"
+  },
+  {
+    "id": 84,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我把鑰匙忘在家裡了。",
+    "sentence": "I ___ my keys at home.",
+    "answer": "left",
+    "accept": [
+      "left",
+      "forgot"
+    ],
+    "hint_zh": "leave 的過去式",
+    "explain_zh": "leave something somewhere 是「把東西留在某處」，比 forget 更精確地描述位置。"
+  },
+  {
+    "id": 85,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我睡過頭了。",
+    "sentence": "I ___ this morning.",
+    "answer": "overslept",
+    "accept": [
+      "overslept"
+    ],
+    "hint_zh": "over + sleep 的過去式",
+    "explain_zh": "oversleep 是睡過頭，過去式 overslept，不規則變化。"
+  },
+  {
+    "id": 86,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這個週末天氣應該會放晴。",
+    "sentence": "The weather should ___ up this weekend.",
+    "answer": "clear",
+    "accept": [
+      "clear",
+      "brighten"
+    ],
+    "hint_zh": "跟 up 搭配，「變晴」",
+    "explain_zh": "clear up 指天氣轉晴；也可以指問題釐清。"
+  },
+  {
+    "id": 87,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我最近睡不太好。",
+    "sentence": "I haven't been ___ well lately.",
+    "answer": "sleeping",
+    "accept": [
+      "sleeping"
+    ],
+    "hint_zh": "進行式",
+    "explain_zh": "現在完成進行式 haven't been V-ing 表示一段時間持續的狀態。"
+  },
+  {
+    "id": 88,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我戒咖啡了。",
+    "sentence": "I've ___ up coffee.",
+    "answer": "given",
+    "accept": [
+      "given",
+      "cut"
+    ],
+    "hint_zh": "give 的過去分詞",
+    "explain_zh": "give up 是戒掉；cut out 也可以，語氣是「完全排除」。"
+  },
+  {
+    "id": 89,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我跟他約好七點見。",
+    "sentence": "I've ___ to meet him at seven.",
+    "answer": "arranged",
+    "accept": [
+      "arranged",
+      "agreed"
+    ],
+    "hint_zh": "a 開頭，「安排」",
+    "explain_zh": "arrange to do something 是「約好做某事」。"
+  },
+  {
+    "id": 90,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這附近很難停車。",
+    "sentence": "___ is difficult around here.",
+    "answer": "Parking",
+    "accept": [
+      "Parking"
+    ],
+    "hint_zh": "動名詞當主詞",
+    "explain_zh": "動名詞當主詞時視為單數，所以用 is。"
+  },
+  {
+    "id": 91,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我對這件事沒什麼意見。",
+    "sentence": "I don't have strong ___ about it.",
+    "answer": "feelings",
+    "accept": [
+      "feelings",
+      "opinions"
+    ],
+    "hint_zh": "複數",
+    "explain_zh": "not have strong feelings about 是「沒有特別意見」的委婉說法。"
+  },
+  {
+    "id": 92,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我一時想不起來他的名字。",
+    "sentence": "His name ___ my mind for a second.",
+    "answer": "escaped",
+    "accept": [
+      "escaped",
+      "slipped"
+    ],
+    "hint_zh": "「逃走」的過去式",
+    "explain_zh": "escape one's mind 或 slip one's mind 都是「一時想不起來」。"
+  },
+  {
+    "id": 93,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我們算是點頭之交。",
+    "sentence": "We're more like ___ than friends.",
+    "answer": "acquaintances",
+    "accept": [
+      "acquaintances"
+    ],
+    "hint_zh": "a 開頭，「認識的人」",
+    "explain_zh": "acquaintance 是認識但不熟的人，重音在 -quain-。"
+  },
+  {
+    "id": 94,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "別把話說得太死。",
+    "sentence": "Don't ___ yourself to anything just yet.",
+    "answer": "commit",
+    "accept": [
+      "commit"
+    ],
+    "hint_zh": "c 開頭，「承諾」",
+    "explain_zh": "commit oneself to 是「把自己綁定在某個承諾上」。"
+  },
+  {
+    "id": 95,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我盡量趕過去。",
+    "sentence": "I'll get there as ___ as I can.",
+    "answer": "soon",
+    "accept": [
+      "soon",
+      "quickly",
+      "fast"
+    ],
+    "hint_zh": "as ___ as I can",
+    "explain_zh": "as soon as I can 是「盡快」；as ... as possible 也很常見。"
+  },
+  {
+    "id": 96,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我今天要遠端工作。",
+    "sentence": "I'm working from ___ today.",
+    "answer": "home",
+    "accept": [
+      "home"
+    ],
+    "hint_zh": "地點",
+    "explain_zh": "work from home 是遠端工作，縮寫 WFH，職場郵件常見。"
+  },
+  {
+    "id": 97,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "這封信我副本給你。",
+    "sentence": "I'll ___ you in on the email.",
+    "answer": "copy",
+    "accept": [
+      "copy",
+      "cc"
+    ],
+    "hint_zh": "跟 cc 有關",
+    "explain_zh": "copy someone in 或 cc someone 都是「把某人加進副本」。"
+  },
+  {
+    "id": 98,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "這個提案我贊成。",
+    "sentence": "I'm ___ board with this proposal.",
+    "answer": "on",
+    "accept": [
+      "on"
+    ],
+    "hint_zh": "介系詞",
+    "explain_zh": "be on board with 是「贊同、加入」，源自「上船」。"
+  },
+  {
+    "id": 99,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我們把這件事列為最高優先。",
+    "sentence": "Let's make this our top ___.",
+    "answer": "priority",
+    "accept": [
+      "priority"
+    ],
+    "hint_zh": "優先事項",
+    "explain_zh": "top priority 是最高優先；動詞形是 prioritize。"
+  },
+  {
+    "id": 100,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這個功能還在開發中。",
+    "sentence": "That feature is still in ___.",
+    "answer": "development",
+    "accept": [
+      "development",
+      "progress"
+    ],
+    "hint_zh": "develop 的名詞形",
+    "explain_zh": "in development 是開發中；in progress 泛指進行中。"
+  },
+  {
+    "id": 101,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我需要你這邊的意見回饋。",
+    "sentence": "I'd like your ___ on this.",
+    "answer": "feedback",
+    "accept": [
+      "feedback",
+      "input",
+      "thoughts"
+    ],
+    "hint_zh": "回饋",
+    "explain_zh": "input 與 thoughts 都比 opinion 輕，比較不像在要求評斷。"
+  },
+  {
+    "id": 102,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我來主持這次會議。",
+    "sentence": "I'll ___ this meeting.",
+    "answer": "run",
+    "accept": [
+      "run",
+      "lead",
+      "chair"
+    ],
+    "hint_zh": "最口語的動詞",
+    "explain_zh": "run a meeting 最口語；chair a meeting 較正式。"
+  },
+  {
+    "id": 103,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這件事我會追蹤進度。",
+    "sentence": "I'll ___ track of it.",
+    "answer": "keep",
+    "accept": [
+      "keep"
+    ],
+    "hint_zh": "跟 track 搭配",
+    "explain_zh": "keep track of 是持續掌握進度；反義是 lose track of。"
+  },
+  {
+    "id": 104,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這兩個方案各有取捨。",
+    "sentence": "There are ___ to both options.",
+    "answer": "trade-offs",
+    "accept": [
+      "trade-offs",
+      "tradeoffs"
+    ],
+    "hint_zh": "t 開頭，「取捨」",
+    "explain_zh": "trade-off 是「有得有失的取捨」，技術討論高頻詞。"
+  },
+  {
+    "id": 105,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我們得先對齊目標。",
+    "sentence": "We need to ___ on the goals first.",
+    "answer": "align",
+    "accept": [
+      "align",
+      "agree"
+    ],
+    "hint_zh": "a 開頭，g 不發音",
+    "explain_zh": "align on something 是「就某事取得共識」，職場常用。"
+  },
+  {
+    "id": 106,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這個估計太樂觀了。",
+    "sentence": "That estimate seems too ___.",
+    "answer": "optimistic",
+    "accept": [
+      "optimistic"
+    ],
+    "hint_zh": "樂觀的",
+    "explain_zh": "反義是 pessimistic；中性的說法是 conservative（保守的）。"
+  },
+  {
+    "id": 107,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我先把這件事擱著。",
+    "sentence": "I'll put this on the back ___ for now.",
+    "answer": "burner",
+    "accept": [
+      "burner"
+    ],
+    "hint_zh": "爐子的一部分",
+    "explain_zh": "put something on the back burner 是「暫時擱置」，源自把鍋子移到後爐慢燉。"
+  },
+  {
+    "id": 108,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我要辦理登機。",
+    "sentence": "I need to ___ in for my flight.",
+    "answer": "check",
+    "accept": [
+      "check"
+    ],
+    "hint_zh": "跟 in 搭配",
+    "explain_zh": "check in 用於登機、入住；check out 是退房。"
+  },
+  {
+    "id": 109,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "這個可以帶上飛機嗎？",
+    "sentence": "Can I take this as ___ luggage?",
+    "answer": "carry-on",
+    "accept": [
+      "carry-on",
+      "hand"
+    ],
+    "hint_zh": "隨身的",
+    "explain_zh": "美式 carry-on，英式 hand luggage。託運是 checked baggage。"
+  },
+  {
+    "id": 110,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我要買一日券。",
+    "sentence": "I'd like a ___ pass, please.",
+    "answer": "day",
+    "accept": [
+      "day",
+      "one-day"
+    ],
+    "hint_zh": "時間單位",
+    "explain_zh": "day pass 是一日券；月票是 monthly pass。"
+  },
+  {
+    "id": 111,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我在這裡轉機。",
+    "sentence": "I'm just ___ through here.",
+    "answer": "transferring",
+    "accept": [
+      "transferring",
+      "connecting"
+    ],
+    "hint_zh": "轉換",
+    "explain_zh": "transfer 或 connect 都指轉機；轉機航班是 connecting flight。"
+  },
+  {
+    "id": 112,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "這道菜會辣嗎？",
+    "sentence": "Is this dish ___?",
+    "answer": "spicy",
+    "accept": [
+      "spicy",
+      "hot"
+    ],
+    "hint_zh": "辣的",
+    "explain_zh": "hot 同時指燙和辣，spicy 只指辣，點餐時說 spicy 比較不會誤會。"
+  },
+  {
+    "id": 113,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "請問可以分開結帳嗎？",
+    "sentence": "Could we get ___ bills, please?",
+    "answer": "separate",
+    "accept": [
+      "separate",
+      "split"
+    ],
+    "hint_zh": "分開的",
+    "explain_zh": "separate bills 是分開結帳；口語也說 split the bill（均分）。"
+  },
+  {
+    "id": 114,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我想退稅。",
+    "sentence": "I'd like to claim a tax ___.",
+    "answer": "refund",
+    "accept": [
+      "refund",
+      "rebate"
+    ],
+    "hint_zh": "退款",
+    "explain_zh": "tax refund 是退稅；claim 是「申請領取」。"
+  },
+  {
+    "id": 115,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "這班車誤點了。",
+    "sentence": "This train is running ___ schedule.",
+    "answer": "behind",
+    "accept": [
+      "behind"
+    ],
+    "hint_zh": "介系詞",
+    "explain_zh": "behind schedule 是誤點；提前是 ahead of schedule。"
+  },
+  {
+    "id": 116,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我護照掉了，要去補辦。",
+    "sentence": "I lost my passport and need to get it ___.",
+    "answer": "replaced",
+    "accept": [
+      "replaced",
+      "reissued"
+    ],
+    "hint_zh": "replace 的過去分詞",
+    "explain_zh": "get something replaced 是「補辦」；reissue 是重新核發，較正式。"
+  },
+  {
+    "id": 117,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "easy",
+    "zh": "我目前在一家新創公司工作。",
+    "sentence": "I currently work at a ___.",
+    "answer": "startup",
+    "accept": [
+      "startup",
+      "start-up"
+    ],
+    "hint_zh": "新創",
+    "explain_zh": "startup 指新創公司；大公司說 corporation 或 enterprise。"
+  },
+  {
+    "id": 118,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我擅長跨團隊溝通。",
+    "sentence": "I'm good at communicating ___ teams.",
+    "answer": "across",
+    "accept": [
+      "across",
+      "between"
+    ],
+    "hint_zh": "介系詞，「橫跨」",
+    "explain_zh": "cross-functional / across teams 都指跨團隊，履歷常見。"
+  },
+  {
+    "id": 119,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我想在技術上更深入。",
+    "sentence": "I want to ___ my technical skills.",
+    "answer": "deepen",
+    "accept": [
+      "deepen",
+      "develop",
+      "strengthen"
+    ],
+    "hint_zh": "deep 的動詞形",
+    "explain_zh": "deepen 加深；broaden 是拓寬，兩者方向不同。"
+  },
+  {
+    "id": 120,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我希望能對產品有實質影響。",
+    "sentence": "I want to have a meaningful ___ on the product.",
+    "answer": "impact",
+    "accept": [
+      "impact",
+      "influence"
+    ],
+    "hint_zh": "影響",
+    "explain_zh": "have an impact on 是「對…產生影響」，面試談動機時很常用。"
+  },
+  {
+    "id": 121,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我還沒吃午餐。",
+    "answer": "I haven't had lunch yet.",
+    "accept": [
+      "I haven't had lunch yet.",
+      "I still haven't eaten lunch."
+    ],
+    "keywords": [
+      "haven't",
+      "lunch"
+    ],
+    "explain_zh": "yet 用在否定句尾表示「還沒」；already 用在肯定句。"
+  },
+  {
+    "id": 122,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我可以借用一下你的充電線嗎？",
+    "answer": "Could I borrow your charger for a minute?",
+    "accept": [
+      "Could I borrow your charger for a minute?",
+      "Can I use your charging cable for a sec?"
+    ],
+    "keywords": [
+      "borrow",
+      "charger"
+    ],
+    "explain_zh": "borrow 是借入，lend 是借出。for a minute 讓要求聽起來更輕。"
+  },
+  {
+    "id": 123,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "這位子我可以坐嗎？",
+    "answer": "Do you mind if I sit here?",
+    "accept": [
+      "Do you mind if I sit here?",
+      "Is it okay if I sit here?"
+    ],
+    "keywords": [
+      "mind",
+      "sit"
+    ],
+    "explain_zh": "Do you mind if…？的回答要注意：No 才是「可以」。"
+  },
+  {
+    "id": 124,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我最近迷上做菜。",
+    "answer": "I've gotten really into cooking lately.",
+    "accept": [
+      "I've gotten really into cooking lately.",
+      "I've been really into cooking recently."
+    ],
+    "keywords": [
+      "into",
+      "cooking"
+    ],
+    "explain_zh": "be into something 是「著迷於」；get into 強調開始入坑的過程。"
+  },
+  {
+    "id": 125,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我不太會認路。",
+    "answer": "I'm not very good with directions.",
+    "accept": [
+      "I'm not very good with directions.",
+      "I have a terrible sense of direction."
+    ],
+    "keywords": [
+      "good",
+      "directions"
+    ],
+    "explain_zh": "be good with 後面接能力對象；sense of direction 是方向感。"
+  },
+  {
+    "id": 126,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我們好久沒見了。",
+    "answer": "It's been a while since we last met.",
+    "accept": [
+      "It's been a while since we last met.",
+      "Long time no see."
+    ],
+    "keywords": [
+      "been",
+      "while"
+    ],
+    "explain_zh": "It's been a while 是標準說法；Long time no see 雖然文法不標準但廣泛使用。"
+  },
+  {
+    "id": 127,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這件事我需要一點時間消化。",
+    "answer": "I need some time to process this.",
+    "accept": [
+      "I need some time to process this.",
+      "I need a bit of time to take this in."
+    ],
+    "keywords": [
+      "time",
+      "process"
+    ],
+    "explain_zh": "process 在這裡是「消化、理解」；take in 也有同樣的意思。"
+  },
+  {
+    "id": 128,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我本來想說要提醒你，結果自己也忘了。",
+    "answer": "I meant to remind you, but I ended up forgetting myself.",
+    "accept": [
+      "I meant to remind you, but I ended up forgetting myself.",
+      "I was going to remind you, but I forgot too."
+    ],
+    "keywords": [
+      "meant to",
+      "forgetting"
+    ],
+    "explain_zh": "mean to do 是「本來打算」；end up V-ing 是「結果變成」。"
+  },
+  {
+    "id": 129,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "與其猜來猜去，不如直接問他。",
+    "answer": "Rather than guessing, we might as well just ask him.",
+    "accept": [
+      "Rather than guessing, we might as well just ask him.",
+      "Instead of guessing, let's just ask him directly."
+    ],
+    "keywords": [
+      "rather than",
+      "ask"
+    ],
+    "explain_zh": "might as well 是「不如就…吧」，帶有「反正沒更好選擇」的語氣。"
+  },
+  {
+    "id": 130,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我等一下再回覆你。",
+    "answer": "I'll get back to you shortly.",
+    "accept": [
+      "I'll get back to you shortly.",
+      "I'll come back to you on that."
+    ],
+    "keywords": [
+      "get back",
+      "you"
+    ],
+    "explain_zh": "get back to someone 是職場最常用的「稍後回覆」。"
+  },
+  {
+    "id": 131,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我想確認一下這件事的負責人是誰。",
+    "answer": "I'd like to confirm who owns this.",
+    "accept": [
+      "I'd like to confirm who owns this.",
+      "Could you clarify who's responsible for this?"
+    ],
+    "keywords": [
+      "who",
+      "owns"
+    ],
+    "explain_zh": "own something 在職場指「負責」，不是擁有。"
+  },
+  {
+    "id": 132,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我覺得我們應該先做小規模測試。",
+    "answer": "I think we should start with a small-scale test.",
+    "accept": [
+      "I think we should start with a small-scale test.",
+      "I'd suggest starting with a smaller pilot."
+    ],
+    "keywords": [
+      "start",
+      "test"
+    ],
+    "explain_zh": "pilot 在職場指試辦計畫，比 test 更有「先試水溫」的意味。"
+  },
+  {
+    "id": 133,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這個問題不在我的專業範圍。",
+    "answer": "That's outside my area of expertise.",
+    "accept": [
+      "That's outside my area of expertise.",
+      "That's not really my area."
+    ],
+    "keywords": [
+      "outside",
+      "expertise"
+    ],
+    "explain_zh": "area of expertise 是專業領域；坦承不懂比硬答更專業。"
+  },
+  {
+    "id": 134,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我們下週一開始跑這個流程。",
+    "answer": "We'll roll out the new process next Monday.",
+    "accept": [
+      "We'll roll out the new process next Monday.",
+      "The new process goes live next Monday."
+    ],
+    "keywords": [
+      "roll out",
+      "Monday"
+    ],
+    "explain_zh": "roll out 是推行、上線；go live 強調正式啟用的時間點。"
+  },
+  {
+    "id": 135,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我理解你的顧慮，但我們時間有限。",
+    "answer": "I understand your concerns, but we're working with limited time.",
+    "accept": [
+      "I understand your concerns, but we're working with limited time.",
+      "I hear your concerns, but time is tight."
+    ],
+    "keywords": [
+      "understand",
+      "concerns",
+      "time"
+    ],
+    "explain_zh": "先承認對方的顧慮再說明限制，是不傷關係的反對方式。"
+  },
+  {
+    "id": 136,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "如果現在不處理，之後會更難改。",
+    "answer": "If we don't address it now, it'll be much harder to change later.",
+    "accept": [
+      "If we don't address it now, it'll be much harder to change later.",
+      "If we leave it now, it'll be harder to fix down the line."
+    ],
+    "keywords": [
+      "address",
+      "harder"
+    ],
+    "explain_zh": "address a problem 是處理問題；down the line 是「往後」。"
+  },
+  {
+    "id": 137,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我需要更多背景資訊才能判斷。",
+    "answer": "I'd need more context before I can make a call on that.",
+    "accept": [
+      "I'd need more context before I can make a call on that.",
+      "I need more background before I can decide."
+    ],
+    "keywords": [
+      "context",
+      "before"
+    ],
+    "explain_zh": "make a call 在職場是「做決定」；context 是背景脈絡。"
+  },
+  {
+    "id": 138,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我要在下一站下車。",
+    "answer": "I'm getting off at the next stop.",
+    "accept": [
+      "I'm getting off at the next stop.",
+      "I need to get off at the next station."
+    ],
+    "keywords": [
+      "getting off",
+      "next"
+    ],
+    "explain_zh": "get off 用於公車、火車；下計程車是 get out。"
+  },
+  {
+    "id": 139,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "這裡可以拍照嗎？",
+    "answer": "Is it okay to take photos here?",
+    "accept": [
+      "Is it okay to take photos here?",
+      "Are we allowed to take pictures here?"
+    ],
+    "keywords": [
+      "photos",
+      "here"
+    ],
+    "explain_zh": "Is it okay to…？是徵求許可最輕鬆的說法。"
+  },
+  {
+    "id": 140,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我想改成靠走道的位子。",
+    "answer": "Could I change to an aisle seat?",
+    "accept": [
+      "Could I change to an aisle seat?",
+      "Is it possible to switch to an aisle seat?"
+    ],
+    "keywords": [
+      "change",
+      "aisle seat"
+    ],
+    "explain_zh": "aisle 的 s 不發音，唸起來像 I'll。"
+  },
+  {
+    "id": 141,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我對這裡不熟，你可以推薦嗎？",
+    "answer": "I'm not familiar with the area, could you recommend somewhere?",
+    "accept": [
+      "I'm not familiar with the area, could you recommend somewhere?",
+      "I don't know this area well, any recommendations?"
+    ],
+    "keywords": [
+      "familiar",
+      "recommend"
+    ],
+    "explain_zh": "be familiar with 是「熟悉」，人當主詞；反過來說 something is familiar to me。"
+  },
+  {
+    "id": 142,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "這個要多久才會好？",
+    "answer": "How long will it take to be ready?",
+    "accept": [
+      "How long will it take to be ready?",
+      "How long until it's ready?"
+    ],
+    "keywords": [
+      "how long",
+      "ready"
+    ],
+    "explain_zh": "How long until…？是更口語的問法，省略了 will it be。"
+  },
+  {
+    "id": 143,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我的信用卡被鎖住了，可能是因為在國外刷。",
+    "answer": "My card's been blocked, probably because I'm using it abroad.",
+    "accept": [
+      "My card's been blocked, probably because I'm using it abroad.",
+      "My credit card got blocked, likely because I'm overseas."
+    ],
+    "keywords": [
+      "blocked",
+      "abroad"
+    ],
+    "explain_zh": "card gets blocked 是卡被鎖；abroad 與 overseas 都指國外。"
+  },
+  {
+    "id": 144,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我想確認這個價格有沒有包含服務費。",
+    "answer": "I'd like to check whether the service charge is included.",
+    "accept": [
+      "I'd like to check whether the service charge is included.",
+      "Could you confirm if service is included in this price?"
+    ],
+    "keywords": [
+      "service charge",
+      "included"
+    ],
+    "explain_zh": "whether 與 if 在這裡可互換；service charge 是服務費。"
+  },
+  {
+    "id": 145,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "easy",
+    "zh": "很高興有機會跟你聊聊。",
+    "answer": "It's great to have the chance to speak with you.",
+    "accept": [
+      "It's great to have the chance to speak with you.",
+      "Thanks for the opportunity to chat."
+    ],
+    "keywords": [
+      "chance",
+      "speak"
+    ],
+    "explain_zh": "speak with 比 talk to 略正式，適合面試場合。"
+  },
+  {
+    "id": 146,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我在上一份工作主要負責系統維護。",
+    "answer": "In my last role, I was mainly responsible for system maintenance.",
+    "accept": [
+      "In my last role, I was mainly responsible for system maintenance.",
+      "My main responsibility in my previous job was system maintenance."
+    ],
+    "keywords": [
+      "responsible",
+      "maintenance"
+    ],
+    "explain_zh": "be responsible for + 名詞；role 比 job 更常用於面試。"
+  },
+  {
+    "id": 147,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我習慣把問題拆開來一步一步解決。",
+    "answer": "I tend to break problems down and work through them step by step.",
+    "accept": [
+      "I tend to break problems down and work through them step by step.",
+      "I usually break problems into smaller parts and tackle them one at a time."
+    ],
+    "keywords": [
+      "break",
+      "step by step"
+    ],
+    "explain_zh": "break down 是拆解；work through 是逐一處理。談解決問題方法時很好用。"
+  },
+  {
+    "id": 148,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我跟不同背景的人合作過。",
+    "answer": "I've worked with people from a range of backgrounds.",
+    "accept": [
+      "I've worked with people from a range of backgrounds.",
+      "I've collaborated with people from diverse backgrounds."
+    ],
+    "keywords": [
+      "worked",
+      "backgrounds"
+    ],
+    "explain_zh": "a range of 是「各式各樣的」，比 many 更精確。"
+  },
+  {
+    "id": 149,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我當時的判斷是先確保穩定，再談功能。",
+    "answer": "My judgement at the time was to secure stability first, then add features.",
+    "accept": [
+      "My judgement at the time was to secure stability first, then add features.",
+      "At the time I decided to prioritise stability over new features."
+    ],
+    "keywords": [
+      "stability",
+      "features"
+    ],
+    "explain_zh": "prioritise A over B 是「把 A 放在 B 之前」，談取捨時很實用。"
+  },
+  {
+    "id": 150,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我想知道這個團隊如何定義成功。",
+    "answer": "I'd like to know how this team defines success.",
+    "accept": [
+      "I'd like to know how this team defines success.",
+      "How does the team measure success?"
+    ],
+    "keywords": [
+      "how",
+      "defines",
+      "success"
+    ],
+    "explain_zh": "間接問句語序 how this team defines，不是 how does this team define。"
+  },
+  {
+    "id": 151,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我願意接受挑戰，但也想了解會有什麼支援。",
+    "answer": "I'm happy to take on the challenge, but I'd also like to know what support is available.",
+    "accept": [
+      "I'm happy to take on the challenge, but I'd also like to know what support is available.",
+      "I'm up for the challenge, but I'd like to understand what support there'd be."
+    ],
+    "keywords": [
+      "challenge",
+      "support"
+    ],
+    "explain_zh": "be up for something 是「願意接受」，比 I can do it 更自然。"
+  },
+  {
+    "id": 152,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這個檔案我改好了，麻煩你再看一次。",
+    "answer": "I've updated the document, could you take another look?",
+    "accept": [
+      "I've updated the document, could you take another look?",
+      "I've made the changes, please review it again."
+    ],
+    "keywords": [
+      "updated",
+      "look"
+    ],
+    "explain_zh": "take a look 比 review 輕鬆；請人複查用 another look 很自然。"
+  },
+  {
+    "id": 153,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我把會議記錄整理好寄給大家。",
+    "answer": "I'll write up the meeting notes and send them round.",
+    "accept": [
+      "I'll write up the meeting notes and send them round.",
+      "I'll summarise the meeting notes and share them with everyone."
+    ],
+    "keywords": [
+      "notes",
+      "send"
+    ],
+    "explain_zh": "write up 是整理成文件；send round 是「發給大家」，英式常用。"
+  },
+  {
+    "id": 154,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我不太確定他是不是這個意思。",
+    "answer": "I'm not sure that's what he meant.",
+    "accept": [
+      "I'm not sure that's what he meant.",
+      "I'm not certain that's what he was getting at."
+    ],
+    "keywords": [
+      "not sure",
+      "meant"
+    ],
+    "explain_zh": "what someone is getting at 是「某人想表達的意思」。"
+  },
+  {
+    "id": 155,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我盡量不要讓事情變複雜。",
+    "answer": "I try not to overcomplicate things.",
+    "accept": [
+      "I try not to overcomplicate things.",
+      "I try to keep things simple."
+    ],
+    "keywords": [
+      "try",
+      "complicate"
+    ],
+    "explain_zh": "try not to do 是「盡量不要做」；overcomplicate 是把事情弄得太複雜。"
+  },
+  {
+    "id": 156,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我不會說當地語言，你會說英文嗎？",
+    "answer": "I don't speak the local language, do you speak English?",
+    "accept": [
+      "I don't speak the local language, do you speak English?",
+      "I don't know the local language. Do you happen to speak English?"
+    ],
+    "keywords": [
+      "local language",
+      "English"
+    ],
+    "explain_zh": "do you happen to…？加了 happen 語氣更客氣，像是碰運氣問問。"
+  },
+  {
+    "id": 157,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我在排隊。",
+    "sentence": "I'm ___ in line.",
+    "answer": "waiting",
+    "accept": [
+      "waiting",
+      "standing"
+    ],
+    "hint_zh": "等待",
+    "explain_zh": "美式 wait in line，英式 queue（可當動詞）。"
+  },
+  {
+    "id": 158,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "這個多少錢？",
+    "sentence": "How ___ is this?",
+    "answer": "much",
+    "accept": [
+      "much"
+    ],
+    "hint_zh": "不可數",
+    "explain_zh": "問價格用 how much；問數量用 how many。"
+  },
+  {
+    "id": 159,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我吃素。",
+    "sentence": "I'm a ___.",
+    "answer": "vegetarian",
+    "accept": [
+      "vegetarian"
+    ],
+    "hint_zh": "素食者",
+    "explain_zh": "全素（不吃蛋奶）是 vegan，兩者不同。"
+  },
+  {
+    "id": 160,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我不太舒服。",
+    "sentence": "I'm not feeling ___.",
+    "answer": "well",
+    "accept": [
+      "well",
+      "great",
+      "good"
+    ],
+    "hint_zh": "健康狀態",
+    "explain_zh": "feel well 指身體狀況；feel good 偏向心情或整體感受。"
+  },
+  {
+    "id": 161,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我搭錯車了。",
+    "sentence": "I got on the ___ bus.",
+    "answer": "wrong",
+    "accept": [
+      "wrong"
+    ],
+    "hint_zh": "錯的",
+    "explain_zh": "get on the wrong bus/train；下錯站是 get off at the wrong stop。"
+  },
+  {
+    "id": 162,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這個牌子的東西很耐用。",
+    "sentence": "This brand ___ really well.",
+    "answer": "lasts",
+    "accept": [
+      "lasts",
+      "holds"
+    ],
+    "hint_zh": "持續",
+    "explain_zh": "last 當動詞是「持久、耐用」；hold up 也有耐用的意思。"
+  },
+  {
+    "id": 163,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我把這件事記在行事曆上了。",
+    "sentence": "I've ___ it in my calendar.",
+    "answer": "put",
+    "accept": [
+      "put",
+      "noted",
+      "marked"
+    ],
+    "hint_zh": "最簡單的動詞",
+    "explain_zh": "put something in the calendar 是最口語的說法。"
+  },
+  {
+    "id": 164,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這件事讓我很困擾。",
+    "sentence": "It's been ___ me a lot.",
+    "answer": "bothering",
+    "accept": [
+      "bothering",
+      "troubling"
+    ],
+    "hint_zh": "打擾",
+    "explain_zh": "bother 是困擾；bother someone 比 make me trouble 自然得多。"
+  },
+  {
+    "id": 165,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我一直拖著沒去做。",
+    "sentence": "I keep ___ it off.",
+    "answer": "putting",
+    "accept": [
+      "putting"
+    ],
+    "hint_zh": "put 的 -ing",
+    "explain_zh": "put off 是拖延；名詞形的拖延症是 procrastination。"
+  },
+  {
+    "id": 166,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "這件事我完全沒有頭緒。",
+    "sentence": "I have no ___ where to start.",
+    "answer": "idea",
+    "accept": [
+      "idea",
+      "clue"
+    ],
+    "hint_zh": "想法",
+    "explain_zh": "have no idea / no clue 都是「毫無頭緒」，後者更口語。"
+  },
+  {
+    "id": 167,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我們就先這樣吧。",
+    "sentence": "Let's ___ it there for now.",
+    "answer": "leave",
+    "accept": [
+      "leave"
+    ],
+    "hint_zh": "留下",
+    "explain_zh": "leave it there 是「先到這裡為止」，結束討論的委婉說法。"
+  },
+  {
+    "id": 168,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我今天請假。",
+    "sentence": "I'm taking the day ___.",
+    "answer": "off",
+    "accept": [
+      "off"
+    ],
+    "hint_zh": "介系詞",
+    "explain_zh": "take a day off 是請一天假；病假是 sick leave。"
+  },
+  {
+    "id": 169,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "這個會可以改時間嗎？",
+    "sentence": "Could we ___ this meeting?",
+    "answer": "reschedule",
+    "accept": [
+      "reschedule",
+      "move"
+    ],
+    "hint_zh": "re + schedule",
+    "explain_zh": "reschedule 是改期；move 較口語，move it to Friday。"
+  },
+  {
+    "id": 170,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這件事我需要你點頭。",
+    "sentence": "I need your ___ on this.",
+    "answer": "approval",
+    "accept": [
+      "approval",
+      "sign-off"
+    ],
+    "hint_zh": "approve 的名詞形",
+    "explain_zh": "sign-off 是「簽核、放行」，比 approval 更口語。"
+  },
+  {
+    "id": 171,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我們人手不足。",
+    "sentence": "We're ___ on staff.",
+    "answer": "short",
+    "accept": [
+      "short"
+    ],
+    "hint_zh": "短缺",
+    "explain_zh": "be short on something 是「缺少某物」；short-staffed 是形容詞形。"
+  },
+  {
+    "id": 172,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這份提案還在等主管核准。",
+    "sentence": "The proposal is ___ approval.",
+    "answer": "pending",
+    "accept": [
+      "pending",
+      "awaiting"
+    ],
+    "hint_zh": "p 開頭，「待處理」",
+    "explain_zh": "pending 是「懸而未決」，常出現在系統狀態與公文。"
+  },
+  {
+    "id": 173,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我把這件事交給你負責。",
+    "sentence": "I'll ___ this over to you.",
+    "answer": "hand",
+    "accept": [
+      "hand",
+      "pass"
+    ],
+    "hint_zh": "手",
+    "explain_zh": "hand something over 是交接；名詞形 handover 是交接文件。"
+  },
+  {
+    "id": 174,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這個做法長期來看不可行。",
+    "sentence": "This approach isn't ___ in the long run.",
+    "answer": "sustainable",
+    "accept": [
+      "sustainable",
+      "viable"
+    ],
+    "hint_zh": "sustain 的形容詞形",
+    "explain_zh": "sustainable 是可長期維持的；viable 偏向「行得通」。"
+  },
+  {
+    "id": 175,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我們得先降低風險。",
+    "sentence": "We need to ___ the risk first.",
+    "answer": "mitigate",
+    "accept": [
+      "mitigate",
+      "reduce"
+    ],
+    "hint_zh": "m 開頭，「減輕」",
+    "explain_zh": "mitigate risk 是專案管理的固定搭配。"
+  },
+  {
+    "id": 176,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這件事有點超出預算。",
+    "sentence": "This is running over ___.",
+    "answer": "budget",
+    "accept": [
+      "budget"
+    ],
+    "hint_zh": "預算",
+    "explain_zh": "run over budget 是超支；over schedule 是超時。"
+  },
+  {
+    "id": 177,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我要一杯水就好。",
+    "sentence": "Just some water, ___.",
+    "answer": "please",
+    "accept": [
+      "please",
+      "thanks"
+    ],
+    "hint_zh": "禮貌用語",
+    "explain_zh": "點餐句尾加 please 是基本禮貌，不加會顯得生硬。"
+  },
+  {
+    "id": 178,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我的班機在第二航廈。",
+    "sentence": "My flight departs from ___ two.",
+    "answer": "terminal",
+    "accept": [
+      "terminal"
+    ],
+    "hint_zh": "航廈",
+    "explain_zh": "terminal 是航廈；登機門是 gate。"
+  },
+  {
+    "id": 179,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我想租一台小車。",
+    "sentence": "I'd like to ___ a compact car.",
+    "answer": "rent",
+    "accept": [
+      "rent",
+      "hire"
+    ],
+    "hint_zh": "租",
+    "explain_zh": "美式 rent a car，英式 hire a car。"
+  },
+  {
+    "id": 180,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我需要一張收據。",
+    "sentence": "Could I get a ___, please?",
+    "answer": "receipt",
+    "accept": [
+      "receipt"
+    ],
+    "hint_zh": "p 不發音",
+    "explain_zh": "receipt 的 p 不發音，唸 /rɪˈsiːt/。"
+  },
+  {
+    "id": 181,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "這個地方很值得去。",
+    "sentence": "This place is well ___ a visit.",
+    "answer": "worth",
+    "accept": [
+      "worth"
+    ],
+    "hint_zh": "值得",
+    "explain_zh": "be worth + 名詞或 V-ing；well worth 是「非常值得」。"
+  },
+  {
+    "id": 182,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我的行李超重了。",
+    "sentence": "My bag is over the weight ___.",
+    "answer": "limit",
+    "accept": [
+      "limit",
+      "allowance"
+    ],
+    "hint_zh": "限制",
+    "explain_zh": "weight limit 或 baggage allowance 都指行李重量上限。"
+  },
+  {
+    "id": 183,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "這家餐廳需要事先訂位。",
+    "sentence": "This restaurant requires a ___ in advance.",
+    "answer": "reservation",
+    "accept": [
+      "reservation",
+      "booking"
+    ],
+    "hint_zh": "訂位",
+    "explain_zh": "in advance 是「事先」；當天訂位說 same-day booking。"
+  },
+  {
+    "id": 184,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "easy",
+    "zh": "我大學讀資訊工程。",
+    "sentence": "I ___ computer science at university.",
+    "answer": "studied",
+    "accept": [
+      "studied",
+      "majored in"
+    ],
+    "hint_zh": "study 的過去式",
+    "explain_zh": "major in 是主修，美式常用；英式多說 studied。"
+  },
+  {
+    "id": 185,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我對這個產業一直很有興趣。",
+    "sentence": "I've always been ___ by this industry.",
+    "answer": "fascinated",
+    "accept": [
+      "fascinated",
+      "intrigued"
+    ],
+    "hint_zh": "著迷的",
+    "explain_zh": "be fascinated by 比 be interested in 語氣更強。"
+  },
+  {
+    "id": 186,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我在團隊裡通常扮演協調的角色。",
+    "sentence": "I usually take on a ___ role in the team.",
+    "answer": "coordinating",
+    "accept": [
+      "coordinating",
+      "facilitating"
+    ],
+    "hint_zh": "coordinate 的 -ing",
+    "explain_zh": "facilitating 偏向「促成討論」，coordinating 偏向「協調資源」。"
+  },
+  {
+    "id": 187,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我希望能在這裡長期發展。",
+    "sentence": "I'm looking for somewhere I can grow ___ term.",
+    "answer": "long",
+    "accept": [
+      "long"
+    ],
+    "hint_zh": "長",
+    "explain_zh": "long term 當副詞用；當形容詞要加連字號：a long-term plan。"
+  },
+  {
+    "id": 188,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我很願意接受回饋並調整。",
+    "sentence": "I'm open to feedback and willing to ___.",
+    "answer": "adapt",
+    "accept": [
+      "adapt",
+      "adjust"
+    ],
+    "hint_zh": "a 開頭，「適應」",
+    "explain_zh": "be open to feedback 是面試自我描述的高頻句。"
+  },
+  {
+    "id": 189,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "你吃過飯了嗎？",
+    "answer": "Have you eaten yet?",
+    "accept": [
+      "Have you eaten yet?",
+      "Have you had anything to eat?"
+    ],
+    "keywords": [
+      "have",
+      "eaten"
+    ],
+    "explain_zh": "中文常用「吃飽沒」問候，英文直譯會很奇怪，通常只在真的想約吃飯時問。"
+  },
+  {
+    "id": 190,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我等你等了半小時。",
+    "answer": "I've been waiting for you for half an hour.",
+    "accept": [
+      "I've been waiting for you for half an hour.",
+      "I've been here waiting for thirty minutes."
+    ],
+    "keywords": [
+      "waiting",
+      "half an hour"
+    ],
+    "explain_zh": "現在完成進行式強調動作持續到現在，抱怨等待時最貼切。"
+  },
+  {
+    "id": 191,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這部電影比我想像中好看。",
+    "answer": "The film was better than I expected.",
+    "accept": [
+      "The film was better than I expected.",
+      "The movie turned out better than I thought."
+    ],
+    "keywords": [
+      "better",
+      "expected"
+    ],
+    "explain_zh": "turn out 是「結果變成」，帶有意外的意味。"
+  },
+  {
+    "id": 192,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "你可以幫我看一下這個怎麼用嗎？",
+    "answer": "Could you show me how this works?",
+    "accept": [
+      "Could you show me how this works?",
+      "Can you show me how to use this?"
+    ],
+    "keywords": [
+      "show",
+      "how"
+    ],
+    "explain_zh": "how this works 是間接問句，助動詞不倒裝。"
+  },
+  {
+    "id": 193,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我需要在今天下班前得到答覆。",
+    "answer": "I need an answer by the end of the day.",
+    "accept": [
+      "I need an answer by the end of the day.",
+      "I'll need a response before close of business today."
+    ],
+    "keywords": [
+      "answer",
+      "end of the day"
+    ],
+    "explain_zh": "end of day（EOD）與 close of business（COB）都是職場常見的期限說法。"
+  },
+  {
+    "id": 194,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我想我們對這個詞的定義不太一樣。",
+    "answer": "I think we're using that term differently.",
+    "accept": [
+      "I think we're using that term differently.",
+      "I think we mean different things by that word."
+    ],
+    "keywords": [
+      "term",
+      "differently"
+    ],
+    "explain_zh": "討論卡住時，指出定義不同往往比爭論本身更有效。"
+  },
+  {
+    "id": 195,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我想確認一下退房時間。",
+    "answer": "Could you confirm the checkout time?",
+    "accept": [
+      "Could you confirm the checkout time?",
+      "What time is checkout?"
+    ],
+    "keywords": [
+      "checkout",
+      "time"
+    ],
+    "explain_zh": "checkout 當名詞是退房；動詞形分開寫 check out。"
+  },
+  {
+    "id": 196,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我目前手上有兩個機會在考慮。",
+    "answer": "I'm currently considering two other opportunities.",
+    "accept": [
+      "I'm currently considering two other opportunities.",
+      "I have a couple of other options I'm weighing up."
+    ],
+    "keywords": [
+      "considering",
+      "opportunities"
+    ],
+    "explain_zh": "weigh up 是「權衡」。談其他機會時語氣要中性，不要像在施壓。"
+  },
+  {
+    "id": 197,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "外面好冷，你要不要多穿一件？",
+    "answer": "It's freezing outside, do you want to put on another layer?",
+    "accept": [
+      "It's freezing outside, do you want to put on another layer?",
+      "It's really cold out, you might want another layer."
+    ],
+    "keywords": [
+      "freezing",
+      "layer"
+    ],
+    "explain_zh": "layer 指一層衣服，比 clothes 更精確。put on 是穿上的動作。"
+  },
+  {
+    "id": 198,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "你要不要一起來？",
+    "answer": "Do you want to come along?",
+    "accept": [
+      "Do you want to come along?",
+      "Would you like to join us?"
+    ],
+    "keywords": [
+      "want",
+      "come along"
+    ],
+    "explain_zh": "come along 是「一起來」；join us 較正式一點。"
+  },
+  {
+    "id": 199,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "這件事說起來話長。",
+    "answer": "It's a long story.",
+    "accept": [
+      "It's a long story.",
+      "That's a bit of a long story."
+    ],
+    "keywords": [
+      "long",
+      "story"
+    ],
+    "explain_zh": "It's a long story 是不想細講時的萬用回應。"
+  },
+  {
+    "id": 200,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我五分鐘後到。",
+    "answer": "I'll be there in five minutes.",
+    "accept": [
+      "I'll be there in five minutes.",
+      "I'm five minutes away."
+    ],
+    "keywords": [
+      "there",
+      "five minutes"
+    ],
+    "explain_zh": "in + 時間 表示「再過多久」；five minutes away 是距離感的說法。"
+  },
+  {
+    "id": 201,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我要去剪頭髮。",
+    "sentence": "I'm going to get a ___.",
+    "answer": "haircut",
+    "accept": [
+      "haircut"
+    ],
+    "hint_zh": "一個字",
+    "explain_zh": "get a haircut 是去剪頭髮；自己剪才說 cut my hair。"
+  },
+  {
+    "id": 202,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我的手機沒電了。",
+    "sentence": "My phone is out of ___.",
+    "answer": "battery",
+    "accept": [
+      "battery",
+      "charge",
+      "power"
+    ],
+    "hint_zh": "電池",
+    "explain_zh": "out of battery 或 dead 都可以：My phone died。"
+  },
+  {
+    "id": 203,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我在找工作。",
+    "sentence": "I'm looking ___ a job.",
+    "answer": "for",
+    "accept": [
+      "for"
+    ],
+    "hint_zh": "介系詞",
+    "explain_zh": "look for 是尋找；look after 是照顧，差很多。"
+  },
+  {
+    "id": 204,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我對這個過敏。",
+    "sentence": "I have an ___ to this.",
+    "answer": "allergy",
+    "accept": [
+      "allergy"
+    ],
+    "hint_zh": "名詞形",
+    "explain_zh": "名詞 allergy，形容詞 allergic：I'm allergic to it。"
+  },
+  {
+    "id": 205,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我把牛奶喝完了。",
+    "sentence": "I ___ out of milk.",
+    "answer": "ran",
+    "accept": [
+      "ran"
+    ],
+    "hint_zh": "run 的過去式",
+    "explain_zh": "run out of something 是用完；現在式 I'm running out of time。"
+  },
+  {
+    "id": 206,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這件事我們私下再聊。",
+    "sentence": "Let's talk about it in ___.",
+    "answer": "private",
+    "accept": [
+      "private"
+    ],
+    "hint_zh": "私下的",
+    "explain_zh": "in private 是私下；公開是 in public。"
+  },
+  {
+    "id": 207,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我今天心情不好。",
+    "sentence": "I'm in a bad ___ today.",
+    "answer": "mood",
+    "accept": [
+      "mood"
+    ],
+    "hint_zh": "心情",
+    "explain_zh": "in a good/bad mood 是心情好壞的固定說法。"
+  },
+  {
+    "id": 208,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我對他印象很好。",
+    "sentence": "He made a good ___ on me.",
+    "answer": "impression",
+    "accept": [
+      "impression"
+    ],
+    "hint_zh": "impress 的名詞形",
+    "explain_zh": "make an impression on someone 是給某人留下印象。"
+  },
+  {
+    "id": 209,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我們意見不合。",
+    "sentence": "We don't see ___ to eye on this.",
+    "answer": "eye",
+    "accept": [
+      "eye"
+    ],
+    "hint_zh": "重複的字",
+    "explain_zh": "see eye to eye 是「看法一致」，否定就是意見不合。"
+  },
+  {
+    "id": 210,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "這只是暫時的。",
+    "sentence": "It's only ___.",
+    "answer": "temporary",
+    "accept": [
+      "temporary"
+    ],
+    "hint_zh": "暫時的",
+    "explain_zh": "反義是 permanent；口語也說 for the time being。"
+  },
+  {
+    "id": 211,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我在忙別的事。",
+    "sentence": "I'm ___ up with something else.",
+    "answer": "tied",
+    "accept": [
+      "tied",
+      "caught"
+    ],
+    "hint_zh": "tie 的過去分詞",
+    "explain_zh": "be tied up 是「忙得走不開」，比 busy 更具體。"
+  },
+  {
+    "id": 212,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "這個我來處理。",
+    "sentence": "I'll ___ care of it.",
+    "answer": "take",
+    "accept": [
+      "take"
+    ],
+    "hint_zh": "跟 care 搭配",
+    "explain_zh": "take care of it 是我來處理；handle it 也可以。"
+  },
+  {
+    "id": 213,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我們得縮小範圍。",
+    "sentence": "We need to ___ down the scope.",
+    "answer": "narrow",
+    "accept": [
+      "narrow",
+      "cut"
+    ],
+    "hint_zh": "n 開頭，「變窄」",
+    "explain_zh": "narrow down 是縮小範圍；scope creep 是範圍失控。"
+  },
+  {
+    "id": 214,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這件事優先度不高。",
+    "sentence": "This is fairly low ___.",
+    "answer": "priority",
+    "accept": [
+      "priority"
+    ],
+    "hint_zh": "優先度",
+    "explain_zh": "low priority / high priority；也可說 not a priority right now。"
+  },
+  {
+    "id": 215,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我需要更新一下進度。",
+    "sentence": "I need to give you a status ___.",
+    "answer": "update",
+    "accept": [
+      "update"
+    ],
+    "hint_zh": "更新",
+    "explain_zh": "status update 是進度回報，會議與郵件都常用。"
+  },
+  {
+    "id": 216,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我們的想法一致。",
+    "sentence": "We're on the same ___.",
+    "answer": "page",
+    "accept": [
+      "page",
+      "wavelength"
+    ],
+    "hint_zh": "書的一部分",
+    "explain_zh": "on the same page 是「有共識」，職場高頻片語。"
+  },
+  {
+    "id": 217,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這個問題要根本解決。",
+    "sentence": "We need to address the ___ cause.",
+    "answer": "root",
+    "accept": [
+      "root",
+      "underlying"
+    ],
+    "hint_zh": "樹的一部分",
+    "explain_zh": "root cause 是根本原因；root cause analysis 是常見的分析方法。"
+  },
+  {
+    "id": 218,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這個決定我保留意見。",
+    "sentence": "I have some ___ about this decision.",
+    "answer": "reservations",
+    "accept": [
+      "reservations"
+    ],
+    "hint_zh": "跟訂位同一個字",
+    "explain_zh": "reservations 複數在這裡是「保留意見、疑慮」，不是訂位。"
+  },
+  {
+    "id": 219,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我們把責任範圍講清楚。",
+    "sentence": "Let's define the ___ clearly.",
+    "answer": "ownership",
+    "accept": [
+      "ownership",
+      "responsibilities"
+    ],
+    "hint_zh": "own 的名詞形",
+    "explain_zh": "ownership 在職場指「誰負責」，不是所有權。"
+  },
+  {
+    "id": 220,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我可以試穿嗎？",
+    "sentence": "Can I ___ this on?",
+    "answer": "try",
+    "accept": [
+      "try"
+    ],
+    "hint_zh": "跟 on 搭配",
+    "explain_zh": "try on 是試穿；試吃是 try 或 sample。"
+  },
+  {
+    "id": 221,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "這裡有 Wi-Fi 嗎？",
+    "sentence": "Do you have Wi-Fi ___?",
+    "answer": "here",
+    "accept": [
+      "here",
+      "available"
+    ],
+    "hint_zh": "地點副詞",
+    "explain_zh": "問密碼說 What's the Wi-Fi password?"
+  },
+  {
+    "id": 222,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我要去領行李。",
+    "sentence": "I need to go to baggage ___.",
+    "answer": "claim",
+    "accept": [
+      "claim",
+      "reclaim"
+    ],
+    "hint_zh": "領取",
+    "explain_zh": "美式 baggage claim，英式 baggage reclaim。"
+  },
+  {
+    "id": 223,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "這個景點要門票嗎？",
+    "sentence": "Is there an ___ fee?",
+    "answer": "entrance",
+    "accept": [
+      "entrance",
+      "admission"
+    ],
+    "hint_zh": "入口",
+    "explain_zh": "entrance fee 或 admission fee 都是門票費。"
+  },
+  {
+    "id": 224,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我們迷路了。",
+    "sentence": "I think we're ___.",
+    "answer": "lost",
+    "accept": [
+      "lost"
+    ],
+    "hint_zh": "lose 的過去分詞",
+    "explain_zh": "be lost 是迷路的狀態；get lost 是迷路的過程。"
+  },
+  {
+    "id": 225,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "這班車是直達的嗎？",
+    "sentence": "Is this a ___ train?",
+    "answer": "direct",
+    "accept": [
+      "direct",
+      "through"
+    ],
+    "hint_zh": "直接的",
+    "explain_zh": "direct train 是直達車；要轉車說 you need to change at…。"
+  },
+  {
+    "id": 226,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我的簽證下個月到期。",
+    "sentence": "My visa ___ next month.",
+    "answer": "expires",
+    "accept": [
+      "expires"
+    ],
+    "hint_zh": "到期",
+    "explain_zh": "expire 是到期；expiry date 是到期日。"
+  },
+  {
+    "id": 227,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "easy",
+    "zh": "我可以什麼時候開始上班？",
+    "sentence": "When would you like me to ___?",
+    "answer": "start",
+    "accept": [
+      "start",
+      "begin"
+    ],
+    "hint_zh": "開始",
+    "explain_zh": "start date 是到職日；notice period 是離職預告期。"
+  },
+  {
+    "id": 228,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我需要一個月的交接時間。",
+    "sentence": "I'd need a one-month ___ period.",
+    "answer": "notice",
+    "accept": [
+      "notice"
+    ],
+    "hint_zh": "通知",
+    "explain_zh": "notice period 是離職預告期，談到職日一定會提到。"
+  },
+  {
+    "id": 229,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我在那個專案扮演關鍵角色。",
+    "sentence": "I played a ___ role in that project.",
+    "answer": "key",
+    "accept": [
+      "key",
+      "crucial",
+      "central"
+    ],
+    "hint_zh": "關鍵的",
+    "explain_zh": "play a role in 是「扮演角色」，用 play 不用 act。"
+  },
+  {
+    "id": 230,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我喜歡從錯誤中學習。",
+    "sentence": "I like to learn from my ___.",
+    "answer": "mistakes",
+    "accept": [
+      "mistakes"
+    ],
+    "hint_zh": "複數",
+    "explain_zh": "learn from mistakes 是面試談成長的安全講法。"
+  },
+  {
+    "id": 231,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我明天有空。",
+    "answer": "I'm free tomorrow.",
+    "accept": [
+      "I'm free tomorrow.",
+      "I'm available tomorrow."
+    ],
+    "keywords": [
+      "free",
+      "tomorrow"
+    ],
+    "explain_zh": "free 較口語，available 較正式，約會議時常用。"
+  },
+  {
+    "id": 232,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我覺得這樣做不太好。",
+    "answer": "I don't think that's a good idea.",
+    "accept": [
+      "I don't think that's a good idea.",
+      "I'm not sure that's the best approach."
+    ],
+    "keywords": [
+      "don't think",
+      "good idea"
+    ],
+    "explain_zh": "英文習慣把否定放在主要動詞：I don't think it is，而不是 I think it isn't。"
+  },
+  {
+    "id": 233,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我不想給你添麻煩。",
+    "answer": "I don't want to put you out.",
+    "accept": [
+      "I don't want to put you out.",
+      "I don't want to be any trouble."
+    ],
+    "keywords": [
+      "don't want",
+      "put you out"
+    ],
+    "explain_zh": "put someone out 是「麻煩到某人」；比 make trouble 道地。"
+  },
+  {
+    "id": 234,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我把這件事排進下週的計畫。",
+    "answer": "I'll schedule this for next week.",
+    "accept": [
+      "I'll schedule this for next week.",
+      "I'll put this in next week's plan."
+    ],
+    "keywords": [
+      "schedule",
+      "next week"
+    ],
+    "explain_zh": "schedule something for + 時間；美式唸 /ˈskedʒuːl/。"
+  },
+  {
+    "id": 235,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我想先確認我們的認知一致。",
+    "answer": "I want to make sure we're aligned before we move forward.",
+    "accept": [
+      "I want to make sure we're aligned before we move forward.",
+      "Let's make sure we're on the same page first."
+    ],
+    "keywords": [
+      "aligned",
+      "forward"
+    ],
+    "explain_zh": "be aligned 是共識已建立的狀態；move forward 是「往下進行」。"
+  },
+  {
+    "id": 236,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我需要一張市區地圖。",
+    "answer": "Could I get a map of the city centre?",
+    "accept": [
+      "Could I get a map of the city centre?",
+      "Do you have a city map?"
+    ],
+    "keywords": [
+      "map",
+      "city"
+    ],
+    "explain_zh": "a map of + 地點；英式 city centre，美式 downtown。"
+  },
+  {
+    "id": 237,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我想問一下這附近晚上安不安全。",
+    "answer": "Is this area safe to walk around at night?",
+    "accept": [
+      "Is this area safe to walk around at night?",
+      "Is it safe around here after dark?"
+    ],
+    "keywords": [
+      "safe",
+      "night"
+    ],
+    "explain_zh": "after dark 是天黑後，比 at night 更強調時段的轉換。"
+  },
+  {
+    "id": 238,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我希望能有更多自主權。",
+    "answer": "I'm looking for more autonomy in my work.",
+    "accept": [
+      "I'm looking for more autonomy in my work.",
+      "I'd like more ownership over my work."
+    ],
+    "keywords": [
+      "autonomy",
+      "work"
+    ],
+    "explain_zh": "autonomy 是自主權；ownership 是「能自己作主的責任範圍」。"
+  },
+  {
+    "id": 239,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我想知道這個職位為什麼開缺。",
+    "answer": "Could I ask why this position is open?",
+    "accept": [
+      "Could I ask why this position is open?",
+      "May I ask why the role became available?"
+    ],
+    "keywords": [
+      "why",
+      "position",
+      "open"
+    ],
+    "explain_zh": "問開缺原因能判斷是擴編還是有人離職，是有價值的反問。"
+  },
+  {
+    "id": 240,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我要去洗衣服。",
+    "sentence": "I need to do the ___.",
+    "answer": "laundry",
+    "accept": [
+      "laundry",
+      "washing"
+    ],
+    "hint_zh": "洗衣",
+    "explain_zh": "美式 do the laundry，英式 do the washing。"
+  },
+  {
+    "id": 241,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "你可以幫我拿一下嗎？",
+    "sentence": "Could you ___ this for a second?",
+    "answer": "hold",
+    "accept": [
+      "hold",
+      "take"
+    ],
+    "hint_zh": "拿著",
+    "explain_zh": "hold 是拿著不動；take 是接過去。"
+  },
+  {
+    "id": 242,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我今天特別累。",
+    "sentence": "I'm ___ today.",
+    "answer": "exhausted",
+    "accept": [
+      "exhausted",
+      "shattered",
+      "drained"
+    ],
+    "hint_zh": "比 tired 更強",
+    "explain_zh": "exhausted 比 tired 強烈很多；英式口語也說 shattered。"
+  },
+  {
+    "id": 243,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我們平分費用吧。",
+    "sentence": "Let's ___ the cost.",
+    "answer": "split",
+    "accept": [
+      "split",
+      "share"
+    ],
+    "hint_zh": "分開",
+    "explain_zh": "split the bill 是均分帳單；go halves 也是同樣意思。"
+  },
+  {
+    "id": 244,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我沒注意到。",
+    "sentence": "I didn't ___ that.",
+    "answer": "notice",
+    "accept": [
+      "notice"
+    ],
+    "hint_zh": "注意",
+    "explain_zh": "notice 是不經意注意到；pay attention 是刻意注意。"
+  },
+  {
+    "id": 245,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我想我們搞混了。",
+    "sentence": "I think we've got our ___ crossed.",
+    "answer": "wires",
+    "accept": [
+      "wires"
+    ],
+    "hint_zh": "電線",
+    "explain_zh": "get one's wires crossed 是「訊息弄混了」，源自電話接線。"
+  },
+  {
+    "id": 246,
+    "type": "cloze",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "這個習慣我改不掉。",
+    "sentence": "I can't seem to ___ this habit.",
+    "answer": "break",
+    "accept": [
+      "break",
+      "kick"
+    ],
+    "hint_zh": "打破",
+    "explain_zh": "break a habit 或 kick a habit 都是戒掉習慣。"
+  },
+  {
+    "id": 247,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "我明天請病假。",
+    "sentence": "I'm taking a ___ day tomorrow.",
+    "answer": "sick",
+    "accept": [
+      "sick"
+    ],
+    "hint_zh": "生病的",
+    "explain_zh": "sick day 是病假；call in sick 是打電話請病假。"
+  },
+  {
+    "id": 248,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這個功能已經上線了。",
+    "sentence": "That feature is already ___.",
+    "answer": "live",
+    "accept": [
+      "live",
+      "released",
+      "deployed"
+    ],
+    "hint_zh": "l 開頭，「上線的」",
+    "explain_zh": "go live 是上線；deploy 偏技術面的部署。"
+  },
+  {
+    "id": 249,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我先跟你確認一下細節。",
+    "sentence": "Let me ___ the details with you.",
+    "answer": "run",
+    "accept": [
+      "run",
+      "go"
+    ],
+    "hint_zh": "跟 by/through 搭配",
+    "explain_zh": "run something by someone 是「跟某人過一下」徵詢意見。"
+  },
+  {
+    "id": 250,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這件事已經解決了。",
+    "sentence": "That issue has been ___.",
+    "answer": "resolved",
+    "accept": [
+      "resolved",
+      "sorted",
+      "fixed"
+    ],
+    "hint_zh": "解決",
+    "explain_zh": "resolve 用於問題與爭議；fix 偏向修好故障。"
+  },
+  {
+    "id": 251,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我們得重新評估這個方向。",
+    "sentence": "We should ___ this approach.",
+    "answer": "reassess",
+    "accept": [
+      "reassess",
+      "reconsider",
+      "revisit"
+    ],
+    "hint_zh": "re + assess",
+    "explain_zh": "revisit 語氣最軟，適合不想顯得在推翻別人決定時使用。"
+  },
+  {
+    "id": 252,
+    "type": "cloze",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這個數字要再查證。",
+    "sentence": "That figure needs to be ___.",
+    "answer": "verified",
+    "accept": [
+      "verified",
+      "confirmed",
+      "double-checked"
+    ],
+    "hint_zh": "v 開頭，「查證」",
+    "explain_zh": "figure 在這裡是數字；verify 是查證真偽。"
+  },
+  {
+    "id": 253,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "我要退房。",
+    "sentence": "I'd like to check ___.",
+    "answer": "out",
+    "accept": [
+      "out"
+    ],
+    "hint_zh": "介系詞",
+    "explain_zh": "check out 退房；check in 入住。"
+  },
+  {
+    "id": 254,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "這裡收現金嗎？",
+    "sentence": "Do you take ___?",
+    "answer": "cash",
+    "accept": [
+      "cash"
+    ],
+    "hint_zh": "現金",
+    "explain_zh": "Do you take…？後面接付款方式：cash / cards / mobile payment。"
+  },
+  {
+    "id": 255,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我要一間雙人房。",
+    "sentence": "I'd like a ___ room, please.",
+    "answer": "double",
+    "accept": [
+      "double",
+      "twin"
+    ],
+    "hint_zh": "兩人",
+    "explain_zh": "double 是一張大床；twin 是兩張單人床，訂房時差很多。"
+  },
+  {
+    "id": 256,
+    "type": "cloze",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我的位子被人坐了。",
+    "sentence": "Someone's ___ in my seat.",
+    "answer": "sitting",
+    "accept": [
+      "sitting"
+    ],
+    "hint_zh": "進行式",
+    "explain_zh": "處理這種狀況先說 Sorry, I think this is my seat 比較不會起衝突。"
+  },
+  {
+    "id": 257,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我對這個領域還在學習。",
+    "sentence": "I'm still ___ up in this area.",
+    "answer": "ramping",
+    "accept": [
+      "ramping"
+    ],
+    "hint_zh": "斜坡",
+    "explain_zh": "ramp up 是「逐步進入狀況」，比 learning 更專業。"
+  },
+  {
+    "id": 258,
+    "type": "cloze",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我很重視團隊的溝通文化。",
+    "sentence": "I place a lot of ___ on team communication.",
+    "answer": "value",
+    "accept": [
+      "value",
+      "emphasis",
+      "importance"
+    ],
+    "hint_zh": "價值",
+    "explain_zh": "place value/emphasis on something 是「重視某事」。"
+  },
+  {
+    "id": 259,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "你住哪裡？",
+    "answer": "Where do you live?",
+    "accept": [
+      "Where do you live?",
+      "Whereabouts do you live?"
+    ],
+    "keywords": [
+      "where",
+      "live"
+    ],
+    "explain_zh": "whereabouts 是英式的 where，語氣更隨意。"
+  },
+  {
+    "id": 260,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "easy",
+    "zh": "我不太會用這個。",
+    "answer": "I'm not very good at using this.",
+    "accept": [
+      "I'm not very good at using this.",
+      "I don't really know how to use this."
+    ],
+    "keywords": [
+      "good at",
+      "using"
+    ],
+    "explain_zh": "be good at + V-ing；不能說 good to use。"
+  },
+  {
+    "id": 261,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我盡量早點到。",
+    "answer": "I'll try to get there early.",
+    "accept": [
+      "I'll try to get there early.",
+      "I'll aim to arrive early."
+    ],
+    "keywords": [
+      "try",
+      "early"
+    ],
+    "explain_zh": "aim to 比 try to 更有規劃感，職場書信常用。"
+  },
+  {
+    "id": 262,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這個地方比我想像中遠。",
+    "answer": "It's further than I thought.",
+    "accept": [
+      "It's further than I thought.",
+      "It's farther away than I expected."
+    ],
+    "keywords": [
+      "further",
+      "thought"
+    ],
+    "explain_zh": "further 與 farther 在距離上可互換，further 另可指抽象的「進一步」。"
+  },
+  {
+    "id": 263,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我沒有那個意思，我只是想確認一下。",
+    "answer": "I didn't mean it that way, I just wanted to check.",
+    "accept": [
+      "I didn't mean it that way, I just wanted to check.",
+      "That's not what I meant, I only wanted to confirm."
+    ],
+    "keywords": [
+      "mean",
+      "check"
+    ],
+    "explain_zh": "I didn't mean it that way 是澄清誤會最直接的說法。"
+  },
+  {
+    "id": 264,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "easy",
+    "zh": "這個我明天處理。",
+    "answer": "I'll deal with this tomorrow.",
+    "accept": [
+      "I'll deal with this tomorrow.",
+      "I'll handle it tomorrow."
+    ],
+    "keywords": [
+      "deal with",
+      "tomorrow"
+    ],
+    "explain_zh": "deal with 與 handle 都是處理；deal with 更常用於問題。"
+  },
+  {
+    "id": 265,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "如果有問題隨時找我。",
+    "answer": "Let me know if anything comes up.",
+    "accept": [
+      "Let me know if anything comes up.",
+      "Feel free to reach out if you have questions."
+    ],
+    "keywords": [
+      "let me know",
+      "comes up"
+    ],
+    "explain_zh": "reach out 是主動聯繫；come up 是「出現狀況」。"
+  },
+  {
+    "id": 266,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "我需要一點時間看一下再回覆。",
+    "answer": "I'll need some time to review this before I respond.",
+    "accept": [
+      "I'll need some time to review this before I respond.",
+      "Let me look this over and get back to you."
+    ],
+    "keywords": [
+      "time",
+      "review"
+    ],
+    "explain_zh": "look something over 是快速瀏覽；review 較正式且完整。"
+  },
+  {
+    "id": 267,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "我想我們可以先驗證這個假設。",
+    "answer": "I think we should validate that assumption first.",
+    "accept": [
+      "I think we should validate that assumption first.",
+      "We should test that assumption before going further."
+    ],
+    "keywords": [
+      "validate",
+      "assumption"
+    ],
+    "explain_zh": "validate an assumption 是驗證假設，產品與工程討論常用。"
+  },
+  {
+    "id": 268,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "hard",
+    "zh": "這件事牽涉到其他團隊，我要先問過。",
+    "answer": "This affects other teams, so I'd need to check with them first.",
+    "accept": [
+      "This affects other teams, so I'd need to check with them first.",
+      "Other teams are involved, so I'll need to consult them first."
+    ],
+    "keywords": [
+      "affects",
+      "check with"
+    ],
+    "explain_zh": "check with someone 是徵詢；consult 較正式。"
+  },
+  {
+    "id": 269,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "easy",
+    "zh": "這班車會停這一站嗎？",
+    "answer": "Does this train stop at this station?",
+    "accept": [
+      "Does this train stop at this station?",
+      "Does this service stop here?"
+    ],
+    "keywords": [
+      "stop",
+      "station"
+    ],
+    "explain_zh": "service 在英國常用來指班次：the next service to London。"
+  },
+  {
+    "id": 270,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "medium",
+    "zh": "我想換一間房間，這間太吵了。",
+    "answer": "Could I change rooms? This one is quite noisy.",
+    "accept": [
+      "Could I change rooms? This one is quite noisy.",
+      "Is it possible to move to another room? It's too noisy here."
+    ],
+    "keywords": [
+      "change rooms",
+      "noisy"
+    ],
+    "explain_zh": "change rooms 用複數，因為是「從一間換到另一間」。"
+  },
+  {
+    "id": 271,
+    "type": "sentence",
+    "category": "travel",
+    "difficulty": "hard",
+    "zh": "我想確認這個票可以退嗎。",
+    "answer": "I'd like to check whether this ticket is refundable.",
+    "accept": [
+      "I'd like to check whether this ticket is refundable.",
+      "Is this ticket refundable?"
+    ],
+    "keywords": [
+      "ticket",
+      "refundable"
+    ],
+    "explain_zh": "refundable 可退款；non-refundable 不可退，訂票時務必看清楚。"
+  },
+  {
+    "id": 272,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "easy",
+    "zh": "我對你們的產品很熟悉。",
+    "answer": "I'm quite familiar with your product.",
+    "accept": [
+      "I'm quite familiar with your product.",
+      "I know your product well."
+    ],
+    "keywords": [
+      "familiar",
+      "product"
+    ],
+    "explain_zh": "事前研究過公司產品是面試加分項，這句話要說得具體才有說服力。"
+  },
+  {
+    "id": 273,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "medium",
+    "zh": "我習慣主動回報進度。",
+    "answer": "I tend to proactively share updates.",
+    "accept": [
+      "I tend to proactively share updates.",
+      "I make a point of keeping people updated."
+    ],
+    "keywords": [
+      "share",
+      "updates"
+    ],
+    "explain_zh": "make a point of + V-ing 是「刻意做某事」，強調這是習慣。"
+  },
+  {
+    "id": 274,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我在意的是能不能持續學到東西。",
+    "answer": "What matters to me is whether I can keep learning.",
+    "accept": [
+      "What matters to me is whether I can keep learning.",
+      "The main thing for me is continuous learning."
+    ],
+    "keywords": [
+      "matters",
+      "keep learning"
+    ],
+    "explain_zh": "What matters to me is… 是強調重點的句型，比 I care about 更有份量。"
+  },
+  {
+    "id": 275,
+    "type": "sentence",
+    "category": "interview",
+    "difficulty": "hard",
+    "zh": "我可以接受出差，但希望有事先安排。",
+    "answer": "I'm open to travel, as long as it's planned in advance.",
+    "accept": [
+      "I'm open to travel, as long as it's planned in advance.",
+      "I don't mind travelling if there's enough notice."
+    ],
+    "keywords": [
+      "open to",
+      "advance"
+    ],
+    "explain_zh": "be open to something 是「可以接受」；as long as 附加條件。"
+  },
+  {
+    "id": 276,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "我通常搭捷運上班。",
+    "answer": "I usually take the metro to work.",
+    "accept": [
+      "I usually take the metro to work.",
+      "I normally commute by subway."
+    ],
+    "keywords": [
+      "take",
+      "work"
+    ],
+    "explain_zh": "commute 當動詞是通勤；名詞 my commute takes an hour。"
+  },
+  {
+    "id": 277,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "hard",
+    "zh": "我想先聽聽你的想法再決定。",
+    "answer": "I'd like to hear your thoughts before I decide.",
+    "accept": [
+      "I'd like to hear your thoughts before I decide.",
+      "Let me hear what you think first."
+    ],
+    "keywords": [
+      "hear",
+      "thoughts"
+    ],
+    "explain_zh": "hear someone's thoughts 比 hear your opinion 輕，不會像在要求表態。"
+  },
+  {
+    "id": 278,
+    "type": "sentence",
+    "category": "work",
+    "difficulty": "medium",
+    "zh": "這份文件我加了一些註解。",
+    "answer": "I've left a few comments on the document.",
+    "accept": [
+      "I've left a few comments on the document.",
+      "I've added some notes to the doc."
+    ],
+    "keywords": [
+      "comments",
+      "document"
+    ],
+    "explain_zh": "leave comments 是在文件上留言，協作工具的標準說法。"
+  },
+  {
+    "id": 279,
+    "type": "sentence",
+    "category": "daily",
+    "difficulty": "medium",
+    "zh": "這是我第一次來這裡。",
+    "answer": "This is my first time here.",
+    "accept": [
+      "This is my first time here.",
+      "It's my first time visiting."
+    ],
+    "keywords": [
+      "first time",
+      "here"
+    ],
+    "explain_zh": "first time 後面直接接地點副詞，不用加 to。"
+  }
+]

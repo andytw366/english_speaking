@@ -1,0 +1,50 @@
+# 跟 Caddyfile 一樣，只有憑證那段不同：改用 Let's Encrypt + DuckDNS 的 DNS-01。
+#
+# 差別在於裝置不用裝根憑證（iOS 那串「憑證信任設定」的步驟就免了），
+# 代價是要有 DuckDNS 的子網域與 token，而且 Caddy 需要連得到外網
+# （去跟 Let's Encrypt 要憑證、去 DuckDNS 寫 TXT 記錄）。
+#
+# 搭配 docker-compose.duckdns.yml 使用：
+#   docker compose -f docker-compose.yml -f docker-compose.duckdns.yml up -d --build
+
+# 跟 Caddyfile 一樣留著 default_sni。走網域時它不會有作用（連網域一定會送 SNI），
+# 但萬一有人改回用 IP 連，至少會拿到「憑證名稱不符」這種看得懂的錯誤，
+# 而不是 TLS alert 80 那種完全沒有線索的斷線。
+{
+	default_sni {$SITE_ADDRESS}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# DNS-01 挑戰：Let's Encrypt 驗的是「你能在這個網域寫 TXT 記錄」，
+	# 不是「這個 IP 連得到」—— 所以 A 記錄指向 VPN 內網 IP 也照樣簽得出來，
+	# 而且不需要對外開 80／443。
+	tls {
+		dns duckdns {env.DUCKDNS_API_TOKEN}
+
+		# 用公開的遞迴解析器查 zone，別用 Docker 內建的 127.0.0.11。
+		resolvers 1.1.1.1 8.8.8.8
+
+		# 為什麼要關掉傳播檢查（-1）：Caddy 預設會繞過遞迴解析器、直接去問該 zone 的
+		# 權威 nameserver「TXT 記錄出現了嗎」。而 DuckDNS 的權威 NS（99.79.16.64 等）
+		# 不回應 TCP/53 —— 實測從這台機器連它的 53 埠會 i/o timeout，但連 1.1.1.1:53
+		# 和 1.1.1.1:443 都是通的，所以不是防火牆問題，是 DuckDNS 那一側的行為。
+		# 檢查做不完，Caddy 就永遠不會通知 Let's Encrypt 來驗證，卡在
+		# 「could not get certificate from issuer ... checking DNS propagation」重試迴圈。
+		#
+		# 關掉檢查後改用固定等待：先寫 TXT、等 propagation_delay、才叫 LE 驗。
+		# 60 秒對 DuckDNS 很寬裕（實測幾秒內就生效），寧可慢一點也不要驗證失敗 ——
+		# 失敗的驗證會吃掉 Let's Encrypt 每小時的額度，卡住之後的重試。
+		propagation_delay 60s
+		propagation_timeout -1
+	}
+
+	reverse_proxy app:3000 {
+		# Gemini 一次呼叫實測 4～13 秒，後端自己的逾時是 60 秒。
+		# 這裡要比後端寬，不然會變成 Caddy 先斷線，使用者看到的錯誤訊息就不對了。
+		transport http {
+			response_header_timeout 90s
+		}
+	}
+}

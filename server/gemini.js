@@ -48,6 +48,29 @@ export function defaultModel() {
   return FALLBACK_MODEL;
 }
 
+// 階段 7：發音問題的分類。
+//
+// 為什麼要有這個列舉、而不是讓模型自由寫一句話：
+//   1. 前端可以把類型做成標籤，使用者一眼看得出「又是 th」——
+//      同一類錯誤重複出現，比單看某一個字唸錯更有意義；
+//   2. 自由文字每次的說法都不一樣，同一種錯誤會被寫成好幾種講法。
+//
+// 清單本身是照中文母語者的常見錯誤挑的（th、r/l、v/w、字尾子音、-s／-ed 等），
+// 不是通用的音素表 —— 這個 App 的使用者介面是繁體中文，練的人幾乎都是這個族群。
+export const ISSUE_CODES = [
+  'th',
+  'r_l',
+  'v_w',
+  'final_consonant',
+  'plural_ed',
+  'vowel_length',
+  'n_ng',
+  'extra_vowel',
+  'stress',
+  'linking',
+  'other',
+];
+
 // 階段 4：讓 Gemini 一次回傳 transcript + 分數 + 講評，
 // 取代原本要用 Web Speech API 做辨識的規劃（SpeechRecognition 吃不了錄好的 Blob）。
 //
@@ -74,8 +97,39 @@ const RESPONSE_SCHEMA = {
     },
     problem_words: {
       type: 'array',
-      items: { type: 'string' },
-      description: '發音明顯不準確的英文單字，取自目標句，最多 5 個。沒有就給空陣列。',
+      items: {
+        type: 'object',
+        properties: {
+          word: {
+            type: 'string',
+            description: '目標句裡發音不準的那個英文單字，照目標句的拼法。',
+          },
+          heard: {
+            type: 'string',
+            description:
+              '使用者實際唸出來的樣子，用英文拼寫近似地寫（例如把 thoroughly 唸成 sorrowly 就寫 sorrowly）。' +
+              '聽起來就是對的、只是不夠自然時，寫跟 word 一樣的內容。',
+          },
+          issue: {
+            type: 'string',
+            enum: ISSUE_CODES,
+            description:
+              '錯誤類型。th＝θ/ð 唸成 s/z/d；r_l＝r 與 l 混淆；v_w＝v 與 w 混淆；' +
+              'final_consonant＝字尾子音沒發出來；plural_ed＝字尾 -s／-ed 沒唸；' +
+              'vowel_length＝長短母音混淆（ship／sheep）；n_ng＝字尾 n 與 ng 混淆；' +
+              'extra_vowel＝字尾多加了母音；stress＝重音位置錯了；linking＝該連音卻斷開；' +
+              'other＝以上都不是。',
+          },
+          tip_zh: {
+            type: 'string',
+            description:
+              '一句話的繁體中文練習提示，要講「嘴巴怎麼做」而不是只說「發音不準」。' +
+              '例如「舌尖輕輕伸到上下門牙之間送氣，不要用 s」。40 字以內。',
+          },
+        },
+        required: ['word', 'heard', 'issue', 'tip_zh'],
+      },
+      description: '發音明顯不準確的英文單字，取自目標句，最多 3 個。沒有就給空陣列。',
     },
     feedback_zh: {
       type: 'string',
@@ -118,13 +172,22 @@ function buildPrompt(sentence) {
 2. 語調／重音是否自然
 3. 一句鼓勵 + 一個具體可改善的建議
 
+**使用者是中文（繁體）母語者。** 這個族群最常見的問題有：
+th（θ/ð）唸成 s／z／d、r 與 l 混淆、v 與 w 混淆、字尾子音被吞掉、
+字尾 -s／-ed 沒唸出來、長短母音不分（ship／sheep）、字尾 n 與 ng 混淆、
+字尾多加一個母音（and 唸成「an-de」）。優先檢查這些。
+
+problem_words 每一項都要寫清楚**你聽到他唸成什麼**（heard）跟**嘴巴該怎麼做**（tip_zh）——
+只說「thoroughly 發音不準」對練習沒有幫助，使用者不知道自己錯在哪、也不知道怎麼改。
+最多 3 個，挑最值得改的；真的都唸得不錯就給空陣列，不要硬湊。
+
 請用簡短條列回答，不要長篇大論。
 
 另外請一併提供：
 - transcript：你實際聽到的英文內容，逐字照實記錄。如果使用者唸錯、漏字或多唸，
   就照實寫下你聽到的，不要自動修正成目標句 —— 這個欄位會拿去跟目標句做比對。
 - score：0-100 的發音參考分數
-- problem_words：發音明顯不準的單字（取自目標句）
+- problem_words：發音明顯不準的單字（取自目標句），含 word / heard / issue / tip_zh
 
 如果聽得到人聲但內容與目標句完全無關，speech_detected 給 true、
 transcript 照實寫你聽到的、score 依實際發音給分，並在 feedback_zh 指出唸的不是目標句。`;
@@ -147,6 +210,11 @@ export class GeminiError extends Error {
     this.userMessage = userMessage;
     this.cause = cause;
   }
+}
+
+/** 金鑰換掉之後要重建 client，否則還會用舊的。 */
+export function resetClient() {
+  client = null;
 }
 
 export function hasApiKey() {
@@ -277,14 +345,48 @@ function normalize(parsed) {
     speech_detected: true,
     transcript: typeof parsed.transcript === 'string' ? parsed.transcript : '',
     score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null,
-    problem_words: Array.isArray(parsed.problem_words)
-      ? parsed.problem_words.filter((w) => typeof w === 'string').slice(0, 5)
-      : [],
+    problem_words: normalizeProblemWords(parsed.problem_words),
     feedback_zh:
       typeof parsed.feedback_zh === 'string' && parsed.feedback_zh.trim()
         ? parsed.feedback_zh
         : '（Gemini 沒有給出講評內容，請再試一次）',
   };
+}
+
+/**
+ * 整理 problem_words。
+ *
+ * 這裡故意寬鬆：**只要有 word 就留下來**，其他欄位缺了就補預設值。
+ * 理由是這幾個欄位在畫面上的地位不同 —— word 決定句子裡哪個字要標紅（沒有它就沒東西可標），
+ * heard／tip_zh 只是補充說明，因為模型少寫一欄就把整個字丟掉，
+ * 使用者反而看不到「這個字唸錯了」這件最重要的事。
+ *
+ * 另外相容舊格式（純字串陣列）：schema 換過，但快取或舊紀錄裡可能還是字串。
+ */
+export function normalizeProblemWords(list) {
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .map((item) => {
+      if (typeof item === 'string') {
+        const word = item.trim();
+        return word ? { word, heard: '', issue: 'other', tip_zh: '' } : null;
+      }
+      if (!item || typeof item !== 'object') return null;
+
+      const word = typeof item.word === 'string' ? item.word.trim() : '';
+      if (!word) return null;
+
+      return {
+        word,
+        heard: typeof item.heard === 'string' ? item.heard.trim() : '',
+        // 沒見過的類型一律歸到 other，不要讓沒有對應中文標籤的代碼漏到畫面上
+        issue: ISSUE_CODES.includes(item.issue) ? item.issue : 'other',
+        tip_zh: typeof item.tip_zh === 'string' ? item.tip_zh.trim() : '',
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 function withTimeout(promise, ms) {
@@ -377,4 +479,94 @@ function classifyError(err) {
     '呼叫 Gemini 時發生非預期的錯誤，詳細原因請看伺服器 console。',
     err
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Azure 接上之後的主要用法：讓 Gemini 把 Azure 的客觀分數翻譯成中文教練建議。
+//
+// 這條路徑吃的是一小段 JSON，不是音訊 —— 音訊計費是 32 tokens/秒，
+// 一段 5 秒錄音約 160 tokens；改吃 JSON 只要幾百 tokens 但不含音訊成本，
+// 而且不必把使用者的錄音再送一份給第二個服務。
+// ─────────────────────────────────────────────────────────────────────────
+
+const NARRATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    feedback_zh: {
+      type: 'string',
+      description: '繁體中文的簡短條列講評，每行以「• 」開頭，最多 4 行。',
+    },
+  },
+  required: ['feedback_zh'],
+};
+
+/**
+ * 把 Azure 的評估結果轉成繁體中文講評。
+ * @param {object} assessment assessPronunciation() 的回傳值
+ */
+export async function narrateAssessment(assessment, { model } = {}) {
+  if (!hasApiKey() || !looksLikeApiKey(process.env.GEMINI_API_KEY.trim())) {
+    // 沒有 Gemini 金鑰不算錯誤 —— Azure 的分數本身已經有用了，
+    // 呼叫端會改用 localSummary()。
+    return null;
+  }
+
+  const problems = (assessment.words ?? [])
+    .filter((w) => w.errorType !== 'None' || (w.accuracy ?? 100) < 80)
+    .map((w) => {
+      const phonemes = (w.phonemes ?? [])
+        .filter((p) => (p.accuracy ?? 100) < 70)
+        .map((p) => `${p.phoneme}(${p.accuracy})`)
+        .join(' ');
+      return `- ${w.word}：準確度 ${w.accuracy}，狀況 ${w.errorType}` +
+        (phonemes ? `，較弱的音素 ${phonemes}` : '');
+    })
+    .join('\n');
+
+  const s = assessment.scores ?? {};
+  const prompt = `你是一位英語發音教練。以下是語音評估系統對一段錄音的客觀分析結果。
+
+目標句：「${assessment.referenceText}」
+系統聽到：「${assessment.recognizedText}」
+
+整體分數（滿分 100）：
+- 發音總分 ${s.pronunciation}
+- 準確度 ${s.accuracy}
+- 流暢度 ${s.fluency}
+- 完整度 ${s.completeness}
+- 語調／重音 ${s.prosody}
+
+需要注意的字：
+${problems || '（沒有明顯問題的字）'}
+
+請用繁體中文寫出簡短的條列講評，最多 4 行，每行以「• 」開頭：
+1. 針對上面分數最低的面向，說明那代表什麼、要怎麼改善
+2. 針對需要注意的字，用具體的口腔動作描述怎麼發音（例如「th 要把舌尖輕觸上齒」）
+3. 最後一行給一句鼓勵
+
+不要重複列出分數數字，使用者已經看到了。直接講怎麼改善。`;
+
+  try {
+    const interaction = await withTimeout(
+      getClient().interactions.create({
+        // 白名單檢查在 getPronunciationFeedback 裡做過了；這裡只是「把數字講成人話」，
+        // 拿不到指定 model 就用預設值。（merge 時原本的 MODEL 常數被 MODELS 白名單
+        // 取代，這一行忘了跟著改，一設定 Azure 就會 ReferenceError。）
+        model: model && isAllowedModel(model) ? model : defaultModel(),
+        input: [{ type: 'text', text: prompt }],
+        response_format: {
+          type: 'text',
+          mime_type: 'application/json',
+          schema: NARRATION_SCHEMA,
+        },
+      }),
+      TIMEOUT_MS
+    );
+    const parsed = JSON.parse(interaction.output_text);
+    return typeof parsed.feedback_zh === 'string' ? parsed.feedback_zh : null;
+  } catch (err) {
+    // 講評失敗不該讓整個請求失敗 —— Azure 的分數還是要回給使用者
+    console.error('[gemini] 產生中文講評失敗（將改用本地摘要）：', err);
+    return null;
+  }
 }

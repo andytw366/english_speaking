@@ -1,0 +1,57 @@
+# Caddy：在 App 前面補上 HTTPS。
+#
+# 為什麼一定要它：瀏覽器的 getUserMedia（麥克風）只在 **secure context** 下可用 ——
+# 也就是 `localhost` 或 `https://`。透過 VPN 連到 `http://10.x.x.x:3000` 是不算的，
+# 麥克風會被直接擋掉，這也是 README 原本那條「只能用 localhost」限制的來源。
+#
+# 順便還做了兩件事：gzip（sentences.json 有 470 KB）、以及把 App 藏在後面
+# （App 容器不對外開埠，只有 Caddy 連得到）。
+
+# 全域設定：沒有 SNI 的連線要當成哪個站台。
+#
+# 為什麼需要：SNI 規格不允許放 IP（RFC 6066），所以瀏覽器連 https://10.x.x.x:8443
+# 時「不會」送 SNI。Caddy 這時本來會退回用連線的本機 IP 去找憑證，但在 Docker 的
+# 埠轉發後面，容器只看到 172.x 的內部位址，比對不到 —— 結果是 TLS alert 80
+# （internal error）直接斷線，瀏覽器只會說「無法安全連線」，看不出原因。
+# 把 default_sni 設成 SITE_ADDRESS，沒送 SNI 的連線就會拿到正確那張憑證。
+# SITE_ADDRESS 填網域時這行不會有作用（連網域一定會送 SNI），留著無妨。
+{
+	default_sni {$SITE_ADDRESS}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# ── 憑證：預設用 Caddy 自己的本機 CA ──────────────────────────────
+	#
+	# 不需要網域、不需要對外連線，Caddy 會自己簽一張憑證（IP 位址也簽得出來）。
+	# 代價是每台要用的裝置都得裝一次 Caddy 的根憑證，見 README。
+	tls internal
+
+	# ── 有網域的話改用這個（把上面那行註解掉）────────────────────────
+	#
+	# 走 DNS-01 挑戰，所以**不需要**對外開 80／443，A 記錄指到 VPN 內網 IP 也沒關係 ——
+	# Let's Encrypt 驗的是「你控制這個網域」，不是「這個 IP 連得到」。
+	# 好處是每台裝置都直接信任，不用裝根憑證。
+	#
+	# 這需要含 DNS 模組的 Caddy 映像檔（官方的 caddy:2-alpine 沒有），
+	# 見 docker-compose.yml 裡 caddy 服務的說明。
+
+	# DuckDNS（免費，SITE_ADDRESS 填 <你的名字>.duckdns.org）
+	# tls {
+	# 	dns duckdns {env.DUCKDNS_API_TOKEN}
+	# }
+
+	# 自己的網域掛在 Cloudflare
+	# tls {
+	# 	dns cloudflare {env.CF_API_TOKEN}
+	# }
+
+	reverse_proxy app:3000 {
+		# Gemini 一次呼叫實測 4～13 秒，後端自己的逾時是 60 秒。
+		# 這裡要比後端寬，不然會變成 Caddy 先斷線，使用者看到的錯誤訊息就不對了。
+		transport http {
+			response_header_timeout 90s
+		}
+	}
+}

@@ -7,6 +7,18 @@
 # 順便還做了兩件事：gzip（sentences.json 有 470 KB）、以及把 App 藏在後面
 # （App 容器不對外開埠，只有 Caddy 連得到）。
 
+# 全域設定：沒有 SNI 的連線要當成哪個站台。
+#
+# 為什麼需要：SNI 規格不允許放 IP（RFC 6066），所以瀏覽器連 https://10.x.x.x:8443
+# 時「不會」送 SNI。Caddy 這時本來會退回用連線的本機 IP 去找憑證，但在 Docker 的
+# 埠轉發後面，容器只看到 172.x 的內部位址，比對不到 —— 結果是 TLS alert 80
+# （internal error）直接斷線，瀏覽器只會說「無法安全連線」，看不出原因。
+# 把 default_sni 設成 SITE_ADDRESS，沒送 SNI 的連線就會拿到正確那張憑證。
+# SITE_ADDRESS 填網域時這行不會有作用（連網域一定會送 SNI），留著無妨。
+{
+	default_sni {$SITE_ADDRESS}
+}
+
 {$SITE_ADDRESS} {
 	encode zstd gzip
 

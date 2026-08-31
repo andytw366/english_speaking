@@ -1,6 +1,6 @@
 # 兩個容器：App 本身，以及在前面補 HTTPS 的 Caddy。
 #
-#   cp .env.example .env     # 填 GEMINI_API_KEY 與 SITE_ADDRESS
+#   cp .env.example .env     # 填 GEMINI_API_KEY、SITE_ADDRESS、BIND_ADDR
 #   docker compose up -d --build
 #
 # 然後從 VPN 內的手機開 https://<SITE_ADDRESS>:8443
@@ -30,7 +30,10 @@ services:
     ports:
       # 用 8443 而不是 443：低於 1024 的埠要特權，而 WSL 上常常已經有東西佔著。
       # 非標準埠不影響 secure context，https://host:8443 一樣算安全來源。
-      - '${HTTPS_PORT:-8443}:443'
+      # BIND_ADDR 決定綁在哪個介面：填 VPN（WireGuard）介面的 IP，
+      # 就只有 VPN 內的 peer 連得到，區網與公網掃不到這個埠。
+      # 留空會綁 0.0.0.0，等於對所有網路介面開放 —— 這個 App 沒有帳號密碼，別這樣放。
+      - '${BIND_ADDR:-0.0.0.0}:${HTTPS_PORT:-8443}:443'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # caddy_data 裡有本機 CA 的私鑰與簽出來的憑證。刪掉這個 volume 等於換一張 CA，

@@ -805,12 +805,19 @@ WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏�
 
 ```bash
 cp .env.example .env
-# 編輯 .env：填 GEMINI_API_KEY，以及 SITE_ADDRESS（你會用哪個位址連過來）
+# 編輯 .env：填 GEMINI_API_KEY、SITE_ADDRESS（你會用哪個位址連過來）
+#           以及 BIND_ADDR（把埠綁在哪個介面上）
 
 docker compose up -d --build
 ```
 
 然後從同一個網路（VPN 或區網）的裝置開 `https://<SITE_ADDRESS>:8443`。
+
+> ⚠️ **`BIND_ADDR` 要填。** 這個 App 沒有帳號密碼、沒有 rate limit，
+> 而 `BIND_ADDR` 留空時 compose 會退回 `0.0.0.0` —— 等於把 8443 對所有網路介面開。
+> 填 VPN 介面的 IP（例如 `BIND_ADDR=10.0.0.5`），服務就只在 VPN 內看得到，
+> 區網跟公網那一側連掃都掃不到。確認方式：`docker compose ps` 的 PORTS 要看到
+> `10.0.0.5:8443->443/tcp`，而不是 `0.0.0.0:8443->443/tcp`。
 
 | 檔案 | 做什麼 |
 |---|---|
@@ -824,6 +831,19 @@ docker compose up -d --build
 
 `Caddyfile` 裡的 `tls internal`。Caddy 會自己簽一張憑證，**連 IP 位址都簽得出來**，
 所以 `SITE_ADDRESS` 直接填 VPN 的內網 IP 就行。
+
+用 IP 還有一個不明顯的坑，`Caddyfile` 頂端的 `default_sni` 就是為了這件事：
+[SNI 規格不允許放 IP](https://datatracker.ietf.org/doc/html/rfc6066#section-3)，
+所以瀏覽器連 `https://10.0.0.5:8443` 時「不會」送 SNI。Caddy 這時本來會退回用
+連線的本機 IP 去找憑證，但在 Docker 的埠轉發後面，容器只看得到 `172.x` 的內部位址，
+比對不到 —— 結果是 TLS alert 80（internal error）直接斷線，瀏覽器只說「無法安全連線」，
+Caddy 的 log 裡也看不出原因。`default_sni {$SITE_ADDRESS}` 讓沒送 SNI 的連線拿到正確那張憑證。
+走下面的網域那條路時這行不會有作用（連網域一定會送 SNI），留著無妨。
+
+> 測試時的另一個坑：Windows 內建的 `curl.exe` 走 schannel，**對純 IP 做 TLS 會失敗**
+> （`SEC_E_INTERNAL_ERROR 0x80090304`），連 `-k` 也救不了，看起來很像服務壞了其實沒有。
+> 要確認就用 OpenSSL 的：`openssl s_client -connect 10.0.0.5:8443 -noservername`
+> （`-noservername` 才是真正在模擬瀏覽器連 IP 的行為）。
 
 代價是每台要用的裝置都得裝一次 Caddy 的根憑證：
 

@@ -6,7 +6,11 @@ import dotenv from 'dotenv';
 import express from 'express';
 import multer from 'multer';
 
-import { getPronunciationFeedback, narrateAssessment, GeminiError, hasApiKey, resetClient as resetGeminiClient } from './gemini.js';
+import {
+  getPronunciationFeedback, narrateAssessment, GeminiError, hasApiKey,
+  resetClient as resetGeminiClient, MODELS, defaultModel,
+} from './gemini.js';
+import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
 import { readSettings, writeSettings, assertLocalRequest, SettingsError } from './settings.js';
 
@@ -39,6 +43,12 @@ app.get('/api/health', (req, res) => {
     azureConfigured: hasAzureConfig(),
     geminiConfigured: hasApiKey(),
   });
+});
+
+// 可選的 Gemini model。前端的選單從這裡拿，送上來的值也會在 gemini.js 用
+// 同一份白名單再驗一次 —— 選單是 UI，不是權限。
+app.get('/api/models', (req, res) => {
+  res.json({ models: MODELS, default: defaultModel() });
 });
 
 // 靜態學習內容。題目與例句是開發時寫好的靜態檔，不做執行期 AI 生成 ——
@@ -139,10 +149,50 @@ app.post(
       });
     }
 
+    // model 由前端從 /api/models 的清單挑，沒送就用預設值。
+    // 白名單檢查在 gemini.js 裡做（那是唯一擋得住任意字串的地方）。
+    const model = (req.body?.model || '').trim() || undefined;
+
     console.log(
       `[feedback] 收到錄音：${req.file.mimetype}，` +
-        `${(req.file.size / 1024).toFixed(1)} KB，目標句：「${sentence}」`
+        `${(req.file.size / 1024).toFixed(1)} KB，model：${model ?? defaultModel()}，` +
+        `目標句：「${sentence}」`
     );
+
+    // ─── 送出去之前先擋掉沒有人聲的錄音 ───────────────────────────────
+    //
+    // 為什麼要在這裡擋：實測把純靜音送給 Gemini，flash 系列會把提示裡的目標句
+    // 當成「聽到的內容」原封不動回傳，給 95～98 分還稱讚雙元音很到位
+    // （五個 model 有三個這樣，詳見 server/audio.js 開頭的紀錄）。
+    // 那個問題改 prompt 修不掉，只能在呼叫前用訊號本身判斷。
+    //
+    // Azure 對靜音會回 NoMatch（有正確處理），但一樣是白跑一趟 ——
+    // 免費層併發數很低，省下來的每一次呼叫都有意義。
+    const stats = analyseWavPcm16(req.file.buffer);
+    if (isSilentRecording(stats)) {
+      console.log(
+        `[feedback] 判定為無人聲（peak=${stats.peak.toFixed(4)}、` +
+          `有聲音框佔比=${(stats.voicedRatio * 100).toFixed(1)}%），未呼叫任何 API`
+      );
+      return res.json({
+        provider: null,
+        speech_detected: false,
+        referenceText: sentence,
+        recognizedText: '',
+        transcript: '',
+        score: 0,
+        scores: {},
+        words: [],
+        problem_words: [],
+        feedback_zh:
+          '• 這段錄音裡幾乎沒有聲音。\n' +
+          '• 請確認麥克風沒有被靜音、系統輸入裝置選對了，並靠近麥克風再錄一次。',
+        gated_by: 'silence',
+      });
+    }
+    if (!stats.analysed) {
+      console.warn(`[feedback] 無法分析音訊能量（${stats.reason}），略過無人聲檢查`);
+    }
 
     const startedAt = Date.now();
     const elapsed = () => `${((Date.now() - startedAt) / 1000).toFixed(1)} 秒`;
@@ -156,7 +206,7 @@ app.post(
         });
 
         // 講評失敗不讓整個請求失敗 —— 分數本身已經有價值
-        const narration = await narrateAssessment(assessment);
+        const narration = await narrateAssessment(assessment, { model });
 
         console.log(
           `[feedback] Azure 評估完成，耗時 ${elapsed()}，` +
@@ -176,6 +226,7 @@ app.post(
         audioBuffer: req.file.buffer,
         mimeType: req.file.mimetype?.startsWith('audio/') ? req.file.mimetype : 'audio/wav',
         sentence,
+        model,
       });
       console.log(`[feedback] Gemini 回覆完成，耗時 ${elapsed()}，分數 ${result.score}`);
       return res.json({ provider: 'gemini', ...result });

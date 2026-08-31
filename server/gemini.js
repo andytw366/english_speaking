@@ -504,7 +504,7 @@ const NARRATION_SCHEMA = {
  * 把 Azure 的評估結果轉成繁體中文講評。
  * @param {object} assessment assessPronunciation() 的回傳值
  */
-export async function narrateAssessment(assessment) {
+export async function narrateAssessment(assessment, { model } = {}) {
   if (!hasApiKey() || !looksLikeApiKey(process.env.GEMINI_API_KEY.trim())) {
     // 沒有 Gemini 金鑰不算錯誤 —— Azure 的分數本身已經有用了，
     // 呼叫端會改用 localSummary()。
@@ -549,7 +549,10 @@ ${problems || '（沒有明顯問題的字）'}
   try {
     const interaction = await withTimeout(
       getClient().interactions.create({
-        model: MODEL,
+        // 白名單檢查在 getPronunciationFeedback 裡做過了；這裡只是「把數字講成人話」，
+        // 拿不到指定 model 就用預設值。（merge 時原本的 MODEL 常數被 MODELS 白名單
+        // 取代，這一行忘了跟著改，一設定 Azure 就會 ReferenceError。）
+        model: model && isAllowedModel(model) ? model : defaultModel(),
         input: [{ type: 'text', text: prompt }],
         response_format: {
           type: 'text',

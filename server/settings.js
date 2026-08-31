@@ -19,14 +19,25 @@ export class SettingsError extends Error {
   }
 }
 
-/** 只允許本機請求 —— 這個端點會寫入 .env，不能讓區網或外部碰到。 */
+/**
+ * 只允許本機請求 —— 這個端點會寫入 .env，不能讓區網或外部碰到。
+ *
+ * 注意這一關在**反向代理後面會一律擋掉**（Docker 部署就是這種情形：
+ * 請求從 Caddy 的容器 IP 進來，不是 127.0.0.1）。那是刻意的、也是對的 ——
+ * 代理會把所有人的請求都變成「內部來源」，放行等於門戶大開。
+ * 那種部署下金鑰請直接寫在 .env 裡。
+ */
 export function assertLocalRequest(req) {
   const raw = req.socket?.remoteAddress ?? req.ip ?? '';
   const ip = raw.replace(/^::ffff:/, '');
   if (ip !== '127.0.0.1' && ip !== '::1') {
     throw new SettingsError(
       403,
-      '基於安全考量，只有從本機（localhost）開啟的頁面才能修改金鑰設定。'
+      '基於安全考量，這個頁面不能修改金鑰設定 —— 只有直接連到伺服器本機' +
+        '（http://localhost:3000）的請求才可以。\n' +
+        '如果你是透過 Docker 的 Caddy 或其他反向代理連進來的，' +
+        '請改成直接編輯專案根目錄的 .env 再重啟容器：這個端點會寫入 .env，' +
+        '而代理背後的請求無法分辨是誰送的。'
     );
   }
 }

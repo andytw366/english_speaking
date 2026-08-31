@@ -12,6 +12,9 @@ export const DEFAULTS = {
   translationType: 'all',// all | cloze | sentence
   autoPlayListening: false,
   vocabDeck: 'curated',  // 目前選的單字牌組
+  geminiModel: '',       // 空字串 = 用後端的預設值
+  shadowingWeighted: true, // 跟讀：依成績與間隔加權抽句
+  shadowingGoal: 5,      // 跟讀：每日目標句數
 };
 
 let cache = null;

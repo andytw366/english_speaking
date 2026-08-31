@@ -2,15 +2,17 @@ import { h, clear, append } from '../lib/dom.js';
 import { loadVoices, speak } from '../lib/tts.js';
 import { getSettings, updateSettings, resetSettings, DEFAULTS } from '../lib/settings.js';
 import { resetSrs, clearHistory, getHistory, getSrsState } from '../lib/storage.js';
+import { CATEGORY_LABEL, DIFFICULTY_LABEL, DIFFICULTY_ORDER } from '../lib/labels.js';
 
 export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 
-const CATEGORIES = [
-  ['work', '職場'], ['daily', '日常'], ['travel', '旅遊'], ['interview', '面試'],
-];
-const DIFFICULTIES = [['easy', '簡單'], ['medium', '中等'], ['hard', '困難']];
+// 情境與難度的清單從 lib/labels.js 長出來，不在這裡再寫死一份 ——
+// 句庫已經有八種情境（原本這裡只列四種，新增的四種就選不到）。
+const CATEGORIES = Object.entries(CATEGORY_LABEL);
+const DIFFICULTIES = DIFFICULTY_ORDER.map((id) => [id, DIFFICULTY_LABEL[id]]);
 
 let voices = [];
+let models = [];
 let serverSettings = null;
 let serverError = '';
 let saveState = '';
@@ -27,6 +29,15 @@ export async function mount(container) {
     else serverSettings = body;
   } catch (err) {
     serverError = '讀不到伺服器設定，請確認後端還在執行。';
+  }
+
+  // model 清單拿不到不是致命錯誤 —— 收起選單，讓後端用它的預設值就好
+  try {
+    const res = await fetch('/api/models');
+    const body = await res.json();
+    models = Array.isArray(body.models) ? body.models : [];
+  } catch {
+    models = [];
   }
 
   render();
@@ -180,6 +191,20 @@ function practiceCard() {
           render();
         }))),
       h('p', { class: 'hint' }, s.difficulties.length === 0 ? '目前：全部難度' : `目前：${s.difficulties.length} 種難度`),
+    ),
+
+    models.length > 0 && h('div', { class: 'field' },
+      h('label', { class: 'field__label', for: 'gemini-model' }, '講評用的 Gemini model'),
+      h('select', {
+        class: 'select', id: 'gemini-model',
+        onchange: (e) => { updateSettings({ geminiModel: e.target.value }); render(); },
+      }, models.map((m) => h('option', {
+        value: m.id,
+        selected: m.id === s.geminiModel,
+      }, m.label ?? m.id))),
+      h('p', { class: 'hint' },
+        (models.find((m) => m.id === s.geminiModel)?.note ?? '') +
+        '　清單寫死在後端，送上來的值也會再驗一次 —— 選單是 UI，不是權限。'),
     ),
 
     h('div', { class: 'field' },

@@ -461,6 +461,9 @@ async function submit() {
   const form = new FormData();
   form.append('audio', wavBlob, 'recording.wav');
   form.append('sentence', current.text);
+  // 使用者在「設定」選的 model。沒選就不送，後端用它自己的預設值。
+  const chosenModel = getSettings().geminiModel;
+  if (chosenModel) form.append('model', chosenModel);
 
   try {
     const res = await fetch('/api/pronunciation-feedback', { method: 'POST', body: form });

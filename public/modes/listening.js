@@ -1,11 +1,10 @@
 import { h, clear, append } from '../lib/dom.js';
+import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { filterBySettings } from '../lib/settings.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 
 export const meta = { id: 'listening', label: '聽力', icon: '🎧' };
 
-const CATEGORY_LABEL = { work: '職場', daily: '日常', travel: '旅遊', interview: '面試' };
-const DIFFICULTY_LABEL = { easy: '簡單', medium: '中等', hard: '困難' };
 
 let items = [];
 let current = null;
@@ -40,8 +39,8 @@ function render() {
   append(root, 
     h('div', { class: 'card' },
       h('div', { class: 'card__meta' },
-        h('span', { class: 'chip' }, CATEGORY_LABEL[current.category] ?? current.category),
-        h('span', { class: 'chip chip--muted' }, DIFFICULTY_LABEL[current.difficulty] ?? current.difficulty),
+        h('span', { class: 'chip' }, categoryLabel(current.category)),
+        h('span', { class: 'chip chip--muted' }, difficultyLabel(current.difficulty)),
       ),
       h('h2', { class: 'listen__title' }, current.title),
       h('p', { class: 'hint' }, '先聽，再作答。可以重複播放。'),

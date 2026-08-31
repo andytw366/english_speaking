@@ -1,12 +1,11 @@
 import { h, clear, append } from '../lib/dom.js';
+import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { buildQueue, recordAnswer, srsSummary, getCardState, resetSrs } from '../lib/storage.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
 
-const CATEGORY_LABEL = { work: '職場', daily: '日常', travel: '旅遊', interview: '面試' };
-const DIFFICULTY_LABEL = { easy: '簡單', medium: '中等', hard: '困難' };
 
 let catalog = null;      // index.json
 let deckId = null;       // 目前的牌組
@@ -117,8 +116,8 @@ function render() {
   append(root, 
     h('div', { class: 'card' },
       h('div', { class: 'card__meta' },
-        card.category && h('span', { class: 'chip' }, CATEGORY_LABEL[card.category] ?? card.category),
-        h('span', { class: 'chip chip--muted' }, DIFFICULTY_LABEL[card.difficulty] ?? card.difficulty),
+        card.category && h('span', { class: 'chip' }, categoryLabel(card.category)),
+        h('span', { class: 'chip chip--muted' }, difficultyLabel(card.difficulty)),
         h('span', { class: 'chip chip--muted' }, `第 ${state.box} 盒`),
         h('span', { class: 'counter' }, `${index + 1} / ${queue.length}`),
       ),

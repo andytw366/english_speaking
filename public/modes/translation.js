@@ -1,12 +1,11 @@
 import { h, clear, append } from '../lib/dom.js';
+import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings } from '../lib/settings.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
 
 export const meta = { id: 'translation', label: '中翻英', icon: '✍️' };
 
-const CATEGORY_LABEL = { work: '職場', daily: '日常', travel: '旅遊', interview: '面試' };
-const DIFFICULTY_LABEL = { easy: '簡單', medium: '中等', hard: '困難' };
 const TYPE_LABEL = { cloze: '填空', sentence: '整句翻譯' };
 
 let all = [];
@@ -53,8 +52,8 @@ function render() {
   const card = h('div', { class: 'card' },
     h('div', { class: 'card__meta' },
       h('span', { class: 'chip' }, TYPE_LABEL[current.type]),
-      h('span', { class: 'chip chip--muted' }, CATEGORY_LABEL[current.category] ?? current.category),
-      h('span', { class: 'chip chip--muted' }, DIFFICULTY_LABEL[current.difficulty] ?? current.difficulty),
+      h('span', { class: 'chip chip--muted' }, categoryLabel(current.category)),
+      h('span', { class: 'chip chip--muted' }, difficultyLabel(current.difficulty)),
     ),
     h('p', { class: 'card__title' }, '把這句話翻成英文'),
     h('p', { class: 'trans__zh' }, current.zh),

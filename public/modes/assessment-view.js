@@ -1,4 +1,7 @@
 import { h, append } from '../lib/dom.js';
+import { diffWords, normalizeWord, problemWordText } from '../lib/text-diff.js';
+import { issueLabel } from '../lib/labels.js';
+import { speak } from '../lib/tts.js';
 
 // 發音評估結果的呈現。Azure 有逐字、逐音素分數；Gemini 退路只有主觀分數。
 
@@ -10,10 +13,6 @@ const ERROR_LABEL = {
   MissingBreak: '少了該有的停頓',
   Monotone: '語調太平',
 };
-
-function normalizeWord(w) {
-  return w.toLowerCase().replace(/[^a-z0-9']/g, '');
-}
 
 function scoreLevel(v) {
   if (typeof v !== 'number') return 'na';
@@ -40,35 +39,16 @@ function alignAzureWords(targetWords, azureWords) {
   return out;
 }
 
-/** Gemini 退路：用 LCS 找出沒被聽到的字 */
-function matchedTargetIndices(targetWords, spokenWords) {
-  const a = targetWords.map(normalizeWord);
-  const b = spokenWords.map(normalizeWord);
-  const dp = Array.from({ length: a.length + 1 }, () => new Int32Array(b.length + 1));
-  for (let i = a.length - 1; i >= 0; i--) {
-    for (let j = b.length - 1; j >= 0; j--) {
-      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-    }
-  }
-  const matched = new Set();
-  let i = 0, j = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { matched.add(i); i++; j++; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
-    else j++;
-  }
-  return matched;
-}
-
 function buildHighlightedSentence(targetText, data) {
   const targetWords = targetText.split(/\s+/);
   const el = h('p', { class: 'sentence', id: 'sentence' });
 
   const aligned = data.provider === 'azure' ? alignAzureWords(targetWords, data.words) : null;
-  const matched = data.provider !== 'azure' && data.transcript
-    ? matchedTargetIndices(targetWords, data.transcript.split(/\s+/))
+  // Gemini 退路的逐字比對用 lib/text-diff.js —— 那份是純函式而且有單元測試，
+  // 不要在這裡再寫一份 LCS（原本兩邊各有一份，改一邊另一邊就會不一致）
+  const diffed = data.provider !== 'azure'
+    ? diffWords(targetText, data.transcript ?? '', data.problem_words ?? [])
     : null;
-  const problems = new Set((data.problem_words ?? []).map(normalizeWord).filter(Boolean));
 
   targetWords.forEach((word, idx) => {
     let cls = 'word';
@@ -82,11 +62,11 @@ function buildHighlightedSentence(targetText, data) {
         title = `準確度 ${info.accuracy}` +
           (info.errorType && info.errorType !== 'None' ? `・${ERROR_LABEL[info.errorType] ?? info.errorType}` : '');
       }
-    } else if (matched) {
-      if (!matched.has(idx) || problems.has(normalizeWord(word))) {
-        cls += ' word--bad';
-        title = !matched.has(idx) ? '這個字沒有聽到，或唸得不一樣' : '這個字的發音需要加強';
-      }
+    } else if (diffed?.[idx]?.miss) {
+      cls += ' word--bad';
+      title = diffed[idx].reason === 'unheard'
+        ? '這個字沒有聽到，或唸得不一樣'
+        : '這個字的發音需要加強';
     }
 
     append(el, h('span', { class: cls, title: title || null }, word));
@@ -101,6 +81,50 @@ function scoreTile(label, value, hint) {
     h('div', { class: 'tile__value' }, typeof value === 'number' ? String(Math.round(value)) : '—'),
     h('div', { class: 'tile__label' }, label),
   );
+}
+
+/**
+ * Gemini 路徑的逐字發音問題：唸成什麼、屬於哪一類、嘴巴該怎麼做。
+ *
+ * 只說「thoroughly 發音不準」對練習沒有幫助 —— 使用者不知道自己唸成了什麼，
+ * 也不知道要怎麼改。Azure 路徑有逐音素分數所以不需要這一段（見上面的 worddetail），
+ * 這裡是沒設定 Azure 時的替代方案。
+ *
+ * @returns {HTMLElement|null} 沒有問題字時回 null（不要留一個空的區塊）
+ */
+function geminiProblemWords(list) {
+  const items = (Array.isArray(list) ? list : [])
+    .map((item) => (typeof item === 'string' ? { word: item } : item))
+    .filter((item) => problemWordText(item));
+  if (items.length === 0) return null;
+
+  const wrap = h('div', { class: 'problems' },
+    h('p', { class: 'problems__title' }, '這幾個字可以再練'));
+  const rows = h('ul', { class: 'problems__list' });
+
+  for (const item of items) {
+    const row = h('li', { class: 'problems__item' },
+      h('div', { class: 'problems__head' },
+        h('span', { class: 'problems__word' }, item.word),
+        h('span', { class: 'chip chip--issue' }, issueLabel(item.issue)),
+        // 單字放慢一點 —— 這裡的目的是聽清楚那個音，不是聽自然的語速
+        h('button', {
+          class: 'btn btn--ghost btn--small problems__play',
+          title: `聽 ${item.word} 的發音`,
+          onclick: () => speak(item.word, { rate: 0.75 }).catch(() => {}),
+        }, '🔊 單字'),
+      ));
+
+    // 「你唸成什麼」只在確實不一樣時才寫；一樣的話那行字只會讓人困惑
+    if (item.heard && item.heard.toLowerCase() !== item.word.toLowerCase()) {
+      append(row, h('p', { class: 'problems__heard' }, `你唸成：${item.heard}`));
+    }
+    if (item.tip_zh) append(row, h('p', { class: 'problems__tip' }, item.tip_zh));
+    append(rows, row);
+  }
+
+  append(wrap, rows);
+  return wrap;
 }
 
 /**
@@ -170,6 +194,7 @@ export function renderAssessment(container, data, targetText, replaceSentence) {
     if (data.transcript) {
       append(container, h('p', { class: 'hint' }, `AI 聽到的內容：${data.transcript}`));
     }
+    append(container, geminiProblemWords(data.problem_words));
   }
 
   append(container, h('p', { class: 'coach' }, data.feedback_zh ?? '（沒有收到講評內容）'));

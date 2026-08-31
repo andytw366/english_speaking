@@ -27,7 +27,7 @@ import {
   focusBoost,
   matchedWeakIssues,
   WEAK_WINDOW,
-} from '../public/practice.js';
+} from '../public/lib/practice.js';
 
 /**
  * 測試裡的「現在」。

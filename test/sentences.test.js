@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { ISSUE_CODES } from '../server/gemini.js';
-import { CATEGORY_LABEL, DIFFICULTY_LABEL } from '../public/labels.js';
+import { CATEGORY_LABEL, DIFFICULTY_LABEL } from '../public/lib/labels.js';
 
 const sentences = JSON.parse(readFileSync(new URL('../content/sentences.json', import.meta.url)));
 

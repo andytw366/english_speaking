@@ -1,4 +1,5 @@
 import { h, clear, append } from '../lib/dom.js';
+import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { filterBySettings } from '../lib/settings.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
@@ -6,8 +7,6 @@ import { Recorder, isSupported as recSupported, describeMicError, MAX_RECORDING_
 
 export const meta = { id: 'dialogue', label: '情境對話', icon: '💬' };
 
-const CATEGORY_LABEL = { work: '職場', daily: '日常', travel: '旅遊', interview: '面試' };
-const DIFFICULTY_LABEL = { easy: '簡單', medium: '中等', hard: '困難' };
 
 let all = [];
 let current = null;
@@ -112,8 +111,8 @@ function headerCard() {
   const userTurns = current.turns.filter((t) => t.speaker === 'you').length;
   return h('div', { class: 'card' },
     h('div', { class: 'card__meta' },
-      h('span', { class: 'chip' }, CATEGORY_LABEL[current.category] ?? current.category),
-      h('span', { class: 'chip chip--muted' }, DIFFICULTY_LABEL[current.difficulty] ?? current.difficulty),
+      h('span', { class: 'chip' }, categoryLabel(current.category)),
+      h('span', { class: 'chip chip--muted' }, difficultyLabel(current.difficulty)),
       h('span', { class: 'counter' }, `${Math.min(scores.length, userTurns)} / ${userTurns} 句`),
     ),
     h('h2', { class: 'listen__title' }, current.title),

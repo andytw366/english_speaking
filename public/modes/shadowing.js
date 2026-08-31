@@ -4,11 +4,10 @@ import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { Recorder, isSupported as recSupported, unsupportedReason, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
 import { addAttempt } from '../lib/storage.js';
 import { renderAssessment } from './assessment-view.js';
+import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 
 export const meta = { id: 'shadowing', label: '跟讀', icon: '🗣️' };
 
-const CATEGORY_LABEL = { daily: '日常對話', interview: '面試', travel: '旅遊' };
-const DIFFICULTY_LABEL = { easy: '簡單', medium: '中等', hard: '困難' };
 
 let sentences = [];
 let current = null;
@@ -70,8 +69,8 @@ function render() {
   append(root, 
     h('div', { class: 'card' },
       h('div', { class: 'card__meta' },
-        h('span', { class: 'chip' }, CATEGORY_LABEL[current.category] ?? current.category),
-        h('span', { class: 'chip chip--muted' }, DIFFICULTY_LABEL[current.difficulty] ?? current.difficulty),
+        h('span', { class: 'chip' }, categoryLabel(current.category)),
+        h('span', { class: 'chip chip--muted' }, difficultyLabel(current.difficulty)),
       ),
       h('p', { class: 'sentence', id: 'sentence' }, current.text),
       h('div', { class: 'row' },

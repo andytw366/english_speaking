@@ -11,7 +11,7 @@ import {
   matchedTargetIndices,
   diffWords,
   problemWordText,
-} from '../public/text-diff.js';
+} from '../public/lib/text-diff.js';
 
 const TARGET = 'Could you tell me where the nearest subway station is?';
 

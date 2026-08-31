@@ -11,7 +11,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY server ./server
 COPY public ./public
-COPY sentences.json ./
+COPY content ./content
 
 ENV NODE_ENV=production
 ENV PORT=3000

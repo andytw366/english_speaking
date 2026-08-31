@@ -1,7 +1,7 @@
 // 從 Tatoeba 語料匯入練習句，自動標 focus 與難度。
 //
 //   node scripts/import-sentences.mjs            # 試跑，只印統計與樣本，不寫檔
-//   node scripts/import-sentences.mjs --write    # 真的寫進 sentences.json
+//   node scripts/import-sentences.mjs --write    # 真的寫進 content/sentences.json
 //
 // 為什麼要有這支：`focus`（這句在練哪些音）原本要人工標，標到 81 句就標不動了 ——
 // 而句庫不長，間隔重複與「多給你 th 的句子」這些功能就沒有素材可以發揮。
@@ -24,7 +24,7 @@ import * as OpenCC from 'opencc-js';
 import { focusTags, issueScores, pronounce, syllables } from './phonetics.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const TARGET = path.join(ROOT, 'sentences.json');
+const TARGET = path.join(ROOT, 'content', 'sentences.json');
 const HANDWRITTEN_DIR = path.join(ROOT, 'data');
 
 /** 一句練習句的長度。太短練不到連音，太長一口氣唸不完、錄音也容易中斷。 */

@@ -1,4 +1,4 @@
-// sentences.json 的資料檢查。不需要網路與金鑰。
+// content/sentences.json 的資料檢查。不需要網路與金鑰。
 //
 // 為什麼值得測：這份資料是手寫的，而錯了不會炸 —— 只會安靜地讓功能失效。
 // 例如 focus 打錯一個字，那句就永遠不會因為弱點被抽到，畫面上完全看不出來。
@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { ISSUE_CODES } from '../server/gemini.js';
 import { CATEGORY_LABEL, DIFFICULTY_LABEL } from '../public/labels.js';
 
-const sentences = JSON.parse(readFileSync(new URL('../sentences.json', import.meta.url)));
+const sentences = JSON.parse(readFileSync(new URL('../content/sentences.json', import.meta.url)));
 
 /** 某個音至少要有這麼多句可以抽。太少的話「多給你這個音」會變成「一直給你同樣那幾句」。 */
 const MIN_PER_ISSUE = 5;

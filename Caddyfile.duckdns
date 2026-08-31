@@ -22,6 +22,22 @@
 	# 而且不需要對外開 80／443。
 	tls {
 		dns duckdns {env.DUCKDNS_API_TOKEN}
+
+		# 用公開的遞迴解析器查 zone，別用 Docker 內建的 127.0.0.11。
+		resolvers 1.1.1.1 8.8.8.8
+
+		# 為什麼要關掉傳播檢查（-1）：Caddy 預設會繞過遞迴解析器、直接去問該 zone 的
+		# 權威 nameserver「TXT 記錄出現了嗎」。而 DuckDNS 的權威 NS（99.79.16.64 等）
+		# 不回應 TCP/53 —— 實測從這台機器連它的 53 埠會 i/o timeout，但連 1.1.1.1:53
+		# 和 1.1.1.1:443 都是通的，所以不是防火牆問題，是 DuckDNS 那一側的行為。
+		# 檢查做不完，Caddy 就永遠不會通知 Let's Encrypt 來驗證，卡在
+		# 「could not get certificate from issuer ... checking DNS propagation」重試迴圈。
+		#
+		# 關掉檢查後改用固定等待：先寫 TXT、等 propagation_delay、才叫 LE 驗。
+		# 60 秒對 DuckDNS 很寬裕（實測幾秒內就生效），寧可慢一點也不要驗證失敗 ——
+		# 失敗的驗證會吃掉 Let's Encrypt 每小時的額度，卡住之後的重試。
+		propagation_delay 60s
+		propagation_timeout -1
 	}
 
 	reverse_proxy app:3000 {

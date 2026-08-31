@@ -1,6 +1,6 @@
 # 兩個容器：App 本身，以及在前面補 HTTPS 的 Caddy。
 #
-#   cp .env.example .env     # 填 GEMINI_API_KEY、SITE_ADDRESS、BIND_ADDR
+#   cp .env.example .env     # 填 AZURE_SPEECH_*／GEMINI_API_KEY、SITE_ADDRESS、BIND_ADDR
 #   docker compose up -d --build
 #
 # 然後從 VPN 內的手機開 https://<SITE_ADDRESS>:8443
@@ -10,7 +10,13 @@ services:
     build: .
     restart: unless-stopped
     environment:
-      # 沒設金鑰的話啟動不會失敗，但送出錄音時會回 500 並在 console 警告
+      # 兩組金鑰都是選填的，缺了不會讓容器起不來，只是對應的功能會退化。
+      #
+      # Azure Speech：發音評估的客觀逐音素分數。沒設的話「跟讀」拿不到分數，
+      # 其他五種模式照樣可以用。REGION 要跟建立資源時選的區域一致。
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      # Gemini：把分數講成中文的教練建議。沒設會退回本地摘要，Azure 的分數還看得到。
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-}
     # 刻意不用 ports：App 不對外開埠，只有 Caddy 連得到它。

@@ -13,6 +13,7 @@ export const DEFAULTS = {
   autoPlayListening: false,
   vocabDeck: 'curated',  // 目前選的單字牌組
   geminiModel: '',       // 空字串 = 用後端的預設值
+  geminiNarration: true, // 要不要等 Gemini 寫中文講評。關掉改用本地摘要，送出後快很多
   shadowingWeighted: true, // 跟讀：依成績與間隔加權抽句
   shadowingGoal: 5,      // 跟讀：每日目標句數
 };

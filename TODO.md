@@ -27,11 +27,24 @@
 | ✍️ 中翻英 | 279 題（填空 161 / 整句 118） | 完成 |
 | 💬 情境對話 | 61 段 / 427 句台詞 | 完成 |
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
-| ⚙️ 設定 | 金鑰、model、練習範圍、語音、學習資料 | 完成 |
+| ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料 | 完成 |
 
-驗證狀態：`npm test` 125 項全過、`npm run test:ui` 74 項全過、
+驗證狀態：`npm test` 134 項全過、`npm run test:ui` 83 項全過、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
+
+整合之後補的一件事：**中文講評（Gemini）現在可以在設定頁整段關掉**
+（分支 `claude/gemini-speed-toggle-hzu9kw`）。理由是實際練起來最有感的等待
+就是那一段 —— Azure 的分數、四個面向與逐音素標色都已經在畫面上了，
+還要再等 Gemini 幾秒到十幾秒才看得到建議。關掉之後講評改用
+`server/narration.js` 的本地摘要，Gemini 完全不呼叫。設計與各欄位的意思寫在
+README「覺得慢？中文講評可以整段關掉」。
+
+**這個開關的 Azure 那條路在容器裡驗不到**（egress 擋掉 Azure）。當時的做法是
+用 `--import` 掛一個 loader 把 `server/azure-pronunciation.js` 換成假的，
+再對真的伺服器發 `narrate=off` 與不送 `narrate` 兩次請求，確認回應的
+`narrationReason` 是 `disabled` / `no_key`、分數照樣是 72。
+**同一招可以用來驗任何走 Azure 分支的改動**，不用等真金鑰。
 
 整合期間新長出來的檔案，接手前值得先看：
 
@@ -41,6 +54,7 @@ CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
 | `public/lib/azure-issues.js` | Azure 音素分數 → 弱點音分類。整合的接縫就在這裡：有了它，客觀分數才能回頭決定下一句抽什麼 |
 | `public/modes/shadowing.js` | 深的那一套的落點。狀態多，改之前先讀檔頭 |
 | `server/audio.js` | 無人聲把關。**後端這份才是把關**，前端那份只是即時提示 |
+| `server/narration.js` | 講評開關（`wantsNarration`）與本地摘要。純函式，所以 `narration.test.js` 測得到 —— `server/index.js` 一 import 就 `app.listen()`，測不進去 |
 
 ---
 
@@ -76,6 +90,10 @@ Docker + HTTPS 那條路（README「用 Docker 跑在自己的機器上」）已
 
 ### 3. 沒做完的小功能
 
+- 中文講評的開關只存在瀏覽器（`localStorage` 的 `geminiNarration`）。走 Docker
+  給家裡幾台裝置用的話，每台都要各自關一次 —— 要的話可以加一個 `.env` 的
+  預設值（例如 `GEMINI_NARRATION=off`）讓後端當成初始值回在 `/api/health` 裡。
+  **刻意沒先做**：一個人自己用的話設定一次就好，加了反而多一組要對齊的狀態
 - 情境對話的進度沒有存進 `localStorage`（重新整理就重來）
 - 單字卡已經有待複習數量與盒子 chip（`srsSummary()`），缺的是「哪些卡在哪個盒子」
   的完整清單（跟讀的紀錄檢視可以照抄形狀，見 `public/modes/shadowing-views.js`）
@@ -119,6 +137,16 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   腳本只留類別選擇器 → 這條屬性選擇器被丟掉 → `.waveform { display: block }` 直接蓋掉
   `hidden`，波形圖在不該出現的時候出現。CSS 檔裡有註解記著這件事。
 
+### 前端測試的選擇器很脆
+
+- **`test/ui.mjs` 的設定頁測試用 `.chips` 的順序抓元素**（`.first()` 是情境、
+  `.nth(1)` 是難度）。在它們前面插入新的 chips 群組會讓那兩條測試抓錯東西 ——
+  加在後面。中文講評的開關就是因此放在難度後面，不是放在最上面。
+- **跟讀畫面只有一個 `.check`**，而 `setRecordingUI()` 與 `ui.mjs` 都用
+  `querySelector('.check input')` 抓那個唯一的 checkbox。要在跟讀畫面再加一個
+  checkbox 的話，這兩處都要跟著改成 `querySelectorAll` 或更精確的選擇器
+  （中文講評的開關放在設定頁、而且用 chips，就是為了不去動這個接縫）。
+
 ### 前端狀態
 
 - **`setRecordingUI()` 刻意不重新 render**，所以它要**直接改 DOM** 上的 `disabled`。
@@ -136,6 +164,10 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 - **`server/gemini.js` 的 model 是白名單 + 陣列，不是單一常數。** 整合時
   `narrateAssessment()` 裡還留著舊的 `MODEL` 常數 —— 一設定 Azure 就會 ReferenceError，
   而那條路在容器裡測不到。動 model 相關的東西時把兩條路徑都掃過。
+- **講評缺席有四種原因，訊息不能共用一句話。** `narrateAssessment()` 對「沒金鑰」
+  與「呼叫失敗」都回 `null`，所以 `server/index.js` 要自己用 `hasApiKey()` 分開；
+  再加上使用者自己關掉（`disabled`）與沒設 Azure 時關掉等於沒用（`gemini_scores`）。
+  這四種在畫面上寫成同一句話的話，「你自己關的」會被當成「壞了」。
 - **Gemini 對無效金鑰回的是 HTTP 400，不是 401/403**，SDK 訊息裡也看不到
   `API_KEY_INVALID`。所以 400 的錯誤訊息要同時提示金鑰與音檔兩種可能。
 - **`/api/settings` 只接受 loopback 請求，而 loopback 檢查擋不住反向代理。**

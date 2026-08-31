@@ -465,7 +465,12 @@ async function submit() {
   if (!wavBlob || !current) return;
   const btn = root?.querySelector('#btn-submit');
   if (btn) btn.disabled = true;
-  setStatus('分析中，請稍候…', 'busy');
+  setStatus(
+    getSettings().geminiNarration === false
+      ? '分析中（中文講評已關閉，會快一些）…'
+      : '分析中，請稍候…',
+    'busy'
+  );
 
   const form = new FormData();
   form.append('audio', wavBlob, 'recording.wav');
@@ -473,6 +478,9 @@ async function submit() {
   // 使用者在「設定」選的 model。沒選就不送，後端用它自己的預設值。
   const chosenModel = getSettings().geminiModel;
   if (chosenModel) form.append('model', chosenModel);
+  // 關掉中文講評時明講，後端就不會去呼叫 Gemini（分數照樣有）。
+  // 只在關掉時送這個欄位 —— 後端沒收到就是預設的「要」。
+  if (getSettings().geminiNarration === false) form.append('narrate', 'off');
 
   try {
     const res = await fetch('/api/pronunciation-feedback', { method: 'POST', body: form });

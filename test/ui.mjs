@@ -304,6 +304,37 @@ check('Gemini：issue 顯示中文標籤', (await text('#probe2 .chip--issue')).
 check('Gemini：每個字都有單獨播放鍵', (await page.locator('#probe2 .problems__play').count()) === 2);
 await shot(page, 'ui-07-Gemini 講評');
 
+// 講評缺席的原因要各講各的話 —— 「你自己關掉的」跟「這次沒回來」不能寫成同一句
+const narrationNote = (data) => page.evaluate(async (d) => {
+  const { renderAssessment } = await import('/modes/assessment-view.js');
+  const card = document.createElement('div');
+  document.getElementById('view').append(card);
+  renderAssessment(card, {
+    provider: 'azure',
+    referenceText: 'I think so.',
+    recognizedText: 'I think so.',
+    scores: { pronunciation: 88, accuracy: 90, fluency: 85, completeness: 100, prosody: 80 },
+    words: [],
+    feedback_zh: '• 摘要',
+    ...d,
+  }, 'I think so.', () => {});
+  const notes = [...card.querySelectorAll('.hint')].map((el) => el.textContent);
+  return notes.join(' | ');
+}, data);
+
+const offNote = await narrationNote({ narrationSource: 'local', narrationReason: 'disabled' });
+check('關掉講評時說得出是自己關的', offNote.includes('已關閉') && offNote.includes('設定'), offNote);
+
+const failNote = await narrationNote({ narrationSource: 'local', narrationReason: 'failed' });
+check('講評失敗時不會說成「已關閉」',
+  failNote.includes('沒有回來') && !failNote.includes('已關閉'), failNote);
+
+const okNote = await narrationNote({ narrationSource: 'gemini', narrationMs: 6400 });
+check('用了 Gemini 時把等待秒數寫出來', okNote.includes('6.4 秒'), okNote);
+
+const oldNote = await narrationNote({ narrationSource: 'local' });
+check('舊回應（只有 narrationSource）也還有說明', oldNote.includes('本地摘要'), oldNote);
+
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【9】一組練完的總結');
 
@@ -349,6 +380,24 @@ check('八種情境都選得到', catChips.length === 8, catChips.join('、'));
 check('三種難度都選得到', (await page.locator('.chips').nth(1).locator('button').count()) === 3);
 check('有 Gemini model 選單', (await page.locator('#gemini-model option').count()) >= 3,
   `${await page.locator('#gemini-model option').count()} 個`);
+
+// 中文講評的開關：預設是開的，關掉要寫進 localStorage（跟讀送出時就靠它決定送不送 narrate）
+const narrationChips = page.locator('.field', { hasText: '跟讀的中文講評' }).locator('button');
+check('有中文講評的開關', (await narrationChips.count()) === 2);
+check('預設是「要」', (await narrationChips.first().getAttribute('class')).includes('togglechip--on'));
+
+await narrationChips.nth(1).click();
+await page.waitForTimeout(200);
+const savedOff = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings') ?? '{}').geminiNarration);
+check('關掉會存進設定', savedOff === false, String(savedOff));
+check('關掉之後畫面說的是本地摘要',
+  (await page.locator('.field', { hasText: '跟讀的中文講評' }).textContent()).includes('本地摘要'));
+
+await narrationChips.first().click();
+await page.waitForTimeout(200);
+check('開回來也存得回去', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings') ?? '{}').geminiNarration)) === true);
 await shot(page, 'ui-09-設定');
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ const DIFFICULTIES = DIFFICULTY_ORDER.map((id) => [id, DIFFICULTY_LABEL[id]]);
 
 let voices = [];
 let models = [];
+let health = null;
 let serverSettings = null;
 let serverError = '';
 let saveState = '';
@@ -38,6 +39,15 @@ export async function mount(container) {
     models = Array.isArray(body.models) ? body.models : [];
   } catch {
     models = [];
+  }
+
+  // 有沒有設定 Azure 決定「關掉中文講評」到底省不省得到時間 ——
+  // 沒有 Azure 的話分數本身就是 Gemini 給的，關掉講評不會變快。
+  // 這個端點不需要 loopback，反向代理後面也拿得到。
+  try {
+    health = await (await fetch('/api/health')).json();
+  } catch {
+    health = null;
   }
 
   render();
@@ -193,6 +203,8 @@ function practiceCard() {
       h('p', { class: 'hint' }, s.difficulties.length === 0 ? '目前：全部難度' : `目前：${s.difficulties.length} 種難度`),
     ),
 
+    narrationField(s),
+
     models.length > 0 && h('div', { class: 'field' },
       h('label', { class: 'field__label', for: 'gemini-model' }, '講評用的 Gemini model'),
       h('select', {
@@ -223,6 +235,39 @@ function practiceCard() {
         [['all', '兩種都要'], ['cloze', '只練填空'], ['sentence', '只練整句']].map(([id, label]) =>
           toggleChip(label, s.translationType === id, () => { updateSettings({ translationType: id }); render(); }))),
     ),
+  );
+}
+
+/**
+ * 中文講評的開關。
+ *
+ * 為什麼值得有這個開關：跟讀送出一次錄音要等兩段 —— Azure 給分數（快），
+ * Gemini 把分數寫成中文建議（慢，實測幾秒到十幾秒，看 model）。
+ * 想連著練十句的時候，後面那段就是純粹的等待，而分數與逐音素標色
+ * 在沒有講評的情況下已經看得到了。關掉之後改用後端的本地摘要
+ * （server/narration.js），一樣會指出最弱的面向與唸不好的字。
+ */
+function narrationField(s) {
+  const on = s.geminiNarration !== false;
+  const azure = health?.azureConfigured === true;
+
+  return h('div', { class: 'field' },
+    h('span', { class: 'field__label' }, '跟讀的中文講評'),
+    h('div', { class: 'chips' },
+      [[true, '要（Gemini，慢幾秒）'], [false, '不要（本地摘要，快）']].map(([value, label]) =>
+        toggleChip(label, on === value, () => {
+          updateSettings({ geminiNarration: value });
+          render();
+        }))),
+    h('p', { class: 'hint' },
+      on
+        ? '送出錄音後會多等 Gemini 幾秒，換來「th 要把舌尖輕觸上齒」這種具體建議。'
+        : '送出後直接看分數，講評改用本地摘要（照樣會指出最弱的面向與唸不好的字）。'),
+    !azure && h('p', { class: 'hint' },
+      health
+        ? '⚠️ 目前沒有設定 Azure，跟讀的分數本身就是 Gemini 給的 —— ' +
+          '這個開關要等設定了 Azure 金鑰才省得到時間。'
+        : '（讀不到伺服器狀態，無法判斷目前的評分來源。）'),
   );
 }
 

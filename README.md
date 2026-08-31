@@ -104,6 +104,36 @@ Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖�
 被排除的：Pro 系列（免費層直接 429）、`gemini-2.5-flash`（`output_text` 不是 JSON）、
 `gemini-2.5-flash-lite`（404「no longer available to new users」）。
 
+### 覺得慢？中文講評可以整段關掉
+
+跟讀送出一次錄音要等兩段：**Azure 給分數**（快）、**Gemini 把分數寫成中文建議**
+（慢，看 model 幾秒到十幾秒）。想連著練十句的時候，後面那段就是純粹的等待 ——
+而分數、四個面向、逐字逐音素的標色在沒有講評的情況下已經全都看得到了。
+
+所以「設定 → 跟讀的中文講評」可以關掉它。關掉之後：
+
+| | 開著 | 關掉 |
+|---|---|---|
+| Azure 的分數與逐音素標色 | 有 | **一樣有** |
+| 中文講評 | Gemini 寫的具體建議 | 後端的本地摘要（`server/narration.js`）：最弱的面向 + 唸不好的字與音素 |
+| 送出後要等 | Azure + Gemini | 只等 Azure |
+| Gemini 配額 | 每句一次呼叫 | **完全不呼叫** |
+
+設定存在瀏覽器的 localStorage（`geminiNarration`），關掉時前端才會多送一個
+`narrate=off`；後端沒收到這個欄位就當成「要」，所以舊前端的行為不變。
+
+兩個相關的細節：
+
+- **講評用的超時比評分短**（`NARRATION_TIMEOUT_MS` 20 秒，評分那條路是 60 秒）。
+  講評失敗會自動退回本地摘要、分數照樣回得來，所以寧可早一點放棄，
+  也不要讓人對著轉圈圈等一分鐘。
+- **講評成功時，畫面會寫出這次等了幾秒**（`narrationMs`）。「值不值得等」
+  要看得到數字才判斷得出來，不然只會累積成「Gemini 很慢」這種模糊印象。
+
+> **沒設定 Azure 的話這個開關省不到時間** —— 那條路上分數本身就是 Gemini 給的。
+> 設定頁會直接把這件事寫在開關下面（它讀 `/api/health` 的 `azureConfigured`），
+> 講評畫面也會標 `narrationReason: "gemini_scores"`。
+
 ### `.env` 的位置
 
 `.env` 放在**專案根目錄**（不是 `server/` 底下）。`dotenv` 預設從 process 的 cwd 找，
@@ -154,7 +184,7 @@ Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖�
 ### ⚙️ 設定
 
 金鑰、練習範圍（情境與難度，八種情境的清單從 `lib/labels.js` 長出來）、
-講評用的 model、TTS 語音與語速、學習資料的清除。
+中文講評的開關、講評用的 model、TTS 語音與語速、學習資料的清除。
 
 ---
 
@@ -451,6 +481,7 @@ english_speaking/
 │   ├── azure-pronunciation.js # Azure Speech 發音評估（逐字、逐音素）
 │   ├── gemini.js              # Gemini：講評 + 沒有 Azure 時的主觀評分、model 白名單
 │   ├── audio.js               # WAV 能量分析，判斷有沒有人聲
+│   ├── narration.js           # 講評開關 + 沒用 Gemini 時的本地摘要（純函式）
 │   └── settings.js            # 從設定頁寫 .env（只接受 loopback）
 ├── public/
 │   ├── index.html
@@ -489,7 +520,7 @@ english_speaking/
 | GET | `/api/vocabulary/:file` | `index.json` / `curated.json` / `band-NN.json` |
 | GET | `/api/sentences` | 307 轉到 `/api/content/sentences`（舊路徑，口說分支用過） |
 | GET / POST | `/api/settings` | 讀寫金鑰設定（**只接受 loopback**） |
-| POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV）+ `sentence` + `model`（選填） |
+| POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV）+ `sentence` + `model`（選填）+ `narrate`（選填，`off` 表示不要 Gemini 講評） |
 
 `/api/pronunciation-feedback` 有 Azure 時回：
 
@@ -505,9 +536,23 @@ english_speaking/
       "phonemes": [{ "phoneme": "θ", "accuracy": 20 }] }
   ],
   "feedback_zh": "• …",
-  "narrationSource": "gemini"
+  "narrationSource": "gemini",
+  "narrationReason": null,
+  "narrationMs": 4200
 }
 ```
+
+`narrationSource` 是 `"gemini"` 或 `"local"`；`narrationReason` 說明講評為什麼不是
+Gemini 寫的，前端據此決定畫面上那行小字（四種說法各不相同，混成一句話
+使用者會以為壞了）：
+
+| `narrationReason` | 意思 |
+|---|---|
+| `null` | 講評是 Gemini 寫的，`narrationMs` 是這次等了幾毫秒 |
+| `"disabled"` | 使用者自己關掉了（前端送了 `narrate=off`），**沒有呼叫 Gemini** |
+| `"no_key"` | 伺服器沒設定 `GEMINI_API_KEY` |
+| `"failed"` | 呼叫了但失敗或超時，已退回本地摘要（分數不受影響） |
+| `"gemini_scores"` | 關掉了講評，但沒設定 Azure，分數本身就是 Gemini 給的 —— 省不到時間 |
 
 沒有 Azure 時退回 Gemini 的主觀評分（`provider: "gemini"`，含 `score`、`transcript`、
 結構化的 `problem_words`）。沒偵測到人聲時回 `speech_detected: false` 與 `gated_by: "silence"`。
@@ -664,7 +709,7 @@ curl "https://www.duckdns.org/update?domains=my-speaking&token=<你的token>&ip=
 `test/e2e.mjs` 不掛進 CI —— 它有一部分要金鑰、會吃配額，掛上去等於每次 push
 都在燒配額，額度用完那天 CI 會紅得莫名其妙。
 
-### 單元測試（125 項，不需要網路與金鑰）
+### 單元測試（134 項，不需要網路與金鑰）
 
 ```bash
 npm test
@@ -678,9 +723,10 @@ npm test
 | `text-diff.test.js` | 目標句與聽到的內容逐字比對。特別測「漏唸中間一個字時只有那個字被標紅」（逐字對位的寫法會讓後面全部偏移、整句標紅） |
 | `phonetics.test.js` | 自動標音。特別測「只有 w 沒有 v 的句子不可以標成 `v_w`」，因為那正是人工標的時候犯過的錯 |
 | `gemini.test.js` | Gemini 回應的整理與防禦。structured output 有 schema，但 schema 是「請模型照這個格式」，不是「保證一定是這個格式」 |
+| `narration.test.js` | 中文講評的開關與本地摘要。釘住「什麼樣的值算關掉」（沒送等於要，舊前端不受影響）與「四種缺席原因各講各的話」—— 把「你自己關掉的」跟「這次沒回來」寫成同一句，使用者會以為壞了 |
 | `sentences.test.js` | `content/sentences.json` 這份資料，以及匯入時的配額。擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的、簡繁轉換踩到一對多陷阱、每個情境的句數跑出 200～300 之外、重跑匯入把句庫疊成兩倍 |
 
-### 前端 UI 測試（74 項，需要伺服器，不需要金鑰）
+### 前端 UI 測試（83 項，需要伺服器，不需要金鑰）
 
 ```bash
 npm start          # 另一個終端機
@@ -689,7 +735,8 @@ npm run test:ui
 
 把假的練習紀錄塞進 `localStorage`，驗六個模式都載入得起來、今天的進度與連續天數、
 練習紀錄與趨勢圖、重練這句、弱點音會回頭影響抽句、中文意思、加權不會餓死句子、
-Azure 與 Gemini 兩條講評路徑、一組總結、設定頁、清除紀錄。
+Azure 與 Gemini 兩條講評路徑、講評缺席時的四種說明、中文講評開關存不存得起來、
+一組總結、設定頁、清除紀錄。
 
 講評與總結那兩段直接在頁面裡 `import` 模組餵資料進去 ——
 走真實流程要金鑰也要錄音，而要驗的只是「拿到這樣的資料時畫成什麼」。

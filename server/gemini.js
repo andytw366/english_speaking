@@ -10,6 +10,11 @@ import { GoogleGenAI } from '@google/genai';
 
 const TIMEOUT_MS = 60_000;
 
+// 講評用比較短的上限。發音評分那條路超時就等於整個請求失敗（60 秒還是值得等），
+// 但講評只是「把 Azure 的數字寫成人話」—— 失敗會自動退回本地摘要，
+// 分數照樣看得到。所以這裡寧可早一點放棄，也不要讓使用者對著轉圈圈等一分鐘。
+const NARRATION_TIMEOUT_MS = 20_000;
+
 // 可選的 model 白名單。
 //
 // 這份清單是實測出來的，不是照 ListModels 抄的 —— ListModels 只說某個 model
@@ -560,7 +565,7 @@ ${problems || '（沒有明顯問題的字）'}
           schema: NARRATION_SCHEMA,
         },
       }),
-      TIMEOUT_MS
+      NARRATION_TIMEOUT_MS
     );
     const parsed = JSON.parse(interaction.output_text);
     return typeof parsed.feedback_zh === 'string' ? parsed.feedback_zh : null;

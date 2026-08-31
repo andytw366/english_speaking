@@ -5,6 +5,21 @@
 // 2. 抽句的加權是會影響使用者體驗的規則，值得被回歸測試釘住 ——
 //    權重調錯的症狀是「一直重複同幾句」，那種問題用眼睛看很難發現。
 
+/**
+ * 把紀錄裡的時間欄位轉成毫秒。
+ *
+ * 舊版的練習紀錄把 `at` 存成 `Date.now()` 的數字，新版存 ISO 字串 ——
+ * `Date.parse(1234567)` 會回 NaN，那會讓那一筆被當成「時間壞掉」而失去
+ * 間隔重複的效果。使用者瀏覽器裡的舊資料不該因為我們換了格式就失效。
+ *
+ * @returns {number} 無法解析時回 NaN
+ */
+export function toTime(value) {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  return Date.parse(value ?? '');
+}
+
 /** 趨勢圖預設顯示的筆數上限。再多點就擠在一起看不出走勢了。 */
 export const TREND_LIMIT = 20;
 
@@ -107,7 +122,7 @@ export function reviewIntervalHours(average) {
  */
 export function dueFactor(stat, now = Date.now()) {
   if (!stat) return 1;
-  const last = Date.parse(stat.lastAt ?? '');
+  const last = toTime(stat.lastAt);
   if (Number.isNaN(last)) return 1;
 
   const elapsedHours = Math.max(0, (now - last) / 3_600_000);
@@ -141,7 +156,7 @@ export function sentenceWeight(stat, now = Date.now()) {
  */
 export function isDue(stat, now = Date.now()) {
   if (!stat) return true;
-  const last = Date.parse(stat.lastAt ?? '');
+  const last = toTime(stat.lastAt);
   if (Number.isNaN(last)) return true;
   return (now - last) / 3_600_000 >= reviewIntervalHours(stat.average);
 }
@@ -223,7 +238,7 @@ export function trendPoints(history, limit = TREND_LIMIT) {
 
 /** 一筆紀錄屬於哪一天（本地時間的 YYYY-MM-DD）。時間壞掉回空字串。 */
 export function dayKey(value) {
-  const date = value instanceof Date ? value : new Date(value ?? '');
+  const date = value instanceof Date ? value : new Date(toTime(value));
   if (Number.isNaN(date.getTime())) return '';
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');

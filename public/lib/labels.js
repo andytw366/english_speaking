@@ -57,8 +57,9 @@ export function scoreClass(score) {
  * @param {number} [now] 注入現在時間，測試用
  * @returns {string} 無效時間回空字串
  */
-export function relativeTime(iso, now = Date.now()) {
-  const then = Date.parse(iso ?? '');
+export function relativeTime(value, now = Date.now()) {
+  // 舊紀錄的時間是毫秒數，新的是 ISO 字串 —— 兩種都要讀得懂
+  const then = typeof value === 'number' ? value : Date.parse(value ?? '');
   if (Number.isNaN(then)) return '';
 
   const minutes = Math.floor((now - then) / 60_000);

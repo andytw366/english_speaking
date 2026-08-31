@@ -142,6 +142,11 @@ export class Recorder {
               durationSec: converted.durationSec,
               sampleRate: converted.sampleRate,
               recordedType,
+              // 音量特徵（peak / 有聲比例 / 起伏 / silent / quiet）。
+              // blobToWav() 本來就算好了，之前沒往外傳 —— 少了它，
+              // 「這段錄音幾乎沒有聲音」的即時提示就做不到，
+              // 使用者要等送出後才被後端擋下來。
+              stats: converted.stats,
             });
           } catch (err) {
             // 讓呼叫端還能播放原始錄音，至少判斷得出有沒有錄到聲音

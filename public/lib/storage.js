@@ -100,18 +100,61 @@ export function resetSrs() {
 }
 
 // ─── 跟讀練習紀錄 ────────────────────────────────────────────────────────
-const HISTORY_LIMIT = 50;
+//
+// 這份紀錄不只是「看過的清單」—— 它會回頭決定下一句抽什麼（見 lib/practice.js）：
+// 分數低的、久沒練的、以及練得到你常錯的音的句子會比較常出現。
+// 所以欄位不能只留分數，`problemWords` 的 issue 分類是弱點加權的唯一來源。
 
+/** 保留的筆數上限。200 筆大約是兩三個月的練習量，趨勢圖也只看最近 20 筆。 */
+const HISTORY_LIMIT = 200;
+
+/**
+ * 記一次練習。
+ *
+ * `at` 用 ISO 字串而不是毫秒數：間隔重複要算「上次練是多久以前」，
+ * 而 `Date.parse(1234567)` 會回 NaN —— 存數字的話那一句會被當成「時間壞掉」。
+ * （舊版存的是數字，`practice.js` 兩種都讀得懂，不用洗資料。）
+ *
+ * @param {object} entry
+ * @param {*} entry.sentenceId 例句 id，「重練這句」與依句子彙整成績都靠它
+ * @param {string} entry.sentenceText 當時的句子（例句改過之後紀錄仍然看得懂）
+ * @param {number|null} entry.score 0～100
+ * @param {Array<{word:string, issue:string}>} [entry.problemWords] 弱點加權的來源
+ */
 export function addAttempt(entry) {
   const list = read('history', []);
-  list.unshift({ ...entry, at: Date.now() });
-  write('history', list.slice(0, HISTORY_LIMIT));
+  list.unshift({ ...entry, at: new Date().toISOString() });
+  const trimmed = list.slice(0, HISTORY_LIMIT);
+
+  if (!write('history', trimmed)) {
+    // 配額滿了：砍掉一半再試一次，總比整份紀錄寫不進去好
+    const half = trimmed.slice(0, Math.floor(trimmed.length / 2));
+    if (write('history', half)) {
+      console.warn('[storage] 空間不足，已丟棄較舊的一半練習紀錄');
+      return half;
+    }
+    return trimmed; // 還是寫不進去：回傳記憶體中的清單，至少這次的畫面是對的
+  }
+  return trimmed;
 }
 
 export function getHistory() {
-  return read('history', []);
+  const list = read('history', []);
+  return Array.isArray(list) ? list.filter((r) => r && typeof r === 'object') : [];
 }
 
 export function clearHistory() {
   write('history', []);
+}
+
+/** 練習次數與平均分。只計入有分數的紀錄。 */
+export function summarise(history) {
+  const scored = history.filter((r) => typeof r.score === 'number');
+  const total = scored.reduce((sum, r) => sum + r.score, 0);
+  return {
+    count: history.length,
+    scoredCount: scored.length,
+    average: scored.length ? Math.round(total / scored.length) : null,
+    best: scored.length ? Math.max(...scored.map((r) => r.score)) : null,
+  };
 }

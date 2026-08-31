@@ -1,0 +1,242 @@
+# 面試情境的練習句（手寫）。
+#
+# 為什麼要手寫：Tatoeba 是通用語料，面試類的句子只有 95 句 —— 其他情境都上千。
+# 這一類又剛好是最該有品質的（練它的人是真的要去面試），所以自己寫。
+#
+# 格式：一行一句，# 開頭是註解。空行忽略。
+# 匯入時走的是跟語料一樣的清洗與自動標音（scripts/import-sentences.mjs）：
+# 5～13 字、不能有數字、不能有查不到發音的字，難度與 focus 都自動算。
+
+# ── 開場與自我介紹 ──────────────────────────────────────────────
+Thanks for having me. I'm glad to be here.
+It's nice to finally meet you in person.
+Thank you for taking the time to speak with me today.
+Let me start by telling you a little about myself.
+I've been working in this field for about six years.
+I started my career as a junior developer at a small company.
+My background is mostly in customer support and training.
+I studied economics, but I moved into product work after graduation.
+I'm currently working as a data analyst at a logistics company.
+Most of my experience is in building internal tools.
+I've spent the last three years leading a small engineering team.
+I began as an intern and worked my way up.
+I'd describe myself as practical and easy to work with.
+I enjoy work that involves a lot of problem solving.
+
+# ── 為什麼想要這份工作 ──────────────────────────────────────────
+I applied because the role matches what I want to do next.
+Your company has a reputation for taking quality seriously.
+I've followed your product for a while and I like the direction.
+This role would let me use my technical and communication skills together.
+I'm looking for a place where I can keep growing.
+The job description lined up almost exactly with my experience.
+I want to work somewhere that values careful engineering.
+What attracted me most was the size of the team.
+I'd like to move into a role with more responsibility.
+I'm ready for something more challenging than my current job.
+
+# ── 經歷與成就 ──────────────────────────────────────────────────
+I led a project that reduced our processing time by half.
+My team rebuilt the entire billing system over one quarter.
+I was responsible for the reporting pipeline from start to finish.
+I handled everything from planning to delivery on that project.
+We shipped the feature two weeks ahead of schedule.
+I trained four new members of the team last year.
+I introduced a review process that caught problems much earlier.
+The work I'm proudest of was a tool nobody had asked for.
+I rewrote a system that had been failing every week.
+I worked closely with the design team on that release.
+I owned the migration and it finished without any downtime.
+I managed a budget for the first time in that role.
+That project taught me more than anything else I've done.
+
+# ── 技能與工作方式 ──────────────────────────────────────────────
+My strongest skill is breaking a large problem into small pieces.
+I'm comfortable working with people outside of engineering.
+I write clearly, which matters more than people expect.
+I like to understand the problem before writing any code.
+I ask a lot of questions early to avoid rework later.
+I prefer to ship something small and improve it.
+I'm careful about testing, especially around anything users touch.
+I keep notes so the next person doesn't have to guess.
+I work best when the goal is clear and the method is mine.
+I'm not the fastest, but my work rarely comes back.
+
+# ── 團隊與衝突 ──────────────────────────────────────────────────
+I try to disagree early rather than quietly go along.
+When we disagreed, I asked what problem we were actually solving.
+I'd rather raise a concern once than complain about it later.
+I've learned to explain my reasoning instead of just my conclusion.
+Working with difficult people mostly means listening more carefully.
+I ask for feedback because I'd rather hear it early.
+I make sure quieter people on the team get heard.
+If I'm wrong, I want to find out as soon as possible.
+I've had to tell a manager that a deadline was not realistic.
+We agreed to try their approach first and measure the result.
+
+# ── 弱點與失敗 ──────────────────────────────────────────────────
+I used to take on too much and finish none of it.
+My weakness is that I go too deep on small details.
+I've been working on delegating instead of doing it myself.
+I once shipped something without testing it properly.
+I learned to say no to work I could not finish well.
+I'm still not comfortable presenting to a large room.
+That failure taught me to check my assumptions much earlier.
+I tend to be quiet in meetings until I've formed an opinion.
+I've had to learn that finished is better than perfect.
+I underestimated how long the migration would take.
+
+# ── 離職原因與空窗 ──────────────────────────────────────────────
+I'm leaving because I've stopped learning in my current role.
+The company changed direction and my team was cut.
+I took six months off to care for a family member.
+I want to work on products that people actually use.
+My current job is stable, but it isn't going anywhere.
+I finished a contract and I'm looking for something permanent.
+I moved cities, so I'm starting my search again.
+There's no conflict. I simply want a bigger challenge.
+
+# ── 未來規劃 ────────────────────────────────────────────────────
+In five years I'd like to be leading a small team.
+I want to get much better at system design.
+I'd like to stay technical rather than move fully into management.
+My goal is to grow into a role like yours.
+I'm more interested in depth than in a title.
+I want to keep working close to the actual users.
+
+# ── 薪資與條件 ──────────────────────────────────────────────────
+My expectation is in line with the market for this role.
+I'd rather talk about the work before we discuss numbers.
+Could you tell me the range you have in mind?
+I'm flexible on salary if the rest of the package works.
+Is the team open to a hybrid schedule?
+How many days a week would I be in the office?
+I'd need a little notice before I could start.
+My current notice period is one month.
+
+# ── 反問面試官 ──────────────────────────────────────────────────
+Could you walk me through what a typical week looks like?
+What does success look like in the first three months?
+Who would I be working with most closely?
+How does the team decide what to work on next?
+What's the biggest challenge the team is facing right now?
+How do you handle disagreements about technical direction?
+What do people usually find hardest about this role?
+Is there anything about my background that concerns you?
+How would you describe the culture in your own words?
+What happened to the person who had this role before?
+How often does the team release to production?
+What would you want me to focus on in my first month?
+
+# ── 收尾 ────────────────────────────────────────────────────────
+Thank you. This has been really helpful.
+I'm even more interested after hearing about the team.
+When can I expect to hear back from you?
+Is there anything else I can send you?
+Please let me know if you need references.
+I appreciate you explaining the process so clearly.
+I'd be glad to answer anything else by email.
+Thanks again for your time. I look forward to hearing from you.
+
+# ── 電話與線上面試 ──────────────────────────────────────────────
+Can you hear me clearly on your end?
+Sorry, you cut out for a second. Could you repeat that?
+Let me share my screen so you can see the code.
+I'd like to think about that for a moment.
+That's a good question. Let me give you a specific example.
+Would you like me to go into more detail?
+I'm not sure, but here's how I would find out.
+I haven't used that tool, though I've used something similar.
+Could I come back to that question at the end?
+I want to make sure I understood the question correctly.
+
+# ── 行為面試（請舉一個例子…）─────────────────────────────────────
+Let me give you a concrete example from my last job.
+We had two weeks and the requirements changed halfway through.
+My role was to keep the team focused on the core feature.
+In the end we delivered late, but nothing broke.
+The lesson was to agree on scope in writing.
+I was asked to take over a project nobody wanted.
+I started by talking to everyone who had touched it.
+Once I understood the history, the fix was fairly small.
+That's probably the hardest problem I've worked on.
+I'd approach it the same way, but I'd ask for help sooner.
+We were behind, so I cut the parts nobody was using.
+I checked with the users before removing anything.
+
+# ── 技術面試 ────────────────────────────────────────────────────
+Let me talk through my thinking before I start writing.
+I'd like to clarify the input before I begin.
+Can I assume the list is already sorted?
+My first approach is simple but not very efficient.
+I think we can do better than checking every pair.
+Let me walk through a small example to check my logic.
+There's an edge case here I should handle.
+I'd add a test for the empty input first.
+That would work, but it uses more memory than we need.
+I'm not sure this is optimal. Let me reconsider.
+In production I'd measure before optimizing this.
+I'd rather write something readable and fix it later.
+Could I look up the exact syntax for that?
+I've solved something similar using a hash table.
+
+# ── 公司文化與價值觀 ────────────────────────────────────────────
+I do my best work when I trust the people around me.
+I like teams that talk about mistakes openly.
+I care more about the users than about being right.
+I'd rather work somewhere small where I know everyone.
+I want to be somewhere that takes documentation seriously.
+Clear priorities matter more to me than free lunches.
+I enjoy mentoring, and I learn a lot from doing it.
+I like being close to the people who use what I build.
+
+# ── 條件、時程與後續 ────────────────────────────────────────────
+Could you tell me what the next step in the process is?
+How many rounds of interviews are there in total?
+Would the offer include any training budget?
+I'd like a few days to think it over.
+Is the position remote, or would I need to relocate?
+Are you able to sponsor a work visa for this role?
+I have another process running, so timing matters a little.
+Could we schedule the next round for early next week?
+I'd be happy to do a short take-home exercise.
+Thank you for the offer. I'd like to discuss the details.
+
+# ── 短句與過場 ──────────────────────────────────────────────────
+That's a fair question to ask.
+Let me think about that for a second.
+I want to make sure I answer what you actually asked.
+Could you say a little more about what you mean?
+Yes, exactly. That's the part I found interesting.
+I don't have direct experience with that.
+I've read about it, but I haven't used it in production.
+I'd need to learn it, and I think I'd pick it up quickly.
+That matches what I was hoping to hear.
+Sorry, could you repeat the question?
+
+# ── 短句（給初階練，一口氣唸得完）──────────────────────────────
+Thanks for the opportunity to talk with you.
+I'm really glad to be here today.
+I have five years of experience.
+I studied computer science at university.
+I work as a product designer.
+I like solving hard problems.
+I learn new tools quickly.
+I work well with other people.
+I want to grow in this role.
+I'm looking for a new challenge.
+I can start next month.
+I'm available for a second interview.
+Could you repeat that, please?
+That's a really good question.
+Let me give you an example.
+I don't know, but I can find out.
+I enjoy working in a small team.
+I care about doing things properly.
+I'd like to know more about the team.
+When will you make a decision?
+Do you have any questions for me?
+Thank you for your time today.
+I look forward to your reply.
+I'm excited about this opportunity.
+May I ask what the team is like?

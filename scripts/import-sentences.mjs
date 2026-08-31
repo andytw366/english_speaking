@@ -14,7 +14,7 @@
 // 資料來源：Tatoeba（https://tatoeba.org/），授權 CC BY 2.0 FR。
 // 透過 npm 套件 tatoeba-sentence-pairs-in-mandarin-chinese-english 取得。
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -25,23 +25,38 @@ import { focusTags, issueScores, pronounce, syllables } from './phonetics.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TARGET = path.join(ROOT, 'sentences.json');
+const HANDWRITTEN_DIR = path.join(ROOT, 'data');
 
 /** 一句練習句的長度。太短練不到連音，太長一口氣唸不完、錄音也容易中斷。 */
 const MIN_WORDS = 5;
 const MAX_WORDS = 13;
 
-/** 每個情境最多收幾句。不設上限的話 daily 會把其他情境淹掉。 */
-const QUOTA = { daily: 150, travel: 70, work: 70, interview: 30 };
+/**
+ * 每個情境要收到幾句。
+ *
+ * 250 句大約是「每天練 5～10 句、兩三個月不會重複」的量。再多其實也收得到
+ * （候選池有一萬四千句），但每一句都會被抽到 —— 多不等於好。
+ */
+const QUOTA = 250;
 
-/** 情境的關鍵字。命中越前面的類別優先。 */
+/**
+ * 情境的關鍵字，由上往下比對，先中的算。
+ *
+ * 順序有意義：`interview` 排最前面，但它的字要夠專屬 ——
+ * 早期版本把 `company`／`experience`／`skill` 放進面試，結果職場的句子全被搶走。
+ * 通用的求職字（job、work、company）留給 `work`。
+ */
 const CATEGORY_RULES = [
-  ['interview', /\b(interview|interviews|resume|hire|hired|hiring|candidate|applicant|apply|applied|application|salary|qualification|qualifications|career|promotion|internship|recruiter)\b/i],
-  ['travel', /\b(flight|flights|airport|airline|hotel|hostel|ticket|tickets|passport|visa|luggage|baggage|suitcase|boarding|terminal|platform|station|train|subway|taxi|cab|tour|tourist|sightseeing|souvenir|reservation|check-in|itinerary|abroad|overseas|trip|vacation|holiday|beach|museum|map|currency|exchange|customs|departure|arrival|landing|aisle|jet|cruise|backpack)\b/i],
-  // 注意不要放太泛的字：`office` 會把「Is there a post office around here?」判成職場
-  ['work', /\b(meeting|meetings|email|emails|deadline|colleague|colleagues|client|clients|presentation|budget|invoice|contract|overtime|memo|conference|department|manager|boss|staff|paperwork|proposal|workplace|coworker|overtime|report|reports|project|projects)\b/i],
+  ['interview', /\b(interview|interviews|interviewer|resume|hire|hired|hiring|candidate|applicant|apply|applied|application|qualification|qualifications|internship|recruiter|employer|promotion|resign|resigned|references|strengths|weakness)\b/i],
+  ['travel', /\b(flight|flights|airport|airline|hotel|hostel|ticket|tickets|passport|visa|luggage|baggage|suitcase|boarding|terminal|platform|station|train|subway|taxi|cab|tour|tourist|sightseeing|souvenir|reservation|itinerary|abroad|overseas|trip|travel|traveled|traveling|vacation|beach|museum|currency|customs|departure|arrival|aisle|cruise|foreign|airplane|plane|highway|hitchhike)\b/i],
+  ['work', /\b(meeting|meetings|email|emails|deadline|colleague|colleagues|client|clients|presentation|budget|invoice|contract|overtime|memo|conference|department|manager|boss|staff|paperwork|proposal|workplace|coworker|report|reports|project|projects|office|job|jobs|work|works|working|worked|company|companies|employee|employees|business|salary|wage|career|position|experience|skill|skills|schedule|scheduled|task|tasks|document|documents|sales|customer)\b/i],
+  ['health', /\b(doctor|dentist|hospital|clinic|nurse|patient|medicine|pill|pills|fever|headache|cough|flu|ache|aches|exercise|exercises|gym|health|healthy|appointment|checkup|symptom|allergy|allergic|stomach|throat|tooth|teeth|prescription|dose|nap|asleep|awake|sick|ill|illness|pain|rest|rested|sleep|sleeping|slept|tired|weight|diet|smoking|smoke|smoked|vitamin|treatment|recover|recovered|breathe|breathing|heart|temperature|bandage|injury|dizzy|sore)\b/i],
+  ['school', /\b(school|schools|class|classes|classroom|teacher|teachers|student|students|study|studied|studying|homework|exam|exams|grade|grades|university|college|course|courses|lesson|lessons|library|semester|professor|textbook|dictionary|notebook|graduate|graduated|major|majored|degree)\b/i],
+  ['shopping', /\b(buy|buys|buying|bought|shop|shops|shopping|store|stores|price|prices|cheap|cheaper|expensive|cost|costs|sale|discount|receipt|refund|cash|dollar|dollars|size|clothes|shirt|shoes|jacket|supermarket|deliver|delivery|package|wallet|purse|credit)\b/i],
+  ['food', /\b(eat|eats|eating|ate|food|foods|restaurant|menu|dinner|lunch|breakfast|meal|meals|coffee|tea|juice|cook|cooked|cooking|kitchen|delicious|taste|tastes|hungry|thirsty|dish|dishes|bread|rice|meat|fish|fruit|vegetable|vegetables|dessert|cake|sugar|salt|milk|egg|eggs|soup|snack|cheese|butter|noodles|drink|drinks)\b/i],
 ];
 
-// ─── 語料清洗 ────────────────────────────────────────────────────────────
+// ─── 語料清洗// ─── 語料清洗 ────────────────────────────────────────────────────────────
 
 /**
  * 只收乾淨的 ASCII 句子。全形標點、括號、分號都代表這句不是單純的一句話。
@@ -153,6 +168,60 @@ function accept(text, freq) {
   return true;
 }
 
+/**
+ * 手寫的練習句：`data/<情境>.txt`，一行一句，`#` 開頭是註解。
+ *
+ * 為什麼需要這條路：Tatoeba 是通用語料，某些情境它就是給不出東西 ——
+ * 面試類只有 95 句，其他情境都上千。那一類又剛好是最該有品質的
+ * （會練它的人是真的要去面試），所以自己寫，然後走同一套清洗與自動標音。
+ *
+ * 手寫的句子跳過幾道語料專用的檢查（第三人稱、句首專有名詞、詞頻），
+ * 那些是用來從一堆雜訊裡撈出好句子的；手寫的本來就是挑過的。
+ */
+function loadHandwritten() {
+  let files = [];
+  try {
+    files = readdirSync(HANDWRITTEN_DIR).filter((f) => f.endsWith('.txt'));
+  } catch {
+    return []; // 沒有 data/ 目錄就是沒有手寫句子，不是錯誤
+  }
+
+  const out = [];
+  for (const file of files) {
+    const category = path.basename(file, '.txt');
+    const lines = readFileSync(path.join(HANDWRITTEN_DIR, file), 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'));
+
+    for (const text of lines) {
+      const problem = handwrittenProblem(text);
+      if (problem) {
+        console.warn(`  ⚠ ${file}：${problem}　「${text}」`);
+        continue;
+      }
+      out.push({ text, category, focus: tagsFor(text), handwritten: true });
+    }
+  }
+  return out;
+}
+
+/** 手寫句子的檢查。回傳問題描述（好讓寫的人知道要改什麼），沒問題回 null。 */
+function handwrittenProblem(text) {
+  if (!CLEAN.test(text)) return '有不該出現的字元（全形標點、數字、括號？）';
+  if (!/[.?!]$/.test(text)) return '結尾少了句號、問號或驚嘆號';
+  const count = words(text).length;
+  if (count < MIN_WORDS) return `只有 ${count} 個字，太短`;
+  if (count > MAX_WORDS) return `有 ${count} 個字，太長`;
+  if (!pronounce(text)) return '有字典查不到發音的字';
+  if (UNPLEASANT.test(text)) return '命中了內容過濾的關鍵字';
+  // 每一句都要有練習重點。整句都是常見音、沒有任何一個音突出的句子
+  // （例如 "I'm happy to be here today." 完全沒有 th、字尾子音、連音…）
+  // 拿來練發音沒有著力點，也會讓「這句在練什麼」變成空的。
+  if (tagsFor(text).length === 0) return '沒有明顯的練習重點（都是很平的音）';
+  return null;
+}
+
 // ─── 分類與難度 ──────────────────────────────────────────────────────────
 
 function categorise(text) {
@@ -172,8 +241,8 @@ function difficulty(text, freq) {
   const rarest = Math.min(...said.map(({ word }) => freq.all.get(word) ?? 0));
   const longWords = said.filter(({ phones }) => syllables(phones) >= 3).length;
 
-  if (w.length >= 11 || rarest < 25 || longWords >= 3) return 'hard';
-  if (w.length <= 8 && rarest >= 150 && longWords <= 1) return 'easy';
+  if (w.length >= 11 || rarest < 15 || longWords >= 3) return 'hard';
+  if (w.length <= 8 && rarest >= 60 && longWords === 0) return 'easy';
   return 'medium';
 }
 
@@ -226,7 +295,7 @@ function select(candidates, existing) {
     const key = dedupeKey(next.text);
     if (seen.has(key)) continue;
     const taken = perCategory.get(next.category) ?? 0;
-    if (taken >= (QUOTA[next.category] ?? 0)) continue;
+    if (taken >= QUOTA) continue;
 
     seen.add(key);
     chosen.push(next);
@@ -235,7 +304,7 @@ function select(candidates, existing) {
     perBucket.set(bucket, (perBucket.get(bucket) ?? 0) + 1);
     for (const tag of next.focus) perIssue.set(tag, (perIssue.get(tag) ?? 0) + 1);
 
-    if (chosen.length >= Object.values(QUOTA).reduce((a, b) => a + b, 0)) break;
+    if (chosen.length >= QUOTA * (CATEGORY_RULES.length + 1)) break;
   }
   return chosen;
 }
@@ -287,6 +356,17 @@ function main() {
   const english = pairs.map(([, , , en]) => en);
   const freq = buildFrequency(english);
 
+  const handwritten = loadHandwritten();
+  if (handwritten.length > 0) {
+    const byCategory = new Map();
+    for (const s of handwritten) byCategory.set(s.category, (byCategory.get(s.category) ?? 0) + 1);
+    console.log(
+      `手寫句子 ${handwritten.length} 句（` +
+        [...byCategory].map(([k, v]) => `${k} ${v}`).join('、') +
+        '）'
+    );
+  }
+
   const candidates = [];
   const stats = { total: 0, accepted: 0, noFocus: 0 };
   const bestByKey = new Map();
@@ -316,13 +396,30 @@ function main() {
     candidates.push(entry);
   }
 
+  if (process.env.POOL) {
+    const byBucket = new Map();
+    for (const c of candidates) {
+      const k = `${c.category}/${c.difficulty}`;
+      byBucket.set(k, (byBucket.get(k) ?? 0) + 1);
+    }
+    console.log('候選池分布：', [...byBucket].sort().map(([k, v]) => `${k}=${v}`).join(' '));
+  }
+
   console.log(
     `通過清洗 ${stats.accepted.toLocaleString()} 句` +
       `（去重後 ${candidates.length.toLocaleString()}），` +
       `因為沒有明顯的練習重點而淘汰 ${stats.noFocus.toLocaleString()} 句`
   );
 
-  const picked = select(candidates, existing);
+  // 手寫的排在前面，同樣要通過去重與配額，但難度也自動算
+  const handwrittenEntries = handwritten.map((s) => ({
+    text: s.text,
+    category: s.category,
+    difficulty: difficulty(s.text, freq),
+    focus: s.focus,
+  }));
+
+  const picked = select([...handwrittenEntries, ...candidates], existing);
   const nextId = Math.max(...existing.map((s) => s.id)) + 1;
   const added = picked.map((s, i) => ({ id: nextId + i, ...s }));
   const merged = [...existing, ...added];
@@ -357,7 +454,7 @@ function report(added, merged) {
   console.log('\n樣本：');
   for (const s of added.slice(0, sampleSize)) {
     console.log(`  [${s.category}/${s.difficulty}] ${s.text}`);
-    console.log(`     ${s.focus.join('、')}　${s.zh}`);
+    console.log(`     ${s.focus.join('、')}${s.zh ? `　${s.zh}` : '　（手寫，沒有中文）'}`);
   }
 }
 

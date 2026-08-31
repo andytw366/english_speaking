@@ -640,6 +640,9 @@ english_speaking/
 ├── .env.example
 ├── .gitignore
 ├── package.json
+├── Dockerfile            # 只裝正式相依套件的執行映像檔
+├── docker-compose.yml    # App + Caddy（補 HTTPS，手機才能用麥克風）
+├── Caddyfile             # HTTPS、gzip、反向代理
 ├── sentences.json        # 2,041 句練習句，含 id / text / category / difficulty / focus / zh
 ├── .github/workflows/
 │   └── ci.yml            # 每次 push 跑 npm test 與 npm run test:ui（都不需要金鑰）
@@ -767,9 +770,11 @@ MDN 標記為 "Limited availability"、Firefox 支援有問題。
 
 ## 已知限制
 
-- **必須用 `localhost` 開啟。** `getUserMedia` 需要 secure context；`localhost` 算 secure，
-  但用區網 IP（例如 `http://192.168.1.5:3000`）開啟時瀏覽器會直接擋掉麥克風。
-  要在手機或其他機器上測試，得先架 HTTPS。
+- **直接跑 `npm start` 時必須用 `localhost` 開啟。** `getUserMedia` 需要 secure context；
+  `localhost` 算 secure，但用區網 IP（例如 `http://192.168.1.5:3000`）開啟時
+  瀏覽器會直接擋掉麥克風。要在手機或其他機器上用，見下方
+  「[用 Docker 跑在自己的機器上](#用-docker-跑在自己的機器上)」——
+  那條路會補上 HTTPS，限制就解除了。
 - `speechSynthesis` 的語音品質取決於作業系統安裝的語音包，各平台聽起來會不一樣。
 - 單次錄音上限 60 秒，上傳上限 8 MB。
 - **練習紀錄只存在這台瀏覽器**，換瀏覽器或清掉網站資料就沒了。上限 200 筆，超過會丟掉最舊的。
@@ -789,6 +794,69 @@ MDN 標記為 "Limited availability"、Firefox 支援有問題。
 WSL2 有 localhost 轉發，所以在 WSL 裡 `npm start`、用 Windows 的瀏覽器開
 `http://localhost:3000`，瀏覽器會認定這是 localhost，secure context 成立、麥克風可以用。
 這點對這個專案很關鍵，因為改用區網 IP 開就會被瀏覽器擋掉麥克風。
+
+## 用 Docker 跑在自己的機器上
+
+想在**手機上練**（口說練習的實際場景多半在手機），就得解決一件事：
+`getUserMedia` 只在 secure context 下可用，也就是 `localhost` 或 `https://`。
+從別的裝置連 `http://10.0.0.5:3000` 的話，麥克風會被瀏覽器直接擋掉。
+
+所以這裡用兩個容器：App 本身，加上在前面補 HTTPS 的 [Caddy](https://caddyserver.com/)。
+
+```bash
+cp .env.example .env
+# 編輯 .env：填 GEMINI_API_KEY，以及 SITE_ADDRESS（你會用哪個位址連過來）
+
+docker compose up -d --build
+```
+
+然後從同一個網路（VPN 或區網）的裝置開 `https://<SITE_ADDRESS>:8443`。
+
+| 檔案 | 做什麼 |
+|---|---|
+| `Dockerfile` | 只裝正式相依套件。devDependencies 裡的 Tatoeba 語料有 7 MB，那是匯入句子時才用的 |
+| `Caddyfile` | HTTPS、gzip（`sentences.json` 有 470 KB）、反向代理到 App |
+| `docker-compose.yml` | 兩個服務。**App 刻意不對外開埠** —— 直接開 3000 的話那條路是 http，麥克風照樣不能用，只會讓人以為壞了 |
+
+### 憑證：兩條路
+
+**① Caddy 自己的本機 CA（預設，不需要網域）**
+
+`Caddyfile` 裡的 `tls internal`。Caddy 會自己簽一張憑證，**連 IP 位址都簽得出來**，
+所以 `SITE_ADDRESS` 直接填 VPN 的內網 IP 就行。
+
+代價是每台要用的裝置都得裝一次 Caddy 的根憑證：
+
+```bash
+# 把根憑證撈出來
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt
+```
+
+- **Android**：設定 →「安全性」→「加密與憑證」→「安裝憑證」→「CA 憑證」
+- **iOS**：用 AirDrop／郵件傳過去安裝成描述檔，**然後還要**到
+  設定 →「一般」→「關於本機」→「憑證信任設定」把它打開 —— 少了這一步不會生效，
+  而且 iOS 不會告訴你原因
+
+> ⚠️ `caddy_data` 這個 volume 裡有本機 CA 的私鑰。**刪掉它等於換一張 CA**，
+> 每台裝置都要重裝一次根憑證。所以它是具名 volume，不是綁在容器生命週期上的。
+
+**② Let's Encrypt（有網域的話，比較省事）**
+
+把 `Caddyfile` 的 `tls internal` 換成註解掉的 `tls { dns cloudflare ... }` 那段。
+走的是 **DNS-01 挑戰**，所以**不需要對外開 80／443** ——
+[Let's Encrypt 驗的是「你控制這個網域」，不是「這個 IP 連得到」](https://letsencrypt.org/docs/challenge-types/)，
+A 記錄指向 VPN 的內網 IP 也照樣簽得出來。
+
+好處是每台裝置都直接信任，不用裝根憑證（iOS 那一串步驟就免了）。
+代價是官方的 `caddy:2-alpine` 沒有 DNS 模組，要自己建一個含模組的映像檔 ——
+`docker-compose.yml` 裡有現成的 `dockerfile_inline` 可以直接換上。
+
+### 沒有做的事
+
+- **沒有帳號密碼、沒有 rate limit。** 現在的假設是「只有 VPN／區網內的自己人連得到」。
+  要是哪天真的放到公開網址上，這兩件事是必須的 —— 後端拿著你的 Gemini 金鑰，
+  任何人拿到網址就能一直送錄音上去燒你的配額。
+- **練習紀錄仍然只存在瀏覽器裡。** 換一台裝置就是從零開始 —— 手機和電腦的紀錄不會合併。
 
 ## 測試
 
@@ -877,7 +945,7 @@ npx playwright install chromium
 
 ## 接下來
 
-階段 1～7 都完成了。以下按「值得做的程度」排，不是按難度：
+階段 1～10 都完成了。以下按「值得做的程度」排，不是按難度：
 
 **一、拿真金鑰把階段 6、7 的 e2e 跑完。** 現在唯一沒被實際驗證的一段。
 `npm test` 與 `npm run test:ui` 都不需要金鑰、CI 也在跑，
@@ -887,15 +955,17 @@ npx playwright install chromium
 **二、面試類的難度分布偏難**（易 15／中 50／難 163）。面試語言本來就比較長，
 但初階的人一開始只有十幾句可以練。要補就是再手寫一批短句。
 
-**三、`sentences.json` 已經 470 KB**，每次開頁面整份送給瀏覽器。
-在 localhost 上無感，但要是哪天真的架到網路上，這裡要先加 gzip 或改成分頁載入。
+**三、跨裝置的紀錄。** 用 Docker 跑起來之後，手機和電腦都連得到同一台伺服器了，
+但練習紀錄仍然各自存在各自的瀏覽器裡 —— 兩邊的分數不會合併，
+「連續天數」也是各算各的。要解就得有後端儲存與帳號，面積比看起來大很多。
 
 **四、清洗規則是啟發式的，不是理解句意。** 現在擋得掉「不完整」與「不像對話」，
 擋不掉「文法正確但沒人會這樣講」。要再往上就得有人看過，或用 AI 做一次品質評分
 （那是離線一次性的成本，不是執行期的）。
 
-**五、跨裝置。** 練習紀錄只存在單一瀏覽器裡。要跨裝置就得有後端儲存與帳號，
-面積比看起來大很多（同步衝突、隱私、刪除帳號…）。
+**五、公開部署要先補存取控制與 rate limit。** 現在的假設是「只有 VPN／區網內連得到」。
+後端拿著 Gemini 金鑰，公開網址等於任何人都能一直送錄音上來燒配額 ——
+一個迴圈就能把免費層打到 429。
 
 **六、用 `thinking_level` 換取速度**（見上方「為什麼要等這麼久」）。
 改的是 `server/gemini.js` 的一行，但**要先跑品質對照才算數** ——

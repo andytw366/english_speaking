@@ -1,0 +1,54 @@
+# 兩個容器：App 本身，以及在前面補 HTTPS 的 Caddy。
+#
+#   cp .env.example .env     # 填 GEMINI_API_KEY 與 SITE_ADDRESS
+#   docker compose up -d --build
+#
+# 然後從 VPN 內的手機開 https://<SITE_ADDRESS>:8443
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      # 沒設金鑰的話啟動不會失敗，但送出錄音時會回 500 並在 console 警告
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+    # 刻意不用 ports：App 不對外開埠，只有 Caddy 連得到它。
+    # 直接開 3000 的話，那條路是 http，麥克風照樣不能用，只會讓人以為壞了。
+    expose:
+      - '3000'
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      # 要用哪個名字連就填哪個：VPN 的內網 IP（10.0.0.5）或網域（speak.example.com）。
+      # Caddy 的本機 CA 連 IP 都簽得出憑證。
+      SITE_ADDRESS: ${SITE_ADDRESS:?請在 .env 設定 SITE_ADDRESS}
+      CF_API_TOKEN: ${CF_API_TOKEN:-}
+    ports:
+      # 用 8443 而不是 443：低於 1024 的埠要特權，而 WSL 上常常已經有東西佔著。
+      # 非標準埠不影響 secure context，https://host:8443 一樣算安全來源。
+      - '${HTTPS_PORT:-8443}:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # caddy_data 裡有本機 CA 的私鑰與簽出來的憑證。刪掉這個 volume 等於換一張 CA，
+      # 每台裝置都要重裝根憑證 —— 所以它是具名 volume，不是綁在容器生命週期上。
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+# 要走 Let's Encrypt（Caddyfile 裡的 DNS-01）的話，官方映像檔沒有 DNS 模組，
+# 把上面 caddy 服務的 `image:` 換成下面這段自己建：
+#
+#   build:
+#     dockerfile_inline: |
+#       FROM caddy:2-builder AS builder
+#       RUN xcaddy build --with github.com/caddy-dns/cloudflare
+#       FROM caddy:2-alpine
+#       COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
+volumes:
+  caddy_data:
+  caddy_config:

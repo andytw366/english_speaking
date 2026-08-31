@@ -555,6 +555,17 @@ docker compose up -d --build
 | `Caddyfile` | HTTPS、gzip（`content/sentences.json` 有 450 KB）、反向代理 |
 | `docker-compose.yml` | 兩個服務。**App 刻意不對外開埠** —— 直接開 3000 的話那條路是 http，麥克風照樣不能用，只會讓人以為壞了 |
 
+> 容器裡**沒有** `.env`（Dockerfile 不複製它），金鑰是靠 compose 的 `environment:`
+> 從主機的 `.env` 轉進去的。所以**程式碼開始讀一個新的環境變數時，compose 也要跟著加**
+> —— 漏了的話容器照樣起得來、healthcheck 照樣過，只有那個功能安靜地死掉。
+> （真的發生過：階段 11 接上 Azure 之後，compose 的 `environment:` 只列了 Gemini 那兩個，
+> 於是走 Docker 部署時 `.env` 填了 Azure 金鑰也進不到容器裡。）
+> 檢查方式：
+>
+> ```bash
+> grep -rhoE "process\.env\.[A-Z_]+" server public | sort -u
+> ```
+
 `BIND_ADDR` 決定埠綁在哪個介面：填 VPN 介面的 IP，區網與公網那一側就掃不到。
 留空會綁 `0.0.0.0`，**這個 App 沒有帳號密碼也沒有 rate limit，不要就這樣放在有公網的機器上。**
 
@@ -617,6 +628,23 @@ curl "https://www.duckdns.org/update?domains=my-speaking&token=<你的token>&ip=
 ```
 
 要退回自簽憑證：`docker compose up -d`（不帶 override）。
+
+> ⚠️ **DuckDNS 的權威 nameserver 不回應 TCP/53**，而 Caddy 預設會繞過遞迴解析器、
+> 直接去問權威 NS「`_acme-challenge` 的 TXT 出現了嗎」。於是那個檢查永遠做不完，
+> Caddy 就一直不通知 Let's Encrypt 來驗證，卡在這個重試迴圈裡：
+>
+> ```
+> could not get certificate from issuer ... checking DNS propagation of
+> "_acme-challenge.<name>.duckdns.org." ... dial tcp 99.79.16.64:53: i/o timeout
+> ```
+>
+> 排除過防火牆：從同一個容器連 `1.1.1.1:53`（TCP）與 `1.1.1.1:443` 都通，
+> 只有 DuckDNS 的 NS 連不上。`Caddyfile.duckdns` 的解法是 `resolvers 1.1.1.1 8.8.8.8`
+> ＋ `propagation_timeout -1`（關掉檢查）＋ `propagation_delay 60s`（改成固定等待）。
+> 改完重啟，50 秒就拿到憑證。
+>
+> 這類失敗發生在**通知 LE 之前**，所以不會消耗失敗驗證的額度；但 delay 設太短
+> 而導致真的驗證失敗就會 —— 所以寧可設寬一點。
 
 ### 沒有做的事
 

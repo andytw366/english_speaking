@@ -77,8 +77,8 @@ Docker + HTTPS 那條路（README「用 Docker 跑在自己的機器上」）已
 ### 3. 沒做完的小功能
 
 - 情境對話的進度沒有存進 `localStorage`（重新整理就重來）
-- 單字卡的 Leitner 複習紀錄有寫入但沒有檢視畫面
-  （跟讀的紀錄檢視已經做了，見 `public/modes/shadowing-views.js`，可以照抄形狀）
+- 單字卡已經有待複習數量與盒子 chip（`srsSummary()`），缺的是「哪些卡在哪個盒子」
+  的完整清單（跟讀的紀錄檢視可以照抄形狀，見 `public/modes/shadowing-views.js`）
 
 ### 4. 公開部署之前必須補的兩件事
 
@@ -141,6 +141,15 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 - **`/api/settings` 只接受 loopback 請求，而 loopback 檢查擋不住反向代理。**
   Caddy 的 `reverse_proxy localhost:3000` 在後端看起來就是本機請求。
   **公開部署前必須移除這兩個端點或加真正的認證。**
+- **compose 的 `environment:` 要跟著程式碼一起加。** 容器裡沒有 `.env`，金鑰是
+  compose 從主機的 `.env` 轉進去的。階段 11 接上 Azure 之後，`docker-compose.yml`
+  只列了 Gemini 那兩個變數 —— 走 Docker 部署時 Azure 金鑰進不到容器裡，
+  **容器照樣起得來、healthcheck 照樣過**，只有發音評估安靜地死掉。
+  對照方式：`grep -rhoE "process\.env\.[A-Z_]+" server public | sort -u`。
+- **DuckDNS 的權威 NS 不回應 TCP/53**，而 Caddy 預設會直接去問權威 NS 確認 TXT
+  傳播 —— 檢查永遠做不完，就一直不通知 Let's Encrypt，卡在重試迴圈。
+  `Caddyfile.duckdns` 用 `resolvers` + `propagation_timeout -1` +
+  `propagation_delay 60s` 解掉。這類失敗在通知 LE 之前，不吃失敗驗證的額度。
 - **匯入句子的 `QUOTA` 算的是「這個情境總共要幾句」。** 原本 `perCategory` 從 0 起算，
   句庫滿了再跑一次照樣加滿一輪（daily 278 → 528）。句子有去重所以不會出現重複句，
   症狀只是句庫悄悄膨脹到兩倍、沒有任何錯誤訊息。`sentences.test.js` 有一條釘住這件事。

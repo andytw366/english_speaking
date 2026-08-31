@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { ISSUE_CODES } from '../server/gemini.js';
+import { QUOTA, select } from '../scripts/import-sentences.mjs';
 import { CATEGORY_LABEL, DIFFICULTY_LABEL } from '../public/lib/labels.js';
 
 const sentences = JSON.parse(readFileSync(new URL('../content/sentences.json', import.meta.url)));
@@ -118,4 +119,34 @@ test('每一句都以句號、問號或驚嘆號結尾', () => {
 test('句子沒有重複', () => {
   const texts = sentences.map((s) => s.text.trim().toLowerCase());
   assert.equal(new Set(texts).size, texts.length);
+});
+
+test('每個情境的句數落在 200～300 之間', () => {
+  // 使用者要的量。太少會一直重複，太多則每一句都抽得到、等於沒有取捨
+  const counts = new Map();
+  for (const s of sentences) counts.set(s.category, (counts.get(s.category) ?? 0) + 1);
+  for (const [category, n] of counts) {
+    assert.ok(n >= 200 && n <= 300, `${category} 有 ${n} 句，超出 200～300`);
+  }
+});
+
+test('匯入的配額算的是「總共幾句」，重跑不會再疊上去', () => {
+  // 這條擋的是一個安靜的資料 bug：perCategory 從 0 起算的話，句庫已經滿了
+  // 再跑一次照樣會加滿一輪（daily 278 → 528）。句子有去重所以不會有重複句，
+  // 症狀只是句庫悄悄膨脹到兩倍 —— 沒有任何錯誤訊息。
+  const existing = Array.from({ length: QUOTA }, (_, i) => ({
+    id: i + 1, text: `Existing sentence number ${i}.`, category: 'daily',
+    difficulty: 'easy', focus: ['th'],
+  }));
+  const candidates = Array.from({ length: 50 }, (_, i) => ({
+    text: `Brand new sentence number ${i}.`, category: 'daily',
+    difficulty: 'easy', focus: ['th'],
+  }));
+
+  assert.equal(select(candidates, existing).length, 0, '配額已滿還收了句子');
+
+  // 反向：還有空位時要收得到，而且只收到補滿為止
+  const room = 10;
+  const picked = select(candidates, existing.slice(0, QUOTA - room));
+  assert.equal(picked.length, room);
 });

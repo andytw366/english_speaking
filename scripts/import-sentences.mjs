@@ -37,7 +37,7 @@ const MAX_WORDS = 13;
  * 250 句大約是「每天練 5～10 句、兩三個月不會重複」的量。再多其實也收得到
  * （候選池有一萬四千句），但每一句都會被抽到 —— 多不等於好。
  */
-const QUOTA = 250;
+export const QUOTA = 250;
 
 /**
  * 情境的關鍵字，由上往下比對，先中的算。
@@ -268,7 +268,7 @@ function tagsFor(text) {
  * 不平均挑的話會拿到一堆 medium 難度、而且全部在練同幾個音的句子 ——
  * 「多給你 v/w 的句子」就會變成「一直給你同樣那三句」。
  */
-function select(candidates, existing) {
+export function select(candidates, existing) {
   const chosen = [];
   const perCategory = new Map();
   const perIssue = new Map();
@@ -280,6 +280,19 @@ function select(candidates, existing) {
     for (const tag of s.focus) perIssue.set(tag, (perIssue.get(tag) ?? 0) + 1);
   }
 
+  // QUOTA 是「這個情境總共要幾句」，不是「這一次要收幾句」——
+  // perCategory 從既有句數起算，重跑才不會每次都再疊 250 句上去。
+  // （之前是從 0 起算：句庫已經滿了，再跑一次照樣加滿，daily 會變成 528 句。
+  //   而句子有去重，所以症狀不是壞掉，是句庫安靜地膨脹到兩倍。）
+  for (const s of existing) {
+    perCategory.set(s.category, (perCategory.get(s.category) ?? 0) + 1);
+  }
+  // 每個情境還缺幾句。全滿的時候要立刻停 —— 不然每一輪都會把整個候選池
+  // （一萬五千句）重排一次卻一句都收不到。
+  const categories = [...new Set(candidates.map((s) => s.category))];
+  const room = () => categories.reduce(
+    (n, c) => n + Math.max(0, QUOTA - (perCategory.get(c) ?? 0)), 0);
+
   // 稀有的音優先：分數越低代表這句練到的音目前越缺
   const cost = (s) => {
     const bucket = `${s.category}/${s.difficulty}`;
@@ -288,7 +301,7 @@ function select(candidates, existing) {
   };
 
   const pool = [...candidates];
-  while (pool.length > 0) {
+  while (pool.length > 0 && room() > 0) {
     pool.sort((a, b) => cost(a) - cost(b));
     const next = pool.shift();
 
@@ -303,8 +316,6 @@ function select(candidates, existing) {
     const bucket = `${next.category}/${next.difficulty}`;
     perBucket.set(bucket, (perBucket.get(bucket) ?? 0) + 1);
     for (const tag of next.focus) perIssue.set(tag, (perIssue.get(tag) ?? 0) + 1);
-
-    if (chosen.length >= QUOTA * (CATEGORY_RULES.length + 1)) break;
   }
   return chosen;
 }
@@ -458,4 +469,8 @@ function report(added, merged) {
   }
 }
 
-main();
+// 被 test/sentences.test.js import 時不要跑匯入流程（它只要 select()）。
+// Node 20 沒有 import.meta.main，所以比對執行的檔名。
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

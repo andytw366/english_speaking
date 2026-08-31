@@ -1,115 +1,164 @@
 # 交接筆記
 
-給接手的新 session 用。專案脈絡、已完成的部分、待辦，以及過程中踩過而**不要重踩**的雷。
+給接手的新 session 用。**專案本身的說明全部在 `README.md`**（架構、每個設計決策的理由、
+部署、測試怎麼跑），這裡只寫三件 README 不該放的東西：現在做到哪、下一步、
+以及踩過而**不要重踩**的雷。
 
 ---
 
 ## 現況
 
-分支 `claude/english-speaking-practice-app-vukgm7`，已與 GitHub 同步（截至 `58affe5`）。
+分支 `claude/english-learning-app-review-vpfyhd`。
 
-本機執行的英語學習網頁 App，六種模式。**沒有 build step**，純 HTML + CSS + ES modules + Express。
+這個 repo 曾經有兩個平行發展的 App，占用同一批根目錄檔名：
 
-```bash
-npm install
-cp .env.example .env      # 金鑰選填，不填也能用四種模式
-npm start                 # http://localhost:3000
-```
+- `claude/english-speaking-practice-app-vukgm7` —— **廣**：六種模式（單字、聽力、
+  中翻英、情境對話、跟讀、設定）＋ Azure 發音評估
+- `claude/english-learning-app-review-vpfyhd` —— **深**：把「口說」一種模式做透
+  （間隔重複、音素級回饋、2,041 句句庫、CI、Docker + HTTPS 部署）
+
+**已經整合完了**（階段 11-1 ～ 11-6）：以六模式為外殼，深的那一整套收進「跟讀」模式，
+發音評分改用 Azure、Gemini 只負責把分數講成中文建議。兩邊的功能都沒有捨棄。
 
 | 模式 | 內容 | 狀態 |
 |---|---|---|
-| 🗂️ 單字卡 | 10,040 字（精選 40 + 10 個詞頻級距各 1,000） | 完成 |
+| 🗂️ 單字卡 | 10,040 字（精選 40 + 10 個詞頻級距各 1,000），Leitner 盒子制 | 完成 |
 | 🎧 聽力 | 81 組 / 226 題 | 完成 |
 | ✍️ 中翻英 | 279 題（填空 161 / 整句 118） | 完成 |
-| 💬 情境對話 | 61 段 / 185 句台詞 | 完成 |
-| 🗣️ 跟讀 | 27 句 + 選用 AI 發音評分 | 完成 |
-| ⚙️ 設定 | 金鑰、篩選、語音、資料管理 | 完成 |
+| 💬 情境對話 | 61 段 / 427 句台詞 | 完成 |
+| 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
+| ⚙️ 設定 | 金鑰、model、練習範圍、語音、學習資料 | 完成 |
+
+驗證狀態：`npm test` 125 項全過、`npm run test:ui` 74 項全過、
+`npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
+CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
+
+整合期間新長出來的檔案，接手前值得先看：
+
+| 檔案 | 為什麼重要 |
+|---|---|
+| `public/lib/practice.js` | 抽句的全部規則（分數權重 × 該複習了沒 × 弱點音）。**純函式**，改這裡要跟著跑 `practice.test.js` 的機率分布測試 |
+| `public/lib/azure-issues.js` | Azure 音素分數 → 弱點音分類。整合的接縫就在這裡：有了它，客觀分數才能回頭決定下一句抽什麼 |
+| `public/modes/shadowing.js` | 深的那一套的落點。狀態多，改之前先讀檔頭 |
+| `server/audio.js` | 無人聲把關。**後端這份才是把關**，前端那份只是即時提示 |
 
 ---
 
 ## 待辦
 
-### 1. 手機版 —— 等使用者決定路線（最優先，卡在決策）
+排序是「投入產出比」，不是「重要性」。
 
-使用者要做手機版，但**還沒決定走哪條路**。兩個選項已經說明過，等他回覆：
+### 1. 拿真金鑰把 Azure 那條路跑完（唯一沒被實際驗證的一段）
 
-- **PWA** —— 加 manifest + service worker，約半天。不能上架，需要 HTTPS 才能用麥克風。
-- **Capacitor** —— 包成原生 App 可上架，麥克風是原生權限不需要 HTTPS。iOS 必須有 Mac + Xcode。
+`server/azure-pronunciation.js` 的**實際呼叫從來沒成功跑過** —— 開發容器的 egress
+擋掉 `*.stt.speech.microsoft.com` 與 `*.api.cognitive.microsoft.com`（CONNECT 回 403），
+連認證失敗的路徑都測不到。
 
-**建議先做 PWA**：介面在手機上順不順這件事兩條路都要面對，PWA 最快能試出來，
-之後要再包 Capacitor 是加一層殼，工作不會浪費。
+已驗證的是：SDK 參數形狀（對照型別定義）、結果解析（用真實 Azure JSON 的 `NBest[0]`
+結構跑真正的 `PronunciationAssessmentResult`）、前端渲染（mock 回應）。
+**使用者說在他本機測過可以動，但這裡沒有證據，不要假設它一定沒問題。**
 
-**兩條路都要先解決的問題：金鑰放哪裡。**
-現在金鑰在伺服器的 `.env`，手機版沒有那台伺服器。兩個選擇：
-(a) 架一個後端（Render / Railway），(b) 使用者自己填金鑰存在裝置上。
-自用 App 建議 (b)。**絕對不能把開發者自己的金鑰打包進 App** —— 會被挖出來盜用。
+`npm run test:e2e` 的【3】【5】就是為它寫的，有金鑰時在本機跑。
 
-另外不管走哪條路都要做的：**手機介面調整**（觸控目標放大、單字卡適合單手操作、
-錄音按鈕移到拇指區）。
+### 2. 手機版 —— 建議先做 PWA
 
-### 2. 沒做完的小功能
+Docker + HTTPS 那條路（README「用 Docker 跑在自己的機器上」）已經能在手機瀏覽器上用了，
+`getUserMedia` 的 secure context 問題解掉了。**剩下的是介面**：觸控目標放大、
+單字卡適合單手操作、錄音按鈕移到拇指區。
 
-- 練習紀錄的檢視畫面 —— `lib/storage.js` 的 `addAttempt()` 已經在記錄跟讀的每次嘗試，但沒有 UI
-- 情境對話的進度存進 `localStorage`（目前重新整理就重來）
-- 錄音波形視覺化（`AnalyserNode`）
+之後兩條路：PWA（manifest + service worker）或 Capacitor（可上架、麥克風是原生權限）。
+**先做 PWA** —— 介面在手機上順不順兩條路都要面對，PWA 最快試得出來，
+之後要包 Capacitor 是加一層殼，工作不會浪費。
 
-### 3. Azure 尚未端對端驗證
+> **金鑰放哪裡**：現在在伺服器的 `.env`。走 Docker 就沿用這個，不用改。
+> 真的要做成獨立 App 的話，讓使用者自己填金鑰存在裝置上 ——
+> **絕對不能把開發者自己的金鑰打包進 App**，會被挖出來盜用。
 
-`server/azure-pronunciation.js` 的**實際呼叫從來沒成功跑過**。
-開發容器的 egress policy 擋掉 `*.stt.speech.microsoft.com` 與
-`*.api.cognitive.microsoft.com`（CONNECT 回 403），連認證失敗的路徑都測不到。
+### 3. 沒做完的小功能
 
-已驗證的是：SDK 參數形狀（對照型別定義）、結果解析（用真實 Azure JSON 的
-`NBest[0]` 結構跑真正的 `PronunciationAssessmentResult`）、前端渲染（mock 回應）。
-**使用者說在他本機測過可以動**，但這裡沒有證據，接手時不要假設它一定沒問題。
+- 情境對話的進度沒有存進 `localStorage`（重新整理就重來）
+- 單字卡的 Leitner 複習紀錄有寫入但沒有檢視畫面
+  （跟讀的紀錄檢視已經做了，見 `public/modes/shadowing-views.js`，可以照抄形狀）
+
+### 4. 公開部署之前必須補的兩件事
+
+沒有帳號密碼、沒有 rate limit。後端拿著兩組金鑰，公開網址等於任何人都能一直送錄音
+上來燒配額。而且 `/api/settings` 會寫伺服器的 `.env`（見下面的雷）。
+
+### 5. `focus` 標籤與內容清洗都是啟發式的
+
+擋得掉「不完整」與「不像對話」，擋不掉「文法正確但沒人會這樣講」。
+要再往上就得有人看過，或用 AI 做一次**離線**的品質評分（一次性成本，不是執行期的）。
 
 ---
 
 ## 不要重踩的雷
 
-以下每一項都是實際踩到並修好的，改動相關程式碼時請留意。
-
-### 音訊
-
-- **錄音一律轉成 16 kHz 單聲道 WAV 再送**（`public/lib/wav-encoder.js`）。
-  原因：Gemini 的兩份官方文件對 `audio/webm` 的支援說法不一致，而那是 `MediaRecorder`
-  的預設輸出。後來確認 `@google/genai` 的 `AudioContentMimeType` 型別裡**完全沒有** webm。
-  附帶好處：Azure Speech SDK 的預設輸入格式正好也是 16 kHz 16-bit 單聲道 PCM。
-- `MediaRecorder` **不要寫死 webm**，Safari 不支援（會吐 mp4/aac）。用 `isTypeSupported()` 挑。
-- `getUserMedia` 需要 secure context。`localhost` 可以，**區網 IP 不行**。
+每一項都是實際踩到並修好的。README 已經寫進設計理由的（16 kHz WAV、無人聲偵測、
+SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時會再踩一次**的。
 
 ### JavaScript 陷阱
 
-- **`??` 不會對空字串 fallback。** 曾經寫成
-  `(wantVoice && find(...)) ?? fallback`，而 `wantVoice` 預設是空字串，
-  `&&` 短路回傳 `''`，`??` 不接手，結果 `voice` 變成字串而不是 voice 物件，
-  **所有模式都發不出聲音**。已改成三元運算子。
-- **`h()` 的 children 要深層攤平。** `map()` 回傳巢狀陣列時只攤一層，
-  內層會被當成文字印出 `[object HTMLSpanElement]`。已改用 `flat(Infinity)`。
+- **`??` 不會對空字串 fallback。** 曾經寫成 `(wantVoice && find(...)) ?? fallback`，
+  而 `wantVoice` 預設是空字串，`&&` 短路回傳 `''`，`??` 不接手，`voice` 變成字串而不是
+  voice 物件，**所有模式都發不出聲音**。已改成三元運算子。
+- **`h()` 的 children 要深層攤平**（`flat(Infinity)`）。`map()` 回傳巢狀陣列時只攤一層，
+  內層會被印成 `[object HTMLSpanElement]`。
+- **`el.append()` 不會過濾 `false`，`h()` 會。** 用 `cond && h(...)` 這種寫法時，
+  條件不成立會把字串 `"false"` 印在畫面上（翻譯模式真的出現過）。
+  一律用 `lib/dom.js` 的 `append()`，不要用原生的。
 - **`e.currentTarget` 在非同步 callback 裡是 `null`。** 要在同步階段先把元素抓下來。
-- **`speechSynthesis.getVoices()` 首次常回空陣列。** 已在 `lib/tts.js` 用
+- **`speechSynthesis.getVoices()` 首次常回空陣列。** `lib/tts.js` 已用
   `voiceschanged` + polling 處理。
-- **`window.speechSynthesis` 在 Chromium 是唯讀屬性**，寫測試 stub 時直接指派會被
-  無聲忽略，要用 `Object.defineProperty`。
+- **`window.speechSynthesis` 在 Chromium 是唯讀屬性**，測試 stub 直接指派會被無聲忽略，
+  要用 `Object.defineProperty`。
+
+### CSS
+
+- **`[hidden] { display: none !important; }` 這條不能刪。** 整合時用腳本抽 CSS 區塊，
+  腳本只留類別選擇器 → 這條屬性選擇器被丟掉 → `.waveform { display: block }` 直接蓋掉
+  `hidden`，波形圖在不該出現的時候出現。CSS 檔裡有註解記著這件事。
+
+### 前端狀態
+
+- **`setRecordingUI()` 刻意不重新 render**，所以它要**直接改 DOM** 上的 `disabled`。
+  漏掉的那幾個（換一句、加權開關、每日目標）在錄音中還是點得下去。
+- **波形圖的 canvas 會在 re-render 後變成孤兒。** `shadowing.js` 追蹤
+  `waveformCanvas`，canvas 換掉時要重建 —— 不然畫進一個已經不在畫面上的元素，
+  症狀是「波形不動」而不是報錯。
+- **`Recorder.stop()` 要把 `blobToWav()` 算好的 `stats` 往外傳。** 少了它，
+  「這段錄音幾乎沒有聲音」的即時提示就做不到，使用者要等送出後才被後端擋下來。
 
 ### 資料與 API
 
 - **SRS 的鍵要有牌組前綴。** 不同牌組的 id 會重複（精選第 1 張與第一級距第 1 張
   都是 id 1），沒前綴的話兩張不同的卡會共用複習進度。見 `lib/storage.js` 的 `srsKeyOf()`。
-- **Gemini 對無效金鑰回的是 HTTP 400，不是 401/403**，而且 SDK 訊息裡看不到
+- **`server/gemini.js` 的 model 是白名單 + 陣列，不是單一常數。** 整合時
+  `narrateAssessment()` 裡還留著舊的 `MODEL` 常數 —— 一設定 Azure 就會 ReferenceError，
+  而那條路在容器裡測不到。動 model 相關的東西時把兩條路徑都掃過。
+- **Gemini 對無效金鑰回的是 HTTP 400，不是 401/403**，SDK 訊息裡也看不到
   `API_KEY_INVALID`。所以 400 的錯誤訊息要同時提示金鑰與音檔兩種可能。
-- **`/api/settings` 只接受 loopback 請求。** 它會寫入伺服器的 `.env`。
-  **部署到雲端前必須移除這兩個端點或加真正的認證** —— loopback 檢查擋得住區網，
-  但擋不住反向代理背後的請求。
+- **`/api/settings` 只接受 loopback 請求，而 loopback 檢查擋不住反向代理。**
+  Caddy 的 `reverse_proxy localhost:3000` 在後端看起來就是本機請求。
+  **公開部署前必須移除這兩個端點或加真正的認證。**
+- **匯入句子的 `QUOTA` 算的是「這個情境總共要幾句」。** 原本 `perCategory` 從 0 起算，
+  句庫滿了再跑一次照樣加滿一輪（daily 278 → 528）。句子有去重所以不會出現重複句，
+  症狀只是句庫悄悄膨脹到兩倍、沒有任何錯誤訊息。`sentences.test.js` 有一條釘住這件事。
 
 ### 內容
 
-- **解析不能只是把英文原句抄一遍加中文句號。** 這是我在這個專案裡反覆犯的錯，
-  三個聽力批次分別被驗證擋下 12、0、5 筆，全是同一個問題。
-  `scripts/generate-content.mjs` 的驗證會擋，**新增內容一定要跑過那套驗證**。
-- ECDICT 的原始資料很髒：釋義是簡體、音標混用非 IPA 字元
-  （`ә` 是西里爾字母、`^` 其實是 `ɡ`、`\` 是 `ɜ`）。清理邏輯都在
-  `scripts/build-vocabulary.mjs`，改那個檔前先讀註解。
+- **解析不能只是把英文原句抄一遍加中文句號。** 這是這個專案裡反覆犯的錯，三個聽力批次
+  分別被驗證擋下 12、0、5 筆，全是同一個問題。`scripts/generate-content.mjs` 的驗證會擋，
+  **新增內容一定要跑過那套驗證**（指令見 README「內容驗證」）。
+- ECDICT 的原始資料很髒：釋義是簡體、音標混用非 IPA 字元（`ә` 是西里爾字母、
+  `^` 其實是 `ɡ`、`\` 是 `ɜ`）。清理邏輯在 `scripts/build-vocabulary.mjs`，改之前先讀註解。
+- **OpenCC 的簡繁一對多會轉錯。** 簡體「发」對應正體的「發」與「髮」，靠詞組判斷；
+  詞組表沒收的組合（「被发明」）會轉成「被髮明」。`import-sentences.mjs` 有一張 `FIXES`
+  替換表，`sentences.test.js` 會掃這些型樣。**注意「沒幹」是對的**（干 當動詞要轉成 幹），
+  不要當成錯誤加進去。
+- **關鍵字過濾是很鈍的工具。** `UNPLEASANT` 那張表擋的是「文法沒錯但不該拿來練」的句子
+  （真的漏出去過一句 "An old woman was burnt to death."）。`afraid` 是刻意不放進去的 ——
+  「I'm afraid I can't.」是很常用的句型。
 
 ---
 
@@ -128,38 +177,10 @@ npm start                 # http://localhost:3000
 **不要繞過它**，環境的說明明確要求回報而不是繞道。
 
 其他：
+
 - 背景執行伺服器要用 harness 的 background 機制，用 `&` 會隨 shell 結束而死
-- `pkill -f "node server/index.js"` 會連自己的 shell 一起殺掉（exit 144），
-  改用 `ps` 找 PID 再 kill
-- 容器在這次工作中重啟過兩次，**分階段 commit**，不要累積一大批未提交的成果
-
----
-
-## 怎麼驗證改動
-
-```bash
-# 內容驗證（三份題庫都要通過）
-node --input-type=module -e "
-import fs from 'node:fs';
-const { TYPES } = await import('./scripts/generate-content.mjs');
-for (const [t,spec] of Object.entries(TYPES)) {
-  const items=JSON.parse(fs.readFileSync('content/'+spec.file,'utf8'));
-  const bad=items.filter(x=>spec.validate(x));
-  console.log(t, items.length, bad.length ? '❌'+bad.length : '✅');
-}"
-```
-
-瀏覽器測試用 Playwright（`/opt/node22/lib/node_modules/playwright`），
-Chromium 已預裝。錄音測試加 `--use-fake-device-for-media-stream`，
-TTS 測試要 stub 掉 `speechSynthesis`（見上面的唯讀屬性雷）。
-
----
-
-## 擴充題庫
-
-```bash
-npm run build:vocabulary -- --total 3000 --band 500   # 重建單字庫
-node scripts/generate-content.mjs listening --count 20 --dry-run
-```
-
-現有題庫是手寫的。生成腳本的價值主要在**那套驗證**，不管內容是誰寫的都得過同一關。
+- **`pkill -f "node server/index.js"` 會連自己的 shell 一起殺掉**（exit 144），
+  改用 `ps -eo pid,args | awk ... | xargs kill`
+- Playwright 的瀏覽器已預裝，用 `CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux/chrome`
+  指過去，不要 `playwright install`
+- 容器在整合期間重啟過數次，**分階段 commit**，不要累積一大批未提交的成果

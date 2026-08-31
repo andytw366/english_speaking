@@ -1,0 +1,25 @@
+# 憑證從「Caddy 自簽」換成「Let's Encrypt + DuckDNS」的疊加設定。
+#
+#   docker compose -f docker-compose.yml -f docker-compose.duckdns.yml up -d --build
+#
+# 做成 override 而不是直接改 docker-compose.yml，是為了讓失敗時能一步退回 ——
+# 把 `-f docker-compose.duckdns.yml` 拿掉就回到自簽憑證那條路。
+#
+# 需要 .env 裡有：
+#   SITE_ADDRESS=你的名字.duckdns.org
+#   DUCKDNS_API_TOKEN=（DuckDNS 首頁上那串）
+
+services:
+  caddy:
+    # 官方 caddy:2-alpine 沒有 DNS 模組，所以自己建一個。
+    # 換成別家 DNS 只要改 --with 後面那個模組（github.com/caddy-dns/...）。
+    image: speaking-coach-caddy:duckdns
+    build:
+      dockerfile_inline: |
+        FROM caddy:2-builder AS builder
+        RUN xcaddy build --with github.com/caddy-dns/duckdns
+        FROM caddy:2-alpine
+        COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+    volumes:
+      # 同一個掛載點會覆蓋掉 base 檔案裡的 Caddyfile
+      - ./Caddyfile.duckdns:/etc/caddy/Caddyfile:ro

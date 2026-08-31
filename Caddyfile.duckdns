@@ -1,0 +1,34 @@
+# 跟 Caddyfile 一樣，只有憑證那段不同：改用 Let's Encrypt + DuckDNS 的 DNS-01。
+#
+# 差別在於裝置不用裝根憑證（iOS 那串「憑證信任設定」的步驟就免了），
+# 代價是要有 DuckDNS 的子網域與 token，而且 Caddy 需要連得到外網
+# （去跟 Let's Encrypt 要憑證、去 DuckDNS 寫 TXT 記錄）。
+#
+# 搭配 docker-compose.duckdns.yml 使用：
+#   docker compose -f docker-compose.yml -f docker-compose.duckdns.yml up -d --build
+
+# 跟 Caddyfile 一樣留著 default_sni。走網域時它不會有作用（連網域一定會送 SNI），
+# 但萬一有人改回用 IP 連，至少會拿到「憑證名稱不符」這種看得懂的錯誤，
+# 而不是 TLS alert 80 那種完全沒有線索的斷線。
+{
+	default_sni {$SITE_ADDRESS}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# DNS-01 挑戰：Let's Encrypt 驗的是「你能在這個網域寫 TXT 記錄」，
+	# 不是「這個 IP 連得到」—— 所以 A 記錄指向 VPN 內網 IP 也照樣簽得出來，
+	# 而且不需要對外開 80／443。
+	tls {
+		dns duckdns {env.DUCKDNS_API_TOKEN}
+	}
+
+	reverse_proxy app:3000 {
+		# Gemini 一次呼叫實測 4～13 秒，後端自己的逾時是 60 秒。
+		# 這裡要比後端寬，不然會變成 Caddy 先斷線，使用者看到的錯誤訊息就不對了。
+		transport http {
+			response_header_timeout 90s
+		}
+	}
+}

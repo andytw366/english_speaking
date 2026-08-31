@@ -891,9 +891,50 @@ DNS-01 只驗 `_acme-challenge` 的 TXT。所以免費的動態 DNS 服務就夠
 （這份專案實際抓下來確認過），所以 Let's Encrypt 的簽發速率限制是**各子網域各算** ——
 不會因為別人也在用 DuckDNS 就把你的額度用光。
 
-DuckDNS 的設定：註冊（GitHub／Google 登入）→ 建一個子網域 → 首頁上的 token 填進
-`.env` 的 `DUCKDNS_API_TOKEN` → `SITE_ADDRESS` 填 `你的名字.duckdns.org`
-→ 在 DuckDNS 的頁面把 IP 設成 VPN 的內網位址。
+#### 換成 DuckDNS 的實際步驟
+
+DuckDNS 那條路做成**額外的 override 檔**（`Caddyfile.duckdns` 與
+`docker-compose.duckdns.yml`），而不是改原本的設定 —— 失敗時把 `-f` 拿掉就退回自簽憑證，
+不用回頭改檔案。
+
+**1. 註冊並建子網域**：[duckdns.org](https://www.duckdns.org/) 用 GitHub／Google 登入，
+建一個子網域（例如 `my-speaking`），首頁上會有一串 token。
+
+**2. 把 A 記錄指向 VPN 的內網 IP。** 網頁上的欄位會自動填你的**公開** IP，
+所以用 API 明確指定比較保險：
+
+```bash
+curl "https://www.duckdns.org/update?domains=my-speaking&token=<你的 token>&ip=10.0.0.5"
+# 回 OK 就成功
+```
+
+確認一下（要等 DNS 生效，通常幾十秒）：
+
+```bash
+nslookup my-speaking.duckdns.org
+```
+
+**3. 改 `.env`**：
+
+```
+SITE_ADDRESS=my-speaking.duckdns.org
+DUCKDNS_API_TOKEN=<你的 token>
+```
+
+**4. 疊上 override 啟動**（`BIND_ADDR` 那些設定照舊，override 只換憑證來源）：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.duckdns.yml up -d --build
+docker compose logs -f caddy
+```
+
+第一次會多花一分鐘左右建含 DNS 模組的 Caddy 映像檔。log 出現
+`certificate obtained successfully` 就成功了。
+
+**5. 用新網址開**：`https://my-speaking.duckdns.org:8443`
+—— 網址列打的名字必須跟 `SITE_ADDRESS` 一致，憑證是簽給那個名字的。
+
+要退回自簽憑證：`docker compose up -d`（不帶 override）。
 
 ### 沒有做的事
 

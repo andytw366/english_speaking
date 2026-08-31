@@ -444,10 +444,19 @@ function setRecordingUI(isRecording) {
     const el = q(sel);
     if (el) el.hidden = !isRecording;
   }
-  // 錄音中按「重練這句」會把正在錄的句子換掉，錄完的音就對不上目標句了
+  // 錄音中要停用所有會換掉目標句的控制項 —— 換掉之後錄好的音就對不上句子了。
+  // 這些元素的 disabled 是在 render() 時算的，而 setRecordingUI() 刻意不重畫
+  // （重畫會把正在播的 audio 與波形 canvas 都換掉），所以這裡直接改 DOM。
   for (const btn of root?.querySelectorAll('.history__replay') ?? []) {
     btn.disabled = isRecording;
   }
+  for (const btn of root?.querySelectorAll('button') ?? []) {
+    if (btn.textContent?.includes('換一句')) btn.disabled = isRecording;
+  }
+  const weightedToggle = root?.querySelector('.check input');
+  if (weightedToggle) weightedToggle.disabled = isRecording;
+  const goalSelect = root?.querySelector('.today__goal select');
+  if (goalSelect) goalSelect.disabled = isRecording;
 }
 
 // ─── 送出評估 ────────────────────────────────────────────────────────────

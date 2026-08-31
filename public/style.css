@@ -40,6 +40,17 @@
   box-sizing: border-box;
 }
 
+/* `hidden` 屬性靠的是瀏覽器預設的 display:none，任何 .foo { display: ... }
+   都會蓋過它 —— 例如 .playback{display:flex} 或 .waveform{display:block}
+   會讓 <div hidden> 照樣顯示出來。這條規則讓 hidden 一律有效，
+   程式裡才能安心用 el.hidden = true 控制顯示。
+
+   （合併兩個分支時漏掉過一次：抽取 CSS 的腳本只挑 class 選擇器，
+   屬性選擇器就這樣掉了，結果錄音波形一開始就露出來。） */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   padding: 2rem 1rem 4rem;

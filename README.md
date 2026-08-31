@@ -840,9 +840,9 @@ docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.
 > ⚠️ `caddy_data` 這個 volume 裡有本機 CA 的私鑰。**刪掉它等於換一張 CA**，
 > 每台裝置都要重裝一次根憑證。所以它是具名 volume，不是綁在容器生命週期上的。
 
-**② Let's Encrypt（有網域的話，比較省事）**
+**② Let's Encrypt（比較省事，而且網域可以是免費的）**
 
-把 `Caddyfile` 的 `tls internal` 換成註解掉的 `tls { dns cloudflare ... }` 那段。
+把 `Caddyfile` 的 `tls internal` 換成註解掉的 `tls { dns ... }` 那段。
 走的是 **DNS-01 挑戰**，所以**不需要對外開 80／443** ——
 [Let's Encrypt 驗的是「你控制這個網域」，不是「這個 IP 連得到」](https://letsencrypt.org/docs/challenge-types/)，
 A 記錄指向 VPN 的內網 IP 也照樣簽得出來。
@@ -850,6 +850,30 @@ A 記錄指向 VPN 的內網 IP 也照樣簽得出來。
 好處是每台裝置都直接信任，不用裝根憑證（iOS 那一串步驟就免了）。
 代價是官方的 `caddy:2-alpine` 沒有 DNS 模組，要自己建一個含模組的映像檔 ——
 `docker-compose.yml` 裡有現成的 `dockerfile_inline` 可以直接換上。
+
+#### 免費的網域
+
+這裡要的其實不是「一個網域」，是**一個你能寫 TXT 記錄的 DNS 名字** ——
+DNS-01 只驗 `_acme-challenge` 的 TXT。所以免費的動態 DNS 服務就夠用了。
+
+| 服務 | 拿到的名字 | 說明 |
+|---|---|---|
+| **[DuckDNS](https://www.duckdns.org/)** | `你的名字.duckdns.org` | 最簡單。免費、一個帳號 5 個子網域、有官方 [caddy-dns 模組](https://github.com/caddy-dns/duckdns)。**A 記錄可以指向私有 IP** |
+| **[deSEC](https://desec.io/)** | `你的名字.dedyn.io` | 非營利、完整 REST API 與 DNSSEC，也有 [caddy-dns 模組](https://github.com/caddy-dns/desec)。要**萬用字元憑證**就用這個 —— DuckDNS 一次只存得下一筆 TXT，簽 wildcard 會失敗 |
+| 自己買一個 | 隨你 | `.xyz` 之類一年幾十塊台幣。差別是你真的擁有它，不會哪天服務收掉 |
+
+> ⚠️ **不要去找 `.tk` / `.ml` / `.ga` 那種「免費頂級網域」。**
+> 提供它們的 Freenom 被 Meta 告了之後
+> [在 2024 年退出網域生意](https://domainincite.com/29668-freenom-shuts-down-12-6-million-domains-report)，
+> 約 1,260 萬個網域直接停止解析。網路上很多舊教學還在推薦它。
+
+`duckdns.org` 與 `dedyn.io` 都在 [Public Suffix List](https://publicsuffix.org/) 上
+（這份專案實際抓下來確認過），所以 Let's Encrypt 的簽發速率限制是**各子網域各算** ——
+不會因為別人也在用 DuckDNS 就把你的額度用光。
+
+DuckDNS 的設定：註冊（GitHub／Google 登入）→ 建一個子網域 → 首頁上的 token 填進
+`.env` 的 `DUCKDNS_API_TOKEN` → `SITE_ADDRESS` 填 `你的名字.duckdns.org`
+→ 在 DuckDNS 的頁面把 IP 設成 VPN 的內網位址。
 
 ### 沒有做的事
 

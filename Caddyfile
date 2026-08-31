@@ -24,7 +24,13 @@
 	#
 	# 這需要含 DNS 模組的 Caddy 映像檔（官方的 caddy:2-alpine 沒有），
 	# 見 docker-compose.yml 裡 caddy 服務的說明。
-	#
+
+	# DuckDNS（免費，SITE_ADDRESS 填 <你的名字>.duckdns.org）
+	# tls {
+	# 	dns duckdns {env.DUCKDNS_API_TOKEN}
+	# }
+
+	# 自己的網域掛在 Cloudflare
 	# tls {
 	# 	dns cloudflare {env.CF_API_TOKEN}
 	# }

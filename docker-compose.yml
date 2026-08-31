@@ -25,6 +25,7 @@ services:
       # 要用哪個名字連就填哪個：VPN 的內網 IP（10.0.0.5）或網域（speak.example.com）。
       # Caddy 的本機 CA 連 IP 都簽得出憑證。
       SITE_ADDRESS: ${SITE_ADDRESS:?請在 .env 設定 SITE_ADDRESS}
+      DUCKDNS_API_TOKEN: ${DUCKDNS_API_TOKEN:-}
       CF_API_TOKEN: ${CF_API_TOKEN:-}
     ports:
       # 用 8443 而不是 443：低於 1024 的埠要特權，而 WSL 上常常已經有東西佔著。
@@ -45,9 +46,11 @@ services:
 #   build:
 #     dockerfile_inline: |
 #       FROM caddy:2-builder AS builder
-#       RUN xcaddy build --with github.com/caddy-dns/cloudflare
+#       RUN xcaddy build --with github.com/caddy-dns/duckdns
 #       FROM caddy:2-alpine
 #       COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+#
+# 把 duckdns 換成 cloudflare（或其他 caddy-dns 模組）就是換一家 DNS 供應商。
 
 volumes:
   caddy_data:

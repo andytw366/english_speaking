@@ -80,13 +80,20 @@ const fakeHistory = (specs) =>
     };
   });
 
-/** 塞紀錄與設定，重新載入，切到指定模式。 */
-async function seed({ history = [], settings = {}, mode = 'shadowing' } = {}) {
-  await page.evaluate(({ h, s, m }) => {
+/**
+ * 塞紀錄與設定，重新載入，切到指定模式。
+ *
+ * `srs` 是單字卡的複習進度，預設清空 —— 不清的話上一段測試留下的進度會讓
+ * 「還沒開始」這種斷言時好時壞。
+ */
+async function seed({ history = [], settings = {}, mode = 'shadowing', srs = {} } = {}) {
+  await page.evaluate(({ h, s, m, r }) => {
     localStorage.setItem('speaking-coach:history', JSON.stringify(h));
     localStorage.setItem('speaking-coach:settings', JSON.stringify(s));
     localStorage.setItem('speaking-coach:mode', m);
-  }, { h: history, s: settings, m: mode });
+    localStorage.setItem('speaking-coach:srs', JSON.stringify(r));
+    localStorage.removeItem('speaking-coach:srsVersion');
+  }, { h: history, s: settings, m: mode, r: srs });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#nav .tab');
   await page.waitForTimeout(500);
@@ -401,7 +408,61 @@ check('開回來也存得回去', (await page.evaluate(() =>
 await shot(page, 'ui-09-設定');
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【11】清除紀錄');
+console.log('\n【11】單字卡：選難度、各級進度、舊進度搬家');
+
+// 舊格式的複習進度（鍵是 band-1:N）。band-1 的前 40 個字有一半熟練、一半學習中。
+const legacySrs = {};
+for (let i = 1; i <= 40; i++) {
+  legacySrs[`band-1:${i}`] = i % 2
+    ? { box: 5, due: Date.now() - 1000, seen: 6, correct: 6 }
+    : { box: 2, due: Date.now() + 9e6, seen: 2, correct: 1 };
+}
+legacySrs['curated:1'] = { box: 3, due: Date.now(), seen: 3, correct: 2 };
+
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', sessionLimit: 20 }, srs: legacySrs });
+await page.waitForSelector('.deckbar');
+
+check('顯示我在第幾級', (await text('.deckbar')).includes('第 1 級 / 共 6 級'),
+  (await text('.deckbar')).replace(/\s+/g, ' '));
+check('這一輪抽固定張數', (await viewText()).includes('這一輪最多 20 張'));
+
+// 舊鍵 band-1:N 要搬成共用的 ecdict:N，不然在 tier-1 練會看不到既有進度
+const srsKeys = await page.evaluate(() =>
+  Object.keys(JSON.parse(localStorage.getItem('speaking-coach:srs') ?? '{}')));
+check('band 的舊進度搬到 ecdict 命名空間',
+  srsKeys.includes('ecdict:1') && !srsKeys.some((k) => k.startsWith('band-')),
+  srsKeys.slice(0, 3).join(', '));
+check('精選的進度沒有被搬走', srsKeys.includes('curated:1'));
+check('搬完之後在分級裡看得到既有進度',
+  (await text('.srsstat--mastered .srsstat__value')) !== '0',
+  `已熟練 ${await text('.srsstat--mastered .srsstat__value')}`);
+await shot(page, 'ui-10-單字分級');
+
+// 選難度的畫面
+await page.locator('#view button', { hasText: '換難度' }).first().click();
+await page.waitForTimeout(300);
+check('六個難度都選得到', (await page.locator('.deckitem').count()) === 7,
+  `${await page.locator('.deckitem').count()} 個（六級 + 精選）`);
+check('詞頻級距預設收起來', !(await viewText()).includes('第 9,001–10,000 常用'));
+check('每一級都有進度條', (await page.locator('.deckitem .tierbar').count()) === 6);
+check('練過的那一級寫出實際張數而不是 0%',
+  /已熟練 \d+・學習中 \d+/.test(await viewText()) && !(await viewText()).includes('0% 碰過'));
+check('沒練過的那一級寫「還沒開始」', (await viewText()).includes('還沒開始'));
+await shot(page, 'ui-11-選難度');
+
+await page.locator('#view button', { hasText: '展開' }).click();
+await page.waitForTimeout(300);
+check('展開後十個詞頻級距也選得到', (await page.locator('.deckitem').count()) === 17,
+  `${await page.locator('.deckitem').count()} 個`);
+
+await page.locator('.deckitem', { hasText: '高階' }).click();
+await page.waitForTimeout(600);
+check('換級之後標題跟著換', (await text('.deckbar')).includes('第 4 級'));
+check('選的難度記在設定裡', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDeck)) === 'tier-4');
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【12】清除紀錄');
 
 await seed({ history: fakeHistory([[0, 42, 0], [1, 88, 1]]) });
 page.once('dialog', (d) => d.accept());
@@ -413,7 +474,7 @@ check('成績 chip 收起來', (await page.locator('.chip--past').count()) === 0
 check('今天的進度歸零', (await text('.today__value')).startsWith('0 /'));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【12】JS 錯誤');
+console.log('\n【13】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

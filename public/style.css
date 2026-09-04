@@ -1353,3 +1353,31 @@ body {
       width: 100%;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   單字的難度分級進度條
+   兩段式：已熟練（綠）＋學習中（藍），剩下的底色是還沒學過。
+   寬度是 inline style 算出來的百分比，所以 fill 不能被 flex 壓縮
+   —— flex: none 這條刪掉的話兩段會互相擠，比例就不對了。
+   ═══════════════════════════════════════════════════════════════════════ */
+.tierbar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  margin: 0.15rem 0 0.1rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+  overflow: hidden;
+}
+
+.tierbar__fill {
+  flex: none;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.tierbar__fill--mastered { background: var(--ok); }
+.tierbar__fill--learning { background: var(--accent); }
+
+/* .deckitem 是兩欄的 grid（標籤｜字數），進度條要自己占滿一整列 */
+.deckitem .tierbar { grid-column: 1 / -1; }

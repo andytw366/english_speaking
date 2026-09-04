@@ -67,8 +67,10 @@ const VOCAB_DIR = path.join(ROOT, 'content', 'vocabulary');
 
 app.get('/api/vocabulary/:file', (req, res, next) => {
   const name = req.params.file;
-  // 只允許已知的檔名形態，避免路徑穿越
-  if (!/^(index|curated|band-\d{2})\.json$/.test(name)) {
+  // 只允許已知的檔名形態，避免路徑穿越。
+  // band 是依詞頻的級距、tier 是依難度的分級（同一批字的兩種切法），
+  // tier-map 是「id 是第幾級」的對照表。新增牌組型態時這裡要跟著加。
+  if (!/^(index|curated|band-\d{2}|tier-\d+|tier-map)\.json$/.test(name)) {
     return res.status(404).json({
       error: 'unknown_deck',
       message: `找不到「${name}」這組單字。`,
@@ -77,7 +79,17 @@ app.get('/api/vocabulary/:file', (req, res, next) => {
   fs.promises
     .readFile(path.join(VOCAB_DIR, name), 'utf8')
     .then((raw) => res.type('application/json').send(raw))
-    .catch(next);
+    .catch((err) => {
+      // 檔名形態合法但檔案不存在（tier-99.json、band-99.json）要回 404，
+      // 不要掉進通用錯誤處理變成 500 —— 那個訊息會讓人以為伺服器壞了。
+      if (err.code === 'ENOENT') {
+        return res.status(404).json({
+          error: 'unknown_deck',
+          message: `找不到「${name}」這組單字。`,
+        });
+      }
+      next(err);
+    });
 });
 
 app.get('/api/content/:name', (req, res, next) => {

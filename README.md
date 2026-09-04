@@ -4,7 +4,7 @@
 
 | 模式 | 內容 |
 |---|---|
-| 🗂️ 單字卡 | 10,040 字（精選 40 + 依詞頻分級的 10 個級距各 1,000），Leitner 盒子制間隔重複 |
+| 🗂️ 單字卡 | 10,040 字，**自己選難度**（國中 → 高中 → 四級 → 六級 → 檢定 → GRE 六級），Leitner 盒子制間隔重複 |
 | 🎧 聽力 | 81 組 / 226 題 |
 | ✍️ 中翻英 | 279 題（填空 161 / 整句 118） |
 | 💬 情境對話 | 61 段 / 427 句台詞，角色扮演 |
@@ -162,12 +162,52 @@ Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖�
 
 ### 🗂️ 單字卡
 
-10,040 字，分成 11 個牌組：精選 40 字（手寫，含例句與中譯）＋依詞頻分級的 10 個級距
-各 1,000 字。用 **Leitner 盒子制**（1～5 盒，答對往上一盒、間隔拉長；答錯回第 1 盒），
+10,040 字。用 **Leitner 盒子制**（1～5 盒，答對往上一盒、間隔拉長；答錯回第 1 盒），
 而不是 SM-2 —— 行為好預測、出問題也容易看懂。
 
-> **SRS 的鍵一定要有牌組前綴。** 不同牌組的 id 會重複（精選第 1 張與第一級距第 1 張
-> 都是 id 1），沒前綴的話兩張不同的卡會共用複習進度。見 `lib/storage.js` 的 `srsKeyOf()`。
+**自己選難度。** 同一批字有兩種切法，選單以難度為主：
+
+| 切法 | 牌組 | 什麼時候用 |
+|---|---|---|
+| **依難度**（主要） | 6 級：入門｜國中 1,430、基礎｜高中 1,939、進階｜四級 1,946、高階｜六級 1,277、檢定｜TOEFL/IELTS 1,293、艱深｜GRE 與冷門字 2,115 | 平常練。選一級之後就只從那一級抽 |
+| 依詞頻級距 | 10 組，每組 1,000 字（第 1–1,000 常用…） | 想照詞頻順序練。預設收起來 |
+| 精選 | 40 字，手寫，含例句、中譯與發音提示 | 想要有例句的時候 |
+
+分級用的是 **ECDICT 的考試標籤**（`zk` 國中、`gk` 高中、`cet4`、`cet6`、`toefl`、
+`ielts`、`gre`、`ky` 考研），規則在 `scripts/vocab-levels.js`：
+
+- **取最簡單的那一個標籤** —— 一個字同時掛 `zk` 與 `gre` 時，它是國中就學過的字，
+  不是 GRE 單字。
+- **沒有任何標籤的字**（10,000 個裡有 2,272 個）用詞頻與 Collins 星等補位：
+  5 星或前 2,000 名 → 基礎，3 星或前 5,000 名 → 進階，其餘 → 艱深。
+- **為什麼不用現成的 `difficulty` 欄位**：那一欄是從詞頻機械換算的
+  （前 2,000 = easy、2,001–5,000 = medium、其餘 hard），跟「第幾個 1,000 常用」
+  是同一件事的兩種說法 —— 拿它當難度選單等於還是在選級距。
+- 考研（60 個字）與 GRE（312 個）單獨成級太小，所以併進「艱深」。
+  `vocabulary.test.js` 有一條釘住「每一級都在 500～3,500 字之間」，
+  改規則時會擋下又切出一個練不起來的級。
+
+**一輪抽幾張**：`buildQueue()` 先排到期要複習的、再補沒學過的，然後用設定裡的
+「單字卡一輪最多幾張」（預設 20）切掉尾巴。所以「從我在的難度抽固定數量」
+不需要另一套抽卡邏輯。
+
+**各級進度**怎麼算出來的：卡片 id 就是全域詞頻排名，所以 `tier-map.json` 用一個
+長度 10,000 的陣列（20 KB）記「id 是第幾級」。選難度的畫面因此只要這個小檔案
+加 `localStorage` 就畫得出六級的進度條 —— **不必把六個分級檔（3 MB）全部載下來**。
+
+熟練度到 80%（或沒學過的剩不到 10%）會出現「進到下一級」的提示。**不自動跳級** ——
+難度是使用者自己選的。
+
+> **SRS 的鍵用牌組的 `keyspace`，不是牌組 id。** 難度分級與詞頻級距是**同一批字的
+> 兩種切法**、id 也是同一個，所以兩者共用 `ecdict:` 這個命名空間 ——
+> 在「第 1–1,000 常用」記熟的字換去「入門｜國中」練，不會變回「沒學過」。
+> 精選的 id 從 1 起算、會跟 ECDICT 的字撞（精選第 1 張是 thorough、ECDICT 第 1 個是 say），
+> 所以它自己一個 `curated:`。
+>
+> 舊版的鍵是 `band-3:2001` 這種形式，`lib/storage.js` 的 `migrateSrs()` 會把它搬成
+> `ecdict:2001`。**搬家不看版本號、每次載入都跑一遍**（只在真的有東西要搬時才寫回去）——
+> 用版本號當關卡的話，「版本已經是 2 但還有舊鍵留著」這個狀態就永遠搬不動，
+> 而症狀是進度看起來歸零、沒有任何錯誤訊息。
 
 ### 🎧 聽力 ／ ✍️ 中翻英 ／ 💬 情境對話
 
@@ -409,9 +449,26 @@ daily 從 278 變 528。這種「跑起來沒報錯、資料悄悄壞掉」的�
 ### 單字庫：ECDICT
 
 `npm run build:vocabulary` 從 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT）
-依詞頻分級。原始資料很髒：釋義是簡體、音標混用非 IPA 字元
+產生單字庫（沒有 `ecdict.csv` 就自動下載，約 63 MB；`--csv` 可以指到現成的檔案，
+`--out` 可以先產到別的目錄對照）。原始資料很髒：釋義是簡體、音標混用非 IPA 字元
 （`ә` 是西里爾字母、`^` 其實是 `ɡ`、`\` 是 `ɜ`），清理邏輯都在
 `scripts/build-vocabulary.mjs`，改那個檔前先讀註解。
+
+同一批字寫出兩種切法（`band-NN.json` 與 `tier-N.json`），所以字庫在磁碟上是
+**兩份、共約 7 MB**。刻意用重複的檔案換簡單：前端一個牌組只 fetch 一個檔案，
+不必在伺服器啟動時把 3 MB 讀進記憶體再依難度重組。
+
+⚠️ **兩個踩過的雷**：
+- **`curated.json` 是手寫的，不由腳本產生。** 腳本原本會 `rmSync` 整個
+  `content/vocabulary/`，重跑一次就把它刪掉；而 index.json 少了 curated 那一項，
+  App 的預設牌組就載不到。現在只刪自己產生的檔名。
+- **腳本寫的欄位叫 `bands`，App 讀的是 `decks`。** committed 的 index.json 是後來
+  手改的，跟腳本的輸出不一致 —— 重跑就會壞。現在腳本直接輸出 `decks`
+  （精選 + 6 個分級 + 10 個級距），`vocabulary.test.js` 有一條釘住這件事。
+
+重跑之前先確認 **band 的字與 id 沒有跑掉**：那些 id 就是使用者的複習進度鍵。
+做法是先 `--out` 到暫存目錄，再比對 `word` 與 `id` 的序列（這次重跑比對過，
+既有欄位一個都沒變，只多了 `tier` / `collins` / `oxford`）。
 
 ### 評估過但沒有採用的來源
 
@@ -467,14 +524,16 @@ english_speaking/
 │   ├── listening.json         # 81 組 / 226 題
 │   ├── translation.json       # 279 題
 │   ├── dialogues.json         # 61 段 / 427 句台詞
-│   └── vocabulary/            # index + curated + band-01..10（共 10,040 字）
+│   └── vocabulary/            # index + tier-map + curated + tier-1..6 + band-01..10
+│                               #（同一批 10,000 字的兩種切法，加手寫的精選 40 字）
 ├── data/
 │   └── interview.txt          # 手寫的面試句（一行一句，# 是註解）
 ├── scripts/
 │   ├── phonetics.js           # 用 CMU 發音字典判斷「這句適合練哪些音」（純函式）
 │   ├── import-sentences.mjs   # 從 Tatoeba 匯入，自動標 focus 與難度
 │   ├── corpus-baseline.mjs    # 重算 phonetics.js 的基準線
-│   ├── build-vocabulary.mjs   # 從 ECDICT 建單字庫
+│   ├── vocab-levels.js        # 單字的難度分級規則（純函式，腳本與測試共用）
+│   ├── build-vocabulary.mjs   # 從 ECDICT 建單字庫（band + tier 兩種切法）
 │   └── generate-content.mjs   # 題庫生成與**結構驗證**
 ├── server/
 │   ├── index.js               # Express：靜態檔、內容端點、發音評估、設定
@@ -517,7 +576,7 @@ english_speaking/
 | GET | `/api/health` | `{ ok, azureConfigured, geminiConfigured }` |
 | GET | `/api/models` | Gemini model 白名單與預設值 |
 | GET | `/api/content/:name` | `sentences` / `listening` / `translation` / `dialogues` |
-| GET | `/api/vocabulary/:file` | `index.json` / `curated.json` / `band-NN.json` |
+| GET | `/api/vocabulary/:file` | `index.json` / `tier-map.json` / `curated.json` / `tier-N.json` / `band-NN.json`。檔名形態是白名單（避免路徑穿越），形態合法但檔案不存在回 404 |
 | GET | `/api/sentences` | 307 轉到 `/api/content/sentences`（舊路徑，口說分支用過） |
 | GET / POST | `/api/settings` | 讀寫金鑰設定（**只接受 loopback**） |
 | POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV）+ `sentence` + `model`（選填）+ `narrate`（選填，`off` 表示不要 Gemini 講評） |
@@ -709,7 +768,7 @@ curl "https://www.duckdns.org/update?domains=my-speaking&token=<你的token>&ip=
 `test/e2e.mjs` 不掛進 CI —— 它有一部分要金鑰、會吃配額，掛上去等於每次 push
 都在燒配額，額度用完那天 CI 會紅得莫名其妙。
 
-### 單元測試（134 項，不需要網路與金鑰）
+### 單元測試（158 項，不需要網路與金鑰）
 
 ```bash
 npm test
@@ -724,9 +783,10 @@ npm test
 | `phonetics.test.js` | 自動標音。特別測「只有 w 沒有 v 的句子不可以標成 `v_w`」，因為那正是人工標的時候犯過的錯 |
 | `gemini.test.js` | Gemini 回應的整理與防禦。structured output 有 schema，但 schema 是「請模型照這個格式」，不是「保證一定是這個格式」 |
 | `narration.test.js` | 中文講評的開關與本地摘要。釘住「什麼樣的值算關掉」（沒送等於要，舊前端不受影響）與「四種缺席原因各講各的話」—— 把「你自己關掉的」跟「這次沒回來」寫成同一句，使用者會以為壞了 |
+| `vocabulary.test.js` | 單字的難度分級：規則本身（最簡單的標籤優先、沒標籤的用詞頻補位）、產出的資料（六個分級檔與 index.json 對得起來、兩種切法是同一組 id、tier-map 每一格都對）、以及**複習進度的鍵搬家**（`band-3:2001` → `ecdict:2001`，精選不動、重跑結果一樣、合併不會把人往回推）。搬家跑錯就是使用者的進度不見了，而且不會有錯誤訊息 |
 | `sentences.test.js` | `content/sentences.json` 這份資料，以及匯入時的配額。擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的、簡繁轉換踩到一對多陷阱、每個情境的句數跑出 200～300 之外、重跑匯入把句庫疊成兩倍 |
 
-### 前端 UI 測試（83 項，需要伺服器，不需要金鑰）
+### 前端 UI 測試（96 項，需要伺服器，不需要金鑰）
 
 ```bash
 npm start          # 另一個終端機
@@ -736,7 +796,7 @@ npm run test:ui
 把假的練習紀錄塞進 `localStorage`，驗六個模式都載入得起來、今天的進度與連續天數、
 練習紀錄與趨勢圖、重練這句、弱點音會回頭影響抽句、中文意思、加權不會餓死句子、
 Azure 與 Gemini 兩條講評路徑、講評缺席時的四種說明、中文講評開關存不存得起來、
-一組總結、設定頁、清除紀錄。
+一組總結、設定頁、**單字卡的選難度與各級進度**（含舊進度搬家搬得對）、清除紀錄。
 
 講評與總結那兩段直接在頁面裡 `import` 模組餵資料進去 ——
 走真實流程要金鑰也要錄音，而要驗的只是「拿到這樣的資料時畫成什麼」。

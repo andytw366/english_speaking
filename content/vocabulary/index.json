@@ -2,83 +2,186 @@
  "source": "ECDICT (https://github.com/skywind3000/ECDICT, MIT)",
  "total": 10000,
  "bandSize": 1000,
+ "tierMapFile": "tier-map.json",
  "decks": [
   {
    "id": "curated",
+   "kind": "curated",
    "file": "curated.json",
    "count": 40,
    "label": "精選（含例句與發音提示）",
-   "note": "手寫的主題單字，每張都有例句、中譯與發音提示。"
+   "note": "手寫的主題單字，每張都有例句、中譯與發音提示。",
+   "keyspace": "curated"
+  },
+  {
+   "id": "tier-1",
+   "file": "tier-1.json",
+   "count": 1430,
+   "order": 1,
+   "label": "入門｜國中",
+   "note": "國中課綱範圍。看不懂的字最多的話從這裡開始。",
+   "kind": "tier",
+   "keyspace": "ecdict"
+  },
+  {
+   "id": "tier-2",
+   "file": "tier-2.json",
+   "count": 1939,
+   "order": 2,
+   "label": "基礎｜高中",
+   "note": "高中課綱範圍，也收沒有考試標籤但很常用的字。",
+   "kind": "tier",
+   "keyspace": "ecdict"
+  },
+  {
+   "id": "tier-3",
+   "file": "tier-3.json",
+   "count": 1946,
+   "order": 3,
+   "label": "進階｜四級",
+   "note": "大學四級範圍。日常閱讀與一般工作場合的主力字彙。",
+   "kind": "tier",
+   "keyspace": "ecdict"
+  },
+  {
+   "id": "tier-4",
+   "file": "tier-4.json",
+   "count": 1277,
+   "order": 4,
+   "label": "高階｜六級",
+   "note": "大學六級範圍。開始出現書面語與抽象詞。",
+   "kind": "tier",
+   "keyspace": "ecdict"
+  },
+  {
+   "id": "tier-5",
+   "file": "tier-5.json",
+   "count": 1293,
+   "order": 5,
+   "label": "檢定｜TOEFL / IELTS",
+   "note": "留學檢定範圍。學術與新聞用字。",
+   "kind": "tier",
+   "keyspace": "ecdict"
+  },
+  {
+   "id": "tier-6",
+   "file": "tier-6.json",
+   "count": 2115,
+   "order": 6,
+   "label": "艱深｜GRE 與冷門字",
+   "note": "GRE、考研，以及沒進任何考試範圍的低頻字。",
+   "kind": "tier",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-1",
    "file": "band-01.json",
    "count": 1000,
+   "from": 1,
+   "to": 1000,
    "label": "第 1–1,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-2",
    "file": "band-02.json",
    "count": 1000,
+   "from": 1001,
+   "to": 2000,
    "label": "第 1,001–2,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-3",
    "file": "band-03.json",
    "count": 1000,
+   "from": 2001,
+   "to": 3000,
    "label": "第 2,001–3,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-4",
    "file": "band-04.json",
    "count": 1000,
+   "from": 3001,
+   "to": 4000,
    "label": "第 3,001–4,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-5",
    "file": "band-05.json",
    "count": 1000,
+   "from": 4001,
+   "to": 5000,
    "label": "第 4,001–5,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-6",
    "file": "band-06.json",
    "count": 1000,
+   "from": 5001,
+   "to": 6000,
    "label": "第 5,001–6,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-7",
    "file": "band-07.json",
    "count": 1000,
+   "from": 6001,
+   "to": 7000,
    "label": "第 6,001–7,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-8",
    "file": "band-08.json",
    "count": 1000,
+   "from": 7001,
+   "to": 8000,
    "label": "第 7,001–8,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-9",
    "file": "band-09.json",
    "count": 1000,
+   "from": 8001,
+   "to": 9000,
    "label": "第 8,001–9,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   },
   {
    "id": "band-10",
    "file": "band-10.json",
    "count": 1000,
+   "from": 9001,
+   "to": 10000,
    "label": "第 9,001–10,000 常用",
-   "note": "依語料庫詞頻排序，取自 ECDICT。"
+   "note": "依語料庫詞頻排序，取自 ECDICT。",
+   "kind": "band",
+   "keyspace": "ecdict"
   }
  ]
 }

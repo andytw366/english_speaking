@@ -27,13 +27,68 @@ function write(key, value) {
 const BOX_INTERVAL_DAYS = [0, 1, 3, 7, 21];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// 複習進度的資料版本。只是給人看的記號（localStorage 裡看得到現在是第幾版），
+// **不用它決定要不要搬** —— 見下面。
+const SRS_VERSION = 2;
+let migrated = false;
+
 export function getSrsState() {
-  return read('srs', {});
+  const all = read('srs', {});
+  if (migrated) return all;
+  migrated = true;
+
+  // 每次載入都跑一次搬家、只在真的有東西要搬時才寫回去。
+  //
+  // 為什麼不用版本號當關卡：那樣一來「版本已經是 2、但還有舊鍵留著」就永遠
+  // 搬不動了 —— 而那個狀態做得出來（開發時手動塞舊資料就會遇到），
+  // 症狀是進度看起來歸零、卻沒有任何錯誤。搬家本身是冪等的，
+  // 每次載入跑一遍很便宜（srs 最多幾千個鍵），不需要靠版本號省這一趟。
+  const before = Object.keys(all);
+  const next = migrateSrs(all);
+  const changed = before.length !== Object.keys(next).length ||
+    before.some((key) => !(key in next));
+  if (changed) {
+    write('srs', next);
+    write('srsVersion', SRS_VERSION);
+  }
+  return next;
 }
 
 /**
- * 每張卡的 SRS 鍵。不同牌組的 id 會重複（精選第 1 張與第一級距第 1 張都是 id 1），
- * 所以要用牌組名稱做前綴，否則兩張不同的卡會共用同一份複習進度。
+ * 版本 1 → 2：`band-3:2001` 這種鍵改成 `ecdict:2001`。
+ *
+ * 為什麼要改：難度分級（tier）與詞頻級距（band）是**同一批字的兩種切法**，
+ * id 也是同一個（全域詞頻排名）。鍵裡帶牌組名稱的話，在 band-1 記熟的字
+ * 換去 tier-1 練會變回「沒學過」—— 同一個字有兩份互不相干的複習進度，
+ * 「各級進度」也會算出兩套數字。
+ *
+ * 精選牌組**不**併進來：它的 id 從 1 起算、跟 ECDICT 的字會撞
+ * （精選第 1 張是 thorough，ECDICT 第 1 個是 say），所以留在 `curated:` 底下。
+ *
+ * 導出成純函式是為了測得到 —— 這段只跑一次，跑錯就是使用者的進度不見了。
+ */
+export function migrateSrs(all) {
+  const next = {};
+  for (const [key, value] of Object.entries(all ?? {})) {
+    const m = /^band-\d+:(\d+)$/.exec(key);
+    const nextKey = m ? `ecdict:${m[1]}` : key;
+    const prev = next[nextKey];
+    // 同一個字可能在兩個牌組裡都練過（band-1 與 band-2 不會撞，但重建過資料的話
+    // 有可能）。留進度比較前面的那一份，不要讓合併把人往回推。
+    next[nextKey] = !prev || score(value) >= score(prev) ? value : prev;
+  }
+  return next;
+}
+
+function score(state) {
+  return (state?.box ?? 0) * 1000 + (state?.seen ?? 0);
+}
+
+/**
+ * 每張卡的 SRS 鍵。**不是**用牌組 id 當前綴，是用牌組的 `keyspace`
+ * （見 content/vocabulary/index.json）：band 與 tier 都是 `ecdict`，
+ * 所以同一個字不論從哪一種牌組練到，都是同一份進度；精選是 `curated`，
+ * 因為它的 id 會跟 ECDICT 的字撞。
  */
 export function srsKeyOf(card) {
   return card.srsKey ?? String(card.id);
@@ -95,8 +150,45 @@ export function srsSummary(cards) {
   return { due, fresh, learning, mastered, total: cards.length };
 }
 
+/**
+ * 每一級的學習進度。
+ *
+ * **為什麼不直接統計卡片**：`srsSummary()` 要把整個牌組的卡片傳進來，而六個
+ * 分級檔加起來是 3 MB —— 為了畫一排進度條把整個字庫載下來太蠢。
+ * 而卡片 id 就是全域詞頻排名，`tier-map.json` 用一個 10,000 長度的陣列
+ * （20 KB）記「id 是第幾級」，所以只要這個小檔案加 localStorage 就算得出來。
+ *
+ * 純函式：`now` 一定要傳（測試不能靠真實時鐘），srs 狀態也是參數。
+ *
+ * @param {object} srsState getSrsState() 的結果
+ * @param {{ byId: number[], tiers: Array<{id:string, order:number, label:string, count:number}> }} tierMap
+ * @param {number} now
+ */
+export function tierProgress(srsState, tierMap, now = Date.now()) {
+  const tiers = (tierMap?.tiers ?? []).map((t) => ({
+    ...t, due: 0, learning: 0, mastered: 0, fresh: t.count, seen: 0,
+  }));
+  const byOrder = new Map(tiers.map((t) => [t.order, t]));
+  const byId = tierMap?.byId ?? [];
+
+  for (const [key, state] of Object.entries(srsState ?? {})) {
+    const m = /^ecdict:(\d+)$/.exec(key);
+    if (!m) continue;                       // 精選與跟讀的鍵不算在分級裡
+    const tier = byOrder.get(byId[Number(m[1]) - 1]);
+    if (!tier) continue;                    // 資料重建後 id 可能超出範圍
+    tier.seen += 1;
+    if (state.box >= BOX_INTERVAL_DAYS.length) tier.mastered += 1;
+    else tier.learning += 1;
+    if (state.due <= now) tier.due += 1;
+  }
+
+  for (const t of tiers) t.fresh = Math.max(0, t.count - t.seen);
+  return tiers;
+}
+
 export function resetSrs() {
   write('srs', {});
+  write('srsVersion', SRS_VERSION);
 }
 
 // ─── 跟讀練習紀錄 ────────────────────────────────────────────────────────

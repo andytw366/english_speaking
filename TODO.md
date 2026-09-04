@@ -22,14 +22,14 @@
 
 | 模式 | 內容 | 狀態 |
 |---|---|---|
-| 🗂️ 單字卡 | 10,040 字（精選 40 + 10 個詞頻級距各 1,000），Leitner 盒子制 | 完成 |
+| 🗂️ 單字卡 | 10,040 字，**自己選難度**（6 級：國中→高中→四級→六級→檢定→GRE）＋各級進度，Leitner 盒子制 | 完成 |
 | 🎧 聽力 | 81 組 / 226 題 | 完成 |
 | ✍️ 中翻英 | 279 題（填空 161 / 整句 118） | 完成 |
 | 💬 情境對話 | 61 段 / 427 句台詞 | 完成 |
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
 | ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料 | 完成 |
 
-驗證狀態：`npm test` 134 項全過、`npm run test:ui` 83 項全過、
+驗證狀態：`npm test` 158 項全過、`npm run test:ui` 96 項全過、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
 
@@ -39,6 +39,15 @@ CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
 還要再等 Gemini 幾秒到十幾秒才看得到建議。關掉之後講評改用
 `server/narration.js` 的本地摘要，Gemini 完全不呼叫。設計與各欄位的意思寫在
 README「覺得慢？中文講評可以整段關掉」。
+
+再一件（分支 `claude/gemini-speed-toggle-hzu9kw` 的第二個 commit）：
+**單字卡改成自己選難度**。同一批 10,000 字現在有兩種切法 —— 依難度的 6 級
+（`tier-1.json`…，考試標籤決定，規則在 `scripts/vocab-levels.js`）與原本依詞頻的
+10 個級距（`band-NN.json`，留著，預設收起來）。選難度的畫面同時是各級進度總覽。
+設計理由與資料細節在 README「🗂️ 單字卡」與「單字庫：ECDICT」。
+
+下一步（使用者已經談過、還沒做）：**改成輸入式**（顯示中文輸入英文／顯示英文輸入中文）。
+可行性已經查過，結論寫在下面的「待辦 3」。
 
 **這個開關的 Azure 那條路在容器裡驗不到**（egress 擋掉 Azure）。當時的做法是
 用 `--import` 掛一個 loader 把 `server/azure-pronunciation.js` 換成假的，
@@ -55,6 +64,8 @@ README「覺得慢？中文講評可以整段關掉」。
 | `public/modes/shadowing.js` | 深的那一套的落點。狀態多，改之前先讀檔頭 |
 | `server/audio.js` | 無人聲把關。**後端這份才是把關**，前端那份只是即時提示 |
 | `server/narration.js` | 講評開關（`wantsNarration`）與本地摘要。純函式，所以 `narration.test.js` 測得到 —— `server/index.js` 一 import 就 `app.listen()`，測不進去 |
+| `scripts/vocab-levels.js` | 單字難度分級的**唯一一份**規則。建置腳本與 `vocabulary.test.js` 共用，改這裡要重跑 `npm run build:vocabulary` |
+| `public/lib/storage.js` 的 `migrateSrs()` | 複習進度的鍵搬家（`band-3:2001` → `ecdict:2001`）。跑錯就是使用者的進度不見了，而且沒有錯誤訊息 |
 
 ---
 
@@ -88,7 +99,24 @@ Docker + HTTPS 那條路（README「用 Docker 跑在自己的機器上」）已
 > 真的要做成獨立 App 的話，讓使用者自己填金鑰存在裝置上 ——
 > **絕對不能把開發者自己的金鑰打包進 App**，會被挖出來盜用。
 
-### 3. 沒做完的小功能
+### 3. 單字卡改成輸入式（下一步，已經查過可行性）
+
+`lib/grade.js`（normalize / 三級批改 / 逐字對照）與 `translation.js` 的輸入框可以直接
+重用，不需要 API。兩個方向的難度差很多：
+
+- **中→英**（顯示中文、輸入英文）：程式最簡單（`grade()` 加 `strict: true`），
+  但**內容有問題**：10,000 個字裡有 2,928 個（29%）跟別的字共用同一個「第一個中文義項」
+  —— 「完全地」有 7 個字（absolutely / completely / totally / perfectly / altogether / wholly…）、
+  「發現」6 個。直接批改會常常判對的答案錯。而 `meaning_zh` 的義項數中位數是 4、
+  90% 有 9 個、還有 `[化]` 這種領域標記，當題目要先清成第一個義項。
+  可選的解法：提示首字母＋字數／顯示 IPA／接受同級的同義字／給一個「其實我對了」的按鈕。
+- **英→中**（顯示英文、輸入中文）：批改不可靠（中文同義說法太多，只能做寬鬆的包含比對），
+  手機還要切輸入法。**建議改成選擇題**（從同一級抽 3 個干擾項）：一樣是主動回想，
+  批改 100% 準確。
+- 順帶：ECDICT 的 10,000 個字**沒有例句**（只有精選 40 字有），所以「句子挖空」
+  這種題型目前只能用在精選牌組。
+
+### 4. 沒做完的小功能
 
 - 中文講評的開關只存在瀏覽器（`localStorage` 的 `geminiNarration`）。走 Docker
   給家裡幾台裝置用的話，每台都要各自關一次 —— 要的話可以加一個 `.env` 的
@@ -98,12 +126,12 @@ Docker + HTTPS 那條路（README「用 Docker 跑在自己的機器上」）已
 - 單字卡已經有待複習數量與盒子 chip（`srsSummary()`），缺的是「哪些卡在哪個盒子」
   的完整清單（跟讀的紀錄檢視可以照抄形狀，見 `public/modes/shadowing-views.js`）
 
-### 4. 公開部署之前必須補的兩件事
+### 5. 公開部署之前必須補的兩件事
 
 沒有帳號密碼、沒有 rate limit。後端拿著兩組金鑰，公開網址等於任何人都能一直送錄音
 上來燒配額。而且 `/api/settings` 會寫伺服器的 `.env`（見下面的雷）。
 
-### 5. `focus` 標籤與內容清洗都是啟發式的
+### 6. `focus` 標籤與內容清洗都是啟發式的
 
 擋得掉「不完整」與「不像對話」，擋不掉「文法正確但沒人會這樣講」。
 要再往上就得有人看過，或用 AI 做一次**離線**的品質評分（一次性成本，不是執行期的）。
@@ -159,8 +187,21 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 
 ### 資料與 API
 
-- **SRS 的鍵要有牌組前綴。** 不同牌組的 id 會重複（精選第 1 張與第一級距第 1 張
-  都是 id 1），沒前綴的話兩張不同的卡會共用複習進度。見 `lib/storage.js` 的 `srsKeyOf()`。
+- **SRS 的鍵用牌組的 `keyspace`，不是牌組 id。** 精選的 id 與 ECDICT 的字會撞
+  （都從 1 起算），所以要分開；但難度分級與詞頻級距是**同一批字的兩種切法**、id 相同，
+  必須共用 `ecdict:`，否則同一個字有兩份進度。見 `lib/storage.js` 的 `srsKeyOf()`
+  與 index.json 的 `keyspace` 欄位。
+- **`migrateSrs()` 刻意不看版本號。** 用版本號當關卡的話，「版本已經是 2、
+  但還有舊鍵留著」就永遠搬不動了 —— 而那個狀態做得出來（開發時手動塞舊資料就會遇到），
+  症狀是**進度看起來歸零、沒有任何錯誤訊息**，很難聯想到是 migration 沒跑。
+  現在每次載入都跑一遍、只在真的有東西要搬時才寫回去。
+- **`build-vocabulary.mjs` 重跑之前先 `--out` 到暫存目錄比對 band 的 word 與 id。**
+  那些 id 就是複習進度的鍵，字跑掉等於把進度洗掉。（2026-09 那次重跑比對過：
+  既有欄位一個都沒變，只多了 `tier` / `collins` / `oxford`。）
+- **`curated.json` 是手寫的，腳本不產生它。** 腳本原本 `rmSync` 整個
+  `content/vocabulary/`，重跑一次就刪掉它；而且腳本寫的欄位叫 `bands`、
+  App 讀的是 `decks`（committed 的 index.json 是後來手改的）。兩個都修了，
+  `vocabulary.test.js` 各有一條釘住。**改建置腳本時記得它的輸出要餵得動 App。**
 - **`server/gemini.js` 的 model 是白名單 + 陣列，不是單一常數。** 整合時
   `narrateAssessment()` 裡還留著舊的 `MODEL` 常數 —— 一設定 Azure 就會 ReferenceError，
   而那條路在容器裡測不到。動 model 相關的東西時把兩條路徑都掃過。

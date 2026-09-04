@@ -7,17 +7,30 @@
  * 這個腳本把它篩選成依詞頻分級的學習用卡片。
  *
  * 用法：
- *   node scripts/build-vocabulary.mjs [--csv <路徑>] [--total 10000] [--band 1000]
+ *   node scripts/build-vocabulary.mjs [--csv <路徑>] [--total 10000] [--band 1000] [--out <目錄>]
  *
  * 沒給 --csv 就會自動下載（約 63 MB）。
- * 產出 content/vocabulary/band-01.json … band-NN.json 與 index.json。
+ * 產出兩種切法，同一批字：
+ *   band-01.json … band-NN.json  依詞頻切的級距（第 1–1,000 常用…）
+ *   tier-1.json … tier-6.json    依難度切的分級（國中／高中／四級…，見 vocab-levels.js）
+ *   tier-map.json                id → 第幾級的對照表，讓「各級進度」不必載入全部字庫
+ *   index.json                   牌組目錄，App 的切換畫面讀這一份
+ *
+ * 兩種切法都留著是刻意的：詞頻級距是既有使用者的進度所在，難度分級才是拿來
+ * 選「我要練哪一級」的。同一個字在兩種牌組裡是**同一份複習進度**（見下面的 keyspace）。
  *
  * 這是「建置期」腳本，不是執行期 —— App 跑起來只讀產出的 JSON。
+ *
+ * ⚠️ `curated.json` 是**手寫的**，不由這支腳本產生。所以這裡只刪自己產生的檔案，
+ * 不能整個目錄砍掉重建（原本的 `rmSync(OUT_DIR)` 會把它一起刪掉，
+ * 而 index.json 少了 curated 那一項，App 的預設牌組就載不到）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as OpenCC from 'opencc-js';
+
+import { TIERS, tierFor } from './vocab-levels.js';
 
 // ECDICT 的釋義是簡體，轉成台灣正體（twp 會一併做詞彙轉換，例如 想象→想像）
 const toTraditional = OpenCC.Converter({ from: 'cn', to: 'twp' });
@@ -33,7 +46,9 @@ const argOf = (name, fallback) => {
 const TOTAL = Number(argOf('--total', 10000));
 const BAND_SIZE = Number(argOf('--band', 1000));
 const CSV_PATH = argOf('--csv', path.join(ROOT, 'ecdict.csv'));
-const OUT_DIR = path.join(ROOT, 'content', 'vocabulary');
+// --out 是為了能先產到暫存目錄跟現有資料對照，確認 band 的字沒有跑掉再覆蓋
+// —— band 的 id 就是使用者的複習進度鍵，換掉等於把進度洗掉。
+const OUT_DIR = path.resolve(argOf('--out', path.join(ROOT, 'content', 'vocabulary')));
 
 // ─── CSV 解析 ────────────────────────────────────────────────────────────
 // 欄位裡有逗號與跳脫的引號，不能用 split(',')。
@@ -223,43 +238,120 @@ candidates.sort((a, b) => a.rank - b.rank);
 const chosen = candidates.slice(0, TOTAL);
 console.log(`取詞頻前 ${chosen.length.toLocaleString()} 個。`);
 
-fs.rmSync(OUT_DIR, { recursive: true, force: true });
+// 只刪自己產生的檔案 —— curated.json 是手寫的，砍掉就回不來了
 fs.mkdirSync(OUT_DIR, { recursive: true });
+for (const name of fs.readdirSync(OUT_DIR)) {
+  if (/^(band-\d{2}|tier-\d+|tier-map|index)\.json$/.test(name)) {
+    fs.rmSync(path.join(OUT_DIR, name));
+  }
+}
 
-const bands = [];
-for (let start = 0; start < chosen.length; start += BAND_SIZE) {
-  const bandNo = bands.length + 1;
-  const slice = chosen.slice(start, start + BAND_SIZE);
-  const cards = slice.map((c, i) => ({
-    id: start + i + 1,
+/** 一張卡的形狀。band 與 tier 兩種牌組共用，差別只在 `tier` 是誰算的。 */
+function cardOf(c, id, bandNo) {
+  return {
+    id,
     word: c.word,
     ipa: c.ipa,
     pos: c.pos,
     meaning_zh: c.meaning_zh,
     definition_en: c.definition_en || undefined,
     level: bandNo,
-    difficulty: difficultyFor(start + i + 1, c.tags),
+    difficulty: difficultyFor(id, c.tags),
+    // 難度分級。規則在 vocab-levels.js，band 與 tier 兩邊寫進去的是同一個值
+    tier: tierFor(c),
     tags: c.tags.length ? c.tags.map((t) => TAG_LABEL[t] ?? t) : undefined,
-  }));
+    // Collins 星等（0–5，5 最常用）與 Oxford 3000 標記。
+    // 腳本本來就讀進來了，只是以前沒寫出去 —— 沒有標籤的字要靠它們補位分級，
+    // 前端也拿它顯示「這個字有多常用」。
+    collins: c.collins || undefined,
+    oxford: c.oxford || undefined,
+  };
+}
 
+// id 就是全域詞頻排名（band-03 的 id 是 2001…3000），所以跨牌組不會重複 ——
+// tier 牌組直接沿用同一個 id，同一個字在兩種切法裡是同一張卡。
+const cards = chosen.map((c, i) => cardOf(c, i + 1, Math.floor(i / BAND_SIZE) + 1));
+
+// ─── 依詞頻切：band ───────────────────────────────────────────────────────
+const bands = [];
+for (let start = 0; start < cards.length; start += BAND_SIZE) {
+  const bandNo = bands.length + 1;
+  const slice = cards.slice(start, start + BAND_SIZE);
   const file = `band-${String(bandNo).padStart(2, '0')}.json`;
-  fs.writeFileSync(path.join(OUT_DIR, file), JSON.stringify(cards, null, 1));
+  fs.writeFileSync(path.join(OUT_DIR, file), JSON.stringify(slice, null, 1));
   bands.push({
-    level: bandNo,
+    id: `band-${bandNo}`,
     file,
-    count: cards.length,
+    count: slice.length,
     from: start + 1,
-    to: start + cards.length,
-    label: `第 ${(start + 1).toLocaleString()}–${(start + cards.length).toLocaleString()} 常用`,
+    to: start + slice.length,
+    label: `第 ${(start + 1).toLocaleString()}–${(start + slice.length).toLocaleString()} 常用`,
+    note: '依語料庫詞頻排序，取自 ECDICT。',
   });
 }
 
+// ─── 依難度切：tier ───────────────────────────────────────────────────────
+// 考試標籤跨所有 band（國中的字散在第 1 到第 10 個級距裡），所以這裡必須
+// **在建置期重新切檔**：前端一個牌組只載一個檔案，組不出跨檔的分級。
+const tiers = [];
+for (const [i, tier] of TIERS.entries()) {
+  const slice = cards.filter((c) => c.tier === tier.id);
+  const file = `${tier.id}.json`;
+  fs.writeFileSync(path.join(OUT_DIR, file), JSON.stringify(slice, null, 1));
+  tiers.push({
+    id: tier.id,
+    file,
+    count: slice.length,
+    order: i + 1,
+    label: tier.label,
+    note: tier.note,
+  });
+}
+
+// id → 第幾級的對照表。索引 0 是 id 1，值是 tier 的順序（1 起算）。
+// 有了它，「各級進度」只要這一個小檔案加 localStorage 就算得出來，
+// 不必把 3 MB 的字庫全部載進來。
+const tierOrder = new Map(tiers.map((t) => [t.id, t.order]));
+fs.writeFileSync(path.join(OUT_DIR, 'tier-map.json'), JSON.stringify({
+  note: '索引 0 對應 id 1。值是 index.json 裡 tier 的 order。',
+  tiers: tiers.map(({ id, order, label, count }) => ({ id, order, label, count })),
+  byId: cards.map((c) => tierOrder.get(c.tier)),
+}));
+
+// ─── 牌組目錄 ────────────────────────────────────────────────────────────
+// App 的切換畫面讀的是 `decks`。curated 不由這支腳本產生，但它是預設牌組，
+// 所以這裡要把它列進去（檔案還在的話才列，字數直接數檔案裡的）。
+const decks = [];
+const curatedPath = path.join(OUT_DIR, 'curated.json');
+if (fs.existsSync(curatedPath)) {
+  decks.push({
+    id: 'curated',
+    kind: 'curated',
+    file: 'curated.json',
+    count: JSON.parse(fs.readFileSync(curatedPath, 'utf8')).length,
+    label: '精選（含例句與發音提示）',
+    note: '手寫的主題單字，每張都有例句、中譯與發音提示。',
+    // 複習進度的命名空間。curated 的 id 從 1 起算、跟 ECDICT 的字會撞，
+    // 所以分開；band 與 tier 是同一批字的兩種切法，共用 `ecdict`，
+    // 這樣在 band-1 記熟的字換去 tier-1 練不會變回「沒學過」。
+    keyspace: 'curated',
+  });
+} else {
+  console.warn('⚠️  找不到 curated.json，index.json 不會列出精選牌組。');
+}
+for (const t of tiers) decks.push({ ...t, kind: 'tier', keyspace: 'ecdict' });
+for (const b of bands) decks.push({ ...b, kind: 'band', keyspace: 'ecdict' });
+
 fs.writeFileSync(path.join(OUT_DIR, 'index.json'), JSON.stringify({
   source: 'ECDICT (https://github.com/skywind3000/ECDICT, MIT)',
-  total: chosen.length,
+  total: cards.length,
   bandSize: BAND_SIZE,
-  bands,
+  tierMapFile: 'tier-map.json',
+  decks,
 }, null, 1));
 
-console.log(`\n輸出 ${bands.length} 個級距到 content/vocabulary/`);
+console.log(`\n輸出到 ${OUT_DIR}`);
+console.log(`\n依難度分級（拿來選「我要練哪一級」的）：`);
+for (const t of tiers) console.log(`  ${t.file.padEnd(12)} ${t.label.padEnd(22)} ${String(t.count).padStart(5)} 字`);
+console.log(`\n依詞頻級距（既有牌組，進度都在這裡）：`);
 for (const b of bands) console.log(`  ${b.file}  ${b.label}  ${b.count} 字`);

@@ -45,14 +45,16 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || 
 const context = await browser.newContext({ acceptDownloads: true });
 const page = await context.newPage();
 
-// 這個專案沒有放 favicon，完整版 Chromium 會為此在 console 留一筆 404。
-// headless shell 根本不會去要 favicon，所以濾掉。
-// TTS 的錯誤也濾掉：headless 沒有安裝任何語音包，那不是 App 的問題。
+// TTS 的錯誤濾掉：headless 沒有安裝任何語音包，那不是 App 的問題。
+//
+// **404 不再濾掉了。** 以前這裡要濾掉 404 是因為沒有 favicon，完整版 Chromium
+// 會為此留一筆錯誤；現在 index.html 有 `rel="icon"`（PWA 那批圖示），
+// 所以 404 一律是真的問題 —— 濾掉它等於讓「某個模組路徑打錯」這種 bug 靜悄悄地過。
 const errors = [];
 page.on('console', (m) => {
   const t = m.text();
   if (m.type() !== 'error') return;
-  if (t.includes('404') || t.includes('[tts]')) return;
+  if (t.includes('[tts]')) return;
   errors.push(t);
 });
 page.on('pageerror', (e) => errors.push(String(e)));
@@ -566,7 +568,10 @@ const options1 = await page.locator('.quiz__option').allTextContents();
 check('正確答案在選項裡', options1.map((o) => o.trim()).includes(answer1), options1.join(' / '));
 check('選項沒有重複', new Set(options1.map((o) => o.trim())).size === 4, options1.join(' / '));
 
-await page.locator('.quiz__option', { hasText: options1.map((o) => o.trim()).find((o) => o !== answer1) }).first().click();
+check('作答前不先講其他選項是什麼字（會洩題）', (await page.locator('.quiz__other').count()) === 0);
+
+const wrongPick = options1.map((o) => o.trim()).find((o) => o !== answer1);
+await page.locator('.quiz__option', { hasText: wrongPick }).first().click();
 await page.waitForTimeout(250);
 check('答錯時說出正確答案', (await text('.card__title')).includes(`正確答案是「${answer1}」`),
   await text('.card__title'));
@@ -574,6 +579,25 @@ check('答錯時同時標出正確答案與自己選的',
   (await page.locator('.quiz__option--correct').count()) === 1 &&
   (await page.locator('.quiz__option--wrong').count()) === 1);
 check('答完之後不能再改答案', await page.locator('.quiz__option').first().isDisabled());
+
+// 答完之後另外三個選項也講清楚是哪個字、什麼意思，順便可以聽
+check('答完之後列出另外三個選項', (await page.locator('.quiz__other').count()) === 3,
+  `${await page.locator('.quiz__other').count()} 個`);
+const otherWords = (await page.locator('.quiz__other-word').allTextContents()).map((w) => w.trim());
+check('其他選項列的是英文字（英→中 的選項本身是中文）',
+  otherWords.every((w) => /^[a-zA-Z' -]+$/.test(w)), otherWords.join(' / '));
+check('正確答案不重複列一次', !otherWords.includes(prompt1), otherWords.join(' / '));
+check('其他選項都有音標', (await page.locator('.quiz__other-ipa').count()) === 3);
+check('其他選項都有中文意思',
+  (await page.locator('.quiz__other-meaning').allTextContents()).every((m) => /[\u4e00-\u9fff]/.test(m)),
+  (await page.locator('.quiz__other-meaning').allTextContents()).join(' / '));
+check('標出自己選錯的是哪一個', (await page.locator('.quiz__other--picked').count()) === 1);
+check('標出來的那一列就是剛剛按下去的選項',
+  (await text('.quiz__other--picked .quiz__other-meaning')).startsWith(wrongPick),
+  `${await text('.quiz__other--picked .quiz__other-meaning')} vs ${wrongPick}`);
+if (await page.evaluate(() => 'speechSynthesis' in window)) {
+  check('每個選項配一顆發音鍵', (await page.locator('.quiz__other-speak').count()) === 3);
+}
 check('答錯的卡回到第 1 盒', (await page.evaluate(() =>
   Object.values(JSON.parse(localStorage.getItem('speaking-coach:srs')))[0].box)) === 1);
 await shot(page, 'ui-13-選擇題');
@@ -603,11 +627,56 @@ check('中→英：選項是英文', (await page.locator('.quiz__option').allTex
 check('中→英：作答前沒有發音鍵（會洩題）',
   !(await viewText()).includes('唸這個字') || (await viewText()).indexOf('唸這個字') > (await viewText()).indexOf('下一題'));
 
+// 中→英 答完之後，另外三個英文選項也給意思
+await page.locator('.quiz__option').first().click();
+await page.waitForTimeout(250);
+check('中→英：答完也列出其他選項的意思',
+  (await page.locator('.quiz__other').count()) === 3 &&
+  (await page.locator('.quiz__other-meaning').allTextContents()).every((m) => /[\u4e00-\u9fff]/.test(m)),
+  (await page.locator('.quiz__other-meaning').allTextContents()).join(' / '));
+await shot(page, 'ui-13-其他選項');
+
 // 一種都沒勾就退回翻卡，不是整個不能用
 await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] } });
 await page.waitForSelector('#view .card');
 check('一種都沒勾就退回翻卡',
   (await viewText()).includes('顯示答案') && (await page.locator('.quiz__options').count()) === 0);
+
+// ── 釋義截斷 ─────────────────────────────────────────────────────────────
+// 把 go（tier-1 的第 2 個字，20 個義項、69 個字）設成「到期要複習」，
+// buildQueue 就會把它排在最前面 —— 抽到哪張卡是隨機的，這一段需要指定的字。
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] },
+  srs: { 'ecdict:2': { box: 1, due: Date.now() - 1000, seen: 1 } },
+});
+await page.waitForSelector('.vocab__word');
+check('到期的卡排在最前面', (await text('.vocab__word')) === 'go', await text('.vocab__word'));
+
+await page.locator('#view button', { hasText: '顯示答案' }).click();
+await page.waitForTimeout(200);
+const shortMeaning = await text('.vocab__meaning');
+check('釋義先給前 4 個義項', shortMeaning === '去、走、達到、運轉', shortMeaning);
+check('多的收在「看全部」後面',
+  (await page.locator('#view button', { hasText: '看全部 20 個義項' }).count()) === 1);
+
+await page.locator('#view button', { hasText: '看全部' }).click();
+await page.waitForTimeout(200);
+check('看全部攤開的是原本的釋義（保留分行與領域標記）',
+  (await text('.vocab__meaning')).startsWith('去, 走, 達到'), (await text('.vocab__meaning')).slice(0, 20));
+check('攤開之後按鈕就收起來', (await page.locator('#view button', { hasText: '看全部' }).count()) === 0);
+
+// 短的釋義不要多一顆按鈕：say 有 7 個義項但只有 20 個字，本來就一行放得下
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] },
+  srs: { 'ecdict:1': { box: 1, due: Date.now() - 1000, seen: 1 } },
+});
+await page.waitForSelector('.vocab__word');
+await page.locator('#view button', { hasText: '顯示答案' }).click();
+await page.waitForTimeout(200);
+check('短的釋義不截斷', (await page.locator('#view button', { hasText: '看全部' }).count()) === 0 &&
+  (await text('.vocab__meaning')).includes('發言權'), await text('.vocab__meaning'));
 
 // 設定頁勾得動
 await seed({ mode: 'settings', settings: { vocabQuizTypes: ['zh2en', 'en2zh'] } });
@@ -852,7 +921,127 @@ check('沒設目標時不寫成 0 / 0', !(await viewText()).includes('0 / 0'), a
 check('沒設目標時指路到設定', (await viewText()).includes('設定 → 每日目標'));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【18】JS 錯誤');
+console.log('\n【18】鍵盤操作');
+
+// 單字卡的選擇題：數字鍵選答案、Enter 下一題
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'], dailyGoals: { vocabulary: 20 } },
+  srs: { 'ecdict:1': { box: 1, due: Date.now() - 1000, seen: 1 } },
+});
+await page.waitForSelector('.quiz__options');
+await page.keyboard.press('1');
+await page.waitForTimeout(250);
+const firstClass = await page.locator('.quiz__option').first().getAttribute('class');
+check('按 1 選的是第一個選項',
+  firstClass.includes('quiz__option--correct') || firstClass.includes('quiz__option--wrong'), firstClass);
+check('鍵盤作答也算進今天的份', (await text('.card--today')).includes('1 / 20'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 12));
+
+await page.keyboard.press('Enter');
+await page.waitForTimeout(300);
+check('Enter 換下一題', (await text('.counter')).trim() === '2 / 20', (await text('.counter')).trim());
+
+// 翻卡：空白鍵翻開、1 是「還不熟」
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: [], dailyGoals: { vocabulary: 20 } },
+  srs: { 'ecdict:1': { box: 3, due: Date.now() - 1000, seen: 5 } },
+});
+await page.waitForSelector('.vocab__word');
+await page.keyboard.press('Space');
+await page.waitForTimeout(200);
+check('空白鍵翻卡', (await viewText()).includes('剛剛記得嗎'));
+await page.keyboard.press('1');
+await page.waitForTimeout(250);
+check('翻卡按 1 是「還不熟」（回到第 1 盒）',
+  (await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 1);
+
+// 正在打字的時候不接快捷鍵 —— 不擋的話打一個 n 就換題，答案直接消失
+await seed({ mode: 'translation' });
+await page.waitForSelector('#answer');
+const beforeTyping = await text('.trans__zh');
+await page.locator('#answer').click();
+await page.keyboard.type('no news');
+await page.waitForTimeout(200);
+check('打字中的 N 不會換題', (await text('.trans__zh')) === beforeTyping);
+check('打的字留在輸入框裡', (await page.locator('#answer').inputValue()) === 'no news');
+
+// 聽力：數字鍵答的是「還沒作答的第一題」，Enter 對答案
+await seed({ mode: 'listening' });
+await page.waitForSelector('.options');
+const questionCount = await page.locator('.question').count();
+for (let i = 0; i < questionCount; i++) await page.keyboard.press('1');
+await page.waitForTimeout(250);
+check('數字鍵由上往下答', (await page.locator('.option--chosen').count()) === questionCount,
+  `${await page.locator('.option--chosen').count()} / ${questionCount}`);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(300);
+check('Enter 對答案', (await viewText()).includes('答對'));
+
+// 跟讀：N 換一句（空白鍵的錄音沒辦法在無麥克風的環境驗，見 e2e.mjs）
+await seed({ mode: 'shadowing' });
+await page.waitForSelector('#sentence');
+const before = await text('#sentence');
+await page.keyboard.press('n');
+await page.waitForTimeout(300);
+check('跟讀按 N 換一句', (await text('#sentence')) !== before,
+  `${before.slice(0, 20)} → ${(await text('#sentence')).slice(0, 20)}`);
+
+// 首頁：1–5 跳到那個模式
+await seed({ mode: 'home' });
+await page.waitForSelector('.homelist');
+await page.keyboard.press('2');
+await page.waitForTimeout(600);
+check('首頁按 2 跳到聽力', (await text('#pageTitle')).includes('聽力'), await text('#pageTitle'));
+
+// 側欄要講出有哪些鍵可以按 —— 快捷鍵最大的問題是沒人知道有這個東西
+check('側欄有快捷鍵提示', (await page.locator('#railKeys .kbd').count()) > 0);
+check('提示跟著模式換', (await page.textContent('#railKeys')).includes('換一題'),
+  await page.textContent('#railKeys'));
+await seed({ mode: 'settings' });
+check('設定頁沒有快捷鍵就不畫那一區', await page.locator('#railKeys').isHidden());
+await shot(page, 'ui-18-鍵盤');
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【19】PWA：加到主畫面與離線');
+
+const manifest = await page.evaluate(async () => {
+  const href = document.querySelector('link[rel=manifest]')?.href;
+  if (!href) return null;
+  const res = await fetch(href);
+  return res.ok ? res.json() : null;
+});
+check('manifest 載得到而且是合法 JSON', Boolean(manifest?.name), manifest?.name ?? '（沒有）');
+check('display 是 standalone（加到主畫面才不會有網址列）', manifest?.display === 'standalone');
+
+const swState = await page.evaluate(async () => {
+  const reg = await navigator.serviceWorker.getRegistration();
+  return { active: Boolean(reg?.active), controlled: Boolean(navigator.serviceWorker.controller) };
+});
+check('service worker 裝起來了', swState.active);
+check('頁面由 service worker 控制', swState.controlled);
+
+// 真的斷線試一次 —— 這是 PWA 唯一重要的問題：關掉網路還打不打得開
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] } });
+await page.waitForSelector('.vocab__word');
+await page.waitForTimeout(800);   // 讓字庫進到快取
+
+await context.setOffline(true);
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(1500);
+check('離線也打得開', (await page.locator('#view .card').count()) > 0,
+  `${await page.locator('#view .card').count()} 張卡`);
+check('離線也抽得到字（字庫在快取裡）', Boolean(await page.locator('.vocab__word').count()));
+check('離線時沒有錯誤橫幅', (await page.locator('.banner--error').count()) === 0,
+  await page.locator('.banner--error').count() ? await text('.banner--error') : '');
+await context.setOffline(false);
+
+const cacheNames = await page.evaluate(() => caches.keys());
+check('App 與題庫分開兩個快取', cacheNames.length === 2, cacheNames.join(' | '));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【20】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

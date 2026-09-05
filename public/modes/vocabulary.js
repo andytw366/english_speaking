@@ -1,4 +1,5 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns, single } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
@@ -6,7 +7,8 @@ import {
   getSrsState, tierProgress,
 } from '../lib/storage.js';
 import { dailyState as modeDaily, recordPractice, renderDailyCard } from '../lib/daily.js';
-import { pickType, buildQuestion } from '../lib/quiz.js';
+import { pickType, buildQuestion, senses } from '../lib/quiz.js';
+import { bindKeys, indexOfKey } from '../lib/keys.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
@@ -18,6 +20,21 @@ const ADVANCE_FRESH_LEFT = 0.1;
 
 /** 今天的份練完之後，「再多練一點」一次加幾張。 */
 const EXTRA_BATCH = 10;
+
+/**
+ * 卡片背面先顯示幾個義項，超過就收在「看全部」後面。
+ *
+ * ECDICT 的釋義是多行多義，答完題後那一坨會蓋掉真正要看的東西
+ * （例句、詞性、這個字在哪些考試出現過）。
+ *
+ * **兩個條件要同時成立才截**：義項超過 4 個**而且**整段超過 40 個字。
+ * 只看義項數的話 57% 的卡都會多一顆按鈕 —— 而 `say` 的七個義項
+ * （「說, 講, 念, 說明, 指明 說,講 意見, 發言權」）只有 20 個字，本來就一行放得下，
+ * 截了只是徒增一次點擊。加上字數這條之後剩 11%，而 `go`（20 個義項、69 個字）
+ * 那種真正的一面牆照樣會被收起來。
+ */
+const BACK_SENSES = 4;
+const BACK_CHARS = 40;
 
 let catalog = null;      // index.json
 let tierMap = null;      // tier-map.json，各級進度用（載不到就不顯示總覽）
@@ -32,6 +49,7 @@ let extra = 0;           // 今天目標達成後又自己多要的張數
 let currentType = 'flip';// 這張卡出哪一種題型（設定裡可以複選，一張一抽）
 let question = null;     // 選擇題的題目。翻卡時是 null
 let picked = null;       // 這一題選了哪個選項：{ id, correct }
+let showAllSenses = false; // 這張卡的背面按過「看全部」了沒
 let root = null;
 
 export async function mount(container) {
@@ -56,7 +74,12 @@ export async function mount(container) {
   await loadDeck(wanted.id);
 
   window.addEventListener('settings-changed', startSession);
-  return () => { window.removeEventListener('settings-changed', startSession); root = null; };
+  const unbindKeys = bindKeys(onKey);
+  return () => {
+    window.removeEventListener('settings-changed', startSession);
+    unbindKeys();
+    root = null;
+  };
 }
 
 const decks = () => catalog?.decks ?? [];
@@ -68,8 +91,7 @@ async function loadDeck(id) {
   const deck = deckOf(id);
   if (!deck) throw new Error(`找不到牌組 ${id}`);
 
-  clear(root);
-  append(root, h('p', { class: 'hint' }, `載入「${deck.label}」…`));
+  append(single(root), h('p', { class: 'hint' }, `載入「${deck.label}」…`));
 
   const res = await fetch(`/api/vocabulary/${deck.file}`);
   if (!res.ok) throw new Error(`讀取單字失敗（HTTP ${res.status}）`);
@@ -140,6 +162,8 @@ function prepareCard() {
   question = null;
   picked = null;
   revealed = false;
+  // 換一張卡就收回去 —— 上一個字按過「看全部」不代表下一個字也要攤開
+  showAllSenses = false;
 
   const card = queue[index];
   if (!card) return;
@@ -155,19 +179,21 @@ function prepareCard() {
 
 function render() {
   if (!root) return;
-  clear(root);
-
   if (picking) return renderPicker();
+
+  // 主欄只有題目與答完的回饋；這一級的進度與今天的份是「瞄一眼」的東西，
+  // 卻在單欄版本裡永遠擋在題目前面
+  const { main, side } = columns(root);
 
   const deck = deckOf(deckId);
   const summary = srsSummary(currentPool());
   const daily = dailyState();
 
-  append(root, deckCard(deck, summary), renderDailyCard('vocabulary'));
+  append(side, deckCard(deck, summary), renderDailyCard('vocabulary'));
 
   // 今天的份練完了。**不擋著不讓練** —— 目標是拿來知道自己完成了，不是拿來鎖門的。
   if (daily.remaining <= 0) {
-    append(root,
+    append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, `今天的 ${daily.goal} 個字練完了 🎉`),
         h('p', { class: 'hint' },
@@ -187,7 +213,7 @@ function render() {
   }
 
   if (queue.length === 0) {
-    append(root,
+    append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, '這一級目前沒有需要複習的卡片 🎉'),
         h('p', { class: 'hint' },
@@ -204,7 +230,7 @@ function render() {
 
   if (index >= queue.length) {
     // 今天的份還沒滿，但這一級能抽的字抽完了（到期的都複習過、新字也發完）
-    append(root,
+    append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, `這一級今天能練的都練完了（${queue.length} 張）`),
         h('p', { class: 'hint' }, '換一個難度就能繼續累積今天的進度。'),
@@ -220,9 +246,9 @@ function render() {
   const card = queue[index];
 
   if (question) {
-    append(root, questionCard(card, question));
+    append(main, questionCard(card, question));
     if (picked) {
-      append(root,
+      append(main,
         h('div', { class: 'card' },
           h('p', { class: 'card__title' }, picked.correct ? '答對了 ✅' : `答錯了 —— 正確答案是「${answerText(question)}」`),
           cardBack(card),
@@ -237,16 +263,17 @@ function render() {
             picked.correct
               ? '這張卡進到下一個盒子，間隔會拉長。'
               : '答錯的卡會回到第 1 盒，明天再出現。'),
+          otherOptions(question),
         ),
       );
     }
     return;
   }
 
-  append(root, cardFace(card));
+  append(main, cardFace(card));
 
   if (revealed) {
-    append(root,
+    append(main,
       h('div', { class: 'card' },
         h('p', { class: 'card__title' }, '剛剛記得嗎？'),
         h('div', { class: 'row' },
@@ -291,6 +318,45 @@ function questionCard(card, q) {
         disabled: Boolean(picked),
         onclick: () => submitChoice(card, option),
       }, option.text))),
+  );
+}
+
+/**
+ * 答完之後，另外三個選項是什麼字。
+ *
+ * **為什麼要有這一段**：一題看四個選項，但原本只有答案那個字留得下東西 ——
+ * 另外三個字瞄過就消失了，而它們同樣是這一級的字、遲早會自己輪到。順手把
+ * 字、音標、詞性、簡短釋義跟一顆發音鍵放出來，一題就從「複習一個字」變成
+ * 「認識四個字」。
+ *
+ * 兩個刻意的決定：
+ *   - **只列干擾項**，正確答案不重複列 —— 它的完整釋義、例句就在上面那張背面
+ *   - **這裡才給發音鍵**。作答前給等於洩題（中→英 的選項就是答案本身），
+ *     答完之後沒有這個問題
+ */
+function otherOptions(q) {
+  const others = q.options.filter((o) => !o.correct);
+  if (others.length === 0) return null;
+
+  return h('div', { class: 'quiz__others' },
+    h('p', { class: 'quiz__others-title' }, '其他選項'),
+    others.map((option) => h('div', {
+      class: 'quiz__other' + (option.id === picked?.id ? ' quiz__other--picked' : ''),
+    },
+      h('div', { class: 'quiz__other-head' },
+        h('span', { class: 'quiz__other-word' }, option.word),
+        option.ipa && h('span', { class: 'quiz__other-ipa' }, option.ipa),
+        option.pos && h('span', { class: 'quiz__other-pos' }, option.pos),
+        option.id === picked?.id && h('span', { class: 'chip chip--muted' }, '你選的'),
+        // 只放一個 🔊 而不是「🔊 唸這個字」：一頁有三顆，寫成整句話會比選項本身還吵
+        ttsSupported() && h('button', {
+          class: 'btn btn--ghost btn--small quiz__other-speak',
+          title: `唸「${option.word}」`,
+          onclick: (e) => playWord({ word: option.word }, e.currentTarget),
+        }, '🔊'),
+      ),
+      h('p', { class: 'quiz__other-meaning' }, option.meaning),
+    )),
   );
 }
 
@@ -384,7 +450,8 @@ function progressBar(mastered, learning, total) {
 
 // ─── 選難度 ──────────────────────────────────────────────────────────────
 function renderPicker() {
-  clear(root);
+  // 選難度自己就是一整頁的清單，不分主輔欄
+  single(root);
 
   // 各級進度只需要 tier-map（20 KB）加 localStorage 就算得出來，
   // 不必把六個分級檔（3 MB）全部載下來。
@@ -462,8 +529,7 @@ function progressText(p) {
 }
 
 function showError(err) {
-  clear(root);
-  append(root, h('div', { class: 'banner banner--error' }, err.message));
+  append(single(root), h('div', { class: 'banner banner--error' }, err.message));
 }
 
 // ─── 卡片 ────────────────────────────────────────────────────────────────
@@ -506,12 +572,35 @@ function cardFace(card) {
 /** 卡片的背面。翻卡按「顯示答案」之後、以及選擇題答完之後都是這一份。 */
 function cardBack(card) {
   return h('div', { class: 'vocab__back' },
-    h('p', { class: 'vocab__meaning' }, card.meaning_zh),
+    meaningBlock(card),
     card.definition_en && h('p', { class: 'vocab__def' }, card.definition_en),
     card.example_en && h('p', { class: 'vocab__example' }, card.example_en),
     card.example_zh && h('p', { class: 'vocab__example-zh' }, card.example_zh),
     card.note_zh && h('p', { class: 'vocab__note' }, `💡 ${card.note_zh}`),
     card.tags?.length && h('p', { class: 'hint' }, `出現於：${card.tags.join('、')}`),
+  );
+}
+
+/**
+ * 背面的中文釋義：先給前幾個義項，多的收在「看全部」後面。
+ *
+ * 攤開時印的是**原本的 `meaning_zh`**（保留它自己的分行與領域標記），
+ * 不是把切開的義項再接回去 —— 接回去會把 `[化]` 這種標記與換行洗掉。
+ */
+function meaningBlock(card) {
+  const list = [...senses(card.meaning_zh)];
+  const chars = String(card.meaning_zh ?? '').replace(/\s+/g, '').length;
+
+  if (showAllSenses || list.length <= BACK_SENSES || chars <= BACK_CHARS) {
+    return h('p', { class: 'vocab__meaning' }, card.meaning_zh);
+  }
+
+  return h('div', { class: 'vocab__meaningbox' },
+    h('p', { class: 'vocab__meaning' }, list.slice(0, BACK_SENSES).join('、')),
+    h('button', {
+      class: 'btn btn--link',
+      onclick: () => { showAllSenses = true; render(); },
+    }, `看全部 ${list.length} 個義項`),
   );
 }
 
@@ -522,21 +611,66 @@ function stat(label, value, kind) {
   );
 }
 
-async function playWord(card, button) {
-  const original = button.textContent;
-  button.disabled = true;
+/** @param {HTMLElement|null} button 鍵盤按 S 的時候沒有按鈕可以改字，所以可以是 null */
+async function playWord(card, button = null) {
+  const original = button?.textContent;
+  if (button) button.disabled = true;
   try {
     // 先唸單字，再唸例句，中間讓 speak 自己等唸完
     await speak(card.word, { rate: 0.85 });
     if (card.example_en) await speak(card.example_en, { rate: 0.9 });
   } catch (err) {
-    button.textContent = '⚠️ 無法播放';
     console.error('[tts]', err);
-    setTimeout(() => { button.textContent = original; }, 2000);
+    if (button) {
+      button.textContent = '⚠️ 無法播放';
+      setTimeout(() => { button.textContent = original; }, 2000);
+    }
     return;
   } finally {
-    button.disabled = false;
+    if (button) button.disabled = false;
   }
+}
+
+// ─── 鍵盤 ────────────────────────────────────────────────────────────────
+/**
+ * 單字卡的鍵盤操作：`1`–`4` 選答案、Enter／空白鍵下一題、`S` 唸一次。
+ *
+ * 翻卡的 `1` / `2` 是「還不熟 / 記得」，而空白鍵在兩種題型裡都是「往下一步」
+ * —— 選擇題答完是下一題，翻卡沒翻是顯示答案、翻了是「記得」（跟 Anki 一樣）。
+ *
+ * **`S` 在中→英 作答前不能用** —— 唸出來就等於直接給答案，跟畫面上作答前
+ * 不給發音鍵是同一條規則。
+ */
+function onKey(key) {
+  if (picking || !root) return false;
+  const card = queue[index];
+  if (!card || index >= queue.length) return false;
+
+  if (key === 's') {
+    const leaks = question && question.direction === 'zh2en' && !picked;
+    if (leaks) return false;
+    playWord(card);
+    return true;
+  }
+
+  if (question) {
+    if (!picked) {
+      const i = indexOfKey(key, question.options.length);
+      if (i < 0) return false;
+      submitChoice(card, question.options[i]);
+      return true;
+    }
+    if (key === 'enter' || key === 'space') { nextCard(); return true; }
+    return false;
+  }
+
+  if (!revealed) {
+    if (key === 'enter' || key === 'space') { revealed = true; render(); return true; }
+    return false;
+  }
+  if (key === '1') { answer(card, false); return true; }
+  if (key === '2' || key === 'enter' || key === 'space') { answer(card, true); return true; }
+  return false;
 }
 
 /** 翻卡的作答：使用者自己判斷記不記得。 */

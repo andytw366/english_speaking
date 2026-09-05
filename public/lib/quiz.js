@@ -48,6 +48,42 @@ export function firstSense(meaningZh) {
   return first ?? '';
 }
 
+/** 選項複習清單上要顯示幾個義項。四個以上就開始蓋掉重點。 */
+export const BRIEF_SENSES = 3;
+
+/**
+ * 一個字的意思講短一點：前幾個義項，多的用省略號帶過。
+ *
+ * 為什麼不直接印 `meaning_zh`：ECDICT 的釋義是多行多義，`go` 有 20 個義項、
+ * `make` 有 19 個，整坨貼在四個干擾項下面會變成一面牆 —— 而這一段的用途是
+ * 「順便瞄一眼另外三個字是什麼意思」，不是查字典。
+ */
+export function briefMeaning(meaningZh, max = BRIEF_SENSES) {
+  const list = [...senses(meaningZh)];
+  const shown = list.slice(0, Math.max(1, max));
+  return shown.join('、') + (list.length > shown.length ? '…' : '');
+}
+
+/**
+ * 一個選項要帶的東西。
+ *
+ * 除了顯示用的 `text`，**每個選項都帶著它自己那個字的字、音標、詞性與簡短釋義** ——
+ * 答完之後畫面要讓使用者順便看／聽另外三個選項是什麼字。資料在出題的時候就
+ * 抓下來，呼叫端不必為了三個干擾項再回頭去 pool 裡查（pool 是一整級 1,300～2,100
+ * 個字，而且 `prepareCard()` 之後 question 就是那一題的全部資料了）。
+ */
+function toOption(source, text, correct) {
+  return {
+    id: source.id,
+    text,
+    correct,
+    word: source.word ?? '',
+    ipa: source.ipa ?? '',
+    pos: source.pos ?? '',
+    meaning: briefMeaning(source.meaning_zh),
+  };
+}
+
 /**
  * 這兩個字可不可以放在同一題裡。
  *
@@ -78,7 +114,8 @@ export function canDistract(card, other) {
  * @param {number} [options.count] 選項數
  * @param {() => number} [options.random] 亂數來源（測試會注入）
  * @returns {{direction: string, card: object, prompt: string, promptHint: string,
- *   options: Array<{id: *, text: string, correct: boolean}>} | null}
+ *   options: Array<{id: *, text: string, correct: boolean, word: string, ipa: string,
+ *     pos: string, meaning: string}>} | null}
  *   湊不到足夠的干擾項時回 `null` —— 呼叫端要退回翻卡，不能出一題只有兩個選項的題目
  */
 export function buildQuestion(card, pool, { direction, count = OPTION_COUNT, random = Math.random } = {}) {
@@ -101,14 +138,14 @@ export function buildQuestion(card, pool, { direction, count = OPTION_COUNT, ran
     // 選項的文字也不能重複：兩個不同的字可能有一模一樣的第一個義項
     if (!text || taken.has(text)) continue;
     taken.add(text);
-    distractors.push({ id: other.id, text, correct: false });
+    distractors.push(toOption(other, text, false));
     if (distractors.length >= count - 1) break;
   }
 
   if (distractors.length < count - 1) return null;
 
   const options = sample(
-    [{ id: card.id, text: answerText, correct: true }, ...distractors],
+    [toOption(card, answerText, true), ...distractors],
     count,
     random
   );

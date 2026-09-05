@@ -1,0 +1,18 @@
+{
+  "name": "英語學習練習",
+  "short_name": "英語練習",
+  "description": "六種模式的英語練習：單字卡、聽力、中翻英、情境對話、跟讀發音評分。",
+  "lang": "zh-Hant",
+  "dir": "ltr",
+  "categories": ["education"],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#f6f7f9",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -17,6 +17,16 @@
     "Lucida Sans Unicode", "DejaVu Sans", "Noto Sans", sans-serif;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(16, 22, 26, 0.06), 0 4px 16px rgba(16, 22, 26, 0.04);
+
+  /* 版面。三個數字決定整個外殼：左側模式列、輔助欄、練習區的最大寬度。
+     練習區維持 720px 是刻意的 —— 一行的字數才是閱讀舒適度的上限，
+     螢幕變寬要拿去放「同時看得到的別的東西」，不是把同一行拉長。 */
+  --rail-w: 232px;
+  --aside-w: 320px;
+  --main-max: 720px;
+  --shell-max: 1440px;
+  --dock-h: 58px;
+  --gap: 1.25rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -53,7 +63,7 @@
 
 body {
   margin: 0;
-  padding: 2rem 1rem 4rem;
+  padding: 0;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
@@ -61,25 +71,227 @@ body {
   line-height: 1.65;
 }
 
-.app {
-  max-width: 680px;
+/* ═══════════════════════════════════════════════════════════════════════
+   外殼：模式列 ｜ 練習區 ｜ 輔助欄
+   ═══════════════════════════════════════════════════════════════════════
+   斷點只有兩個，而且各自解決一個具體的問題：
+
+     < 1024px   模式列在螢幕下方（拇指按得到），練習區占滿寬度
+     ≥ 1024px   模式列變成左側常駐的直欄 —— 七個中文標籤直排永遠不換行，
+                下面還放得下「今天練了 / 連續天數」，切模式時它不重畫
+     ≥ 1200px   練習區右邊再開一欄輔助欄（進度、紀錄、參考）。
+                1200 是算出來的：外距 48 + 側欄 232 + 間距 32 = 312 之後還剩
+                888，扣掉輔助欄 280 與間距 20 之後主欄還有 588 ——
+                練習句與選項在這個寬度還讀得舒服，而 1280 的筆電很常見，
+                為了一條斷點讓它整台都看不到輔助欄不划算
+
+   媒體查詢裡不能用自訂屬性，所以上面那幾個數字在下面是寫死的 ——
+   改 --rail-w / --aside-w / --main-max 的時候，斷點也要跟著重算。
+   ═══════════════════════════════════════════════════════════════════════ */
+.shell {
+  max-width: var(--shell-max);
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
 }
 
-.app__header h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.5rem;
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;              /* grid 子元素預設 min-width:auto，長字串會把整欄撐爆 */
+  max-width: var(--main-max);
+  margin: 0 auto;
+  padding: 1.5rem 1rem calc(var(--dock-h) + env(safe-area-inset-bottom, 0px) + 1.5rem);
+}
+
+.page__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page__title {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
-.app__subtitle,
-.app__footer {
+.page__subtitle,
+.page__foot {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.page__foot { margin-top: auto; }
+
+/* 設定的入口。下方那一列只放五個練習模式 + 今天 —— 設定不是每天要按的東西，
+   而多塞一格會讓每一格的中文標籤放不下。 */
+.page__gear {
+  flex: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.page__gear--active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+/* ─── 左側模式列（≥1024px 才出現） ─────────────────────────────────────── */
+.rail { display: none; }
+
+.rail__title {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.rail__today {
+  display: flex;
+  gap: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.railstat {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.railstat__value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.railstat__label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* 快捷鍵提示。只在側欄出現（手機沒有鍵盤，那裡連側欄都不畫） */
+.railkeys {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.railkeys__title {
+  margin: 0 0 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.railkeys__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.railkeys__what {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.kbd {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  padding: 0 0.35rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+/* ─── 螢幕下方的模式列（<1024px） ──────────────────────────────────────── */
+.dock {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  max-width: 560px;
+  margin: 0 auto;
+  /* 半透明會讓底下的字透出來，在一整頁白卡片上反而更難讀 —— 用實心的表面色 */
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.dock__btn {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  /* 觸控目標下限 44px，這裡連標籤一起算是 58 */
+  min-height: var(--dock-h);
+  padding: 0.35rem 0.1rem;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.dock__icon { font-size: 1.15rem; line-height: 1.1; }
+.dock__label { font-size: 0.68rem; line-height: 1.1; }
+
+.dock__btn--active { color: var(--accent); font-weight: 600; }
+
+@media (min-width: 1024px) {
+  .shell {
+    display: grid;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+    padding: 0 1.5rem;
+  }
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    /* 捲練習區的時候模式列與今天的數字要留在原地 */
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 1.75rem 0 2rem;
+  }
+
+  .page {
+    margin: 0;
+    padding: 1.75rem 0 3rem;
+  }
+
+  .dock { display: none; }
+  .page__gear { display: none; }
+
+  /* 多欄網格的畫面（設定頁）沒有輔助欄，那 320px 就直接讓給欄數 ——
+     不然筆電上它還是被關在 720px 裡，排不出第二欄。 */
+  .page:has(#view.view--grid) {
+    max-width: calc(var(--main-max) + var(--aside-w) + var(--gap));
+  }
+}
+
+@media (min-width: 1200px) {
+  /* 輔助欄出現時，練習區這一欄要容得下 主欄 + 間距 + 輔助欄 */
+  .page { max-width: calc(var(--main-max) + var(--aside-w) + var(--gap)); }
 }
 
 .card {
@@ -249,6 +461,9 @@ body {
   font: inherit;
   font-size: 0.925rem;
   font-weight: 500;
+  /* 中文按鈕沒有空白可以斷，瀏覽器會斷在字與字之間（「換難 度」）——
+     窄螢幕上真的會發生。要換行的是外面的 .row，不是按鈕自己。 */
+  white-space: nowrap;
   padding: 0.55rem 1rem;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -387,34 +602,99 @@ body {
 }
 
 /* ─── 模式切換 ─────────────────────────────────────────────────────────── */
+/* 左側模式列的按鈕。整列可點（不是藥丸），所以滑鼠不必瞄準文字。 */
 .tabs {
   display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 .tab {
   font: inherit;
   font-size: 0.925rem;
   font-weight: 500;
-  padding: 0.5rem 0.95rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: none;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.tab:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.tab:hover { background: color-mix(in srgb, var(--text-muted) 10%, transparent); }
 .tab--active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-weight: 600;
 }
 
+/* 鍵盤走訪看得見自己在哪 —— hover 的樣式鍵盤使用者永遠看不到 */
+.tab:focus-visible,
+.dock__btn:focus-visible,
+.page__gear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   練習區的內容：主欄 ＋ 輔助欄
+   模式呼叫 lib/layout.js 的 columns() 之後，#view 會多一個 view--split，
+   窄螢幕時它就是普通的一欄（輔助欄接在主欄後面）。
+   ═══════════════════════════════════════════════════════════════════════ */
 #view {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--gap);
+}
+
+/* 頁首、頁尾與「還沒分主輔欄」的模式一律對齊主欄的寬度 ——
+   一行的字數才是閱讀舒適度的上限，螢幕變寬不該把同一行拉長。 */
+.page__head,
+.page__foot,
+#view:not(.view--split):not(.view--grid) {
+  max-width: var(--main-max);
+  width: 100%;
+}
+
+/* 一頁互不相干的卡片（設定頁）。auto-fit 的意思是「放得下幾欄就幾欄」——
+   不必為平板、筆電、桌機各寫一個斷點，也不會在窄螢幕上擠成兩欄。
+   align-items: start 是必要的：預設的 stretch 會把矮的卡拉到跟同一列最高的
+   那張一樣高，變成一堆下半部空白的卡片。 */
+#view.view--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+}
+
+.view__main,
+.view__aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+@media (min-width: 1200px) {
+  /* 選擇器要跟著 #view 一起寫：id 的優先度比 class 高，寫成 .view--split 的話
+     display:grid 會被上面的 #view{display:flex} 蓋掉，而 align-items:start
+     照樣生效 —— 症狀是兩欄變成一列擠在左邊、寬度縮成內容的大小。 */
+  #view.view--split {
+    display: grid;
+    /* 輔助欄可以縮到 280：窄一點的筆電上寧可讓它窄一點，也不要整個不出現 */
+    grid-template-columns: minmax(0, 1fr) minmax(280px, var(--aside-w));
+    align-items: start;
+  }
+
+    /* 輔助欄只有 320px：卡片內距跟著收，不然一張卡有四成寬度是留白 */
+  #view.view--split .view__aside .card { padding: 1rem; }
+
+  /* 輔助欄跟著捲、但捲到底就停住：紀錄比題目長的時候不該把主欄拉高 */
+  #view.view--split .view__aside {
+    position: sticky;
+    top: 1.75rem;
+    max-height: calc(100vh - 3.5rem);
+    overflow-y: auto;
+  }
 }
 
 .btn--danger {
@@ -485,6 +765,10 @@ body {
   border-top: 1px solid var(--border);
 }
 .vocab__meaning { margin: 0 0 0.8rem; font-size: 1.25rem; font-weight: 500; }
+
+/* 「看全部 N 個義項」貼在被截短的釋義下面，不要跟著 1.25rem 的行距浮起來 */
+.vocab__meaningbox { margin-bottom: 0.8rem; }
+.vocab__meaningbox .vocab__meaning { margin-bottom: 0.1rem; }
 .vocab__example { margin: 0 0 0.2rem; font-size: 1.05rem; }
 .vocab__example-zh { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
 .vocab__note {
@@ -503,12 +787,11 @@ body {
 /* ─── 聽力 ─────────────────────────────────────────────────────────────── */
 .listen__title { margin: 0 0 0.3rem; font-size: 1.35rem; letter-spacing: -0.01em; }
 
+/* 原文自己是輔助欄上的一張卡（作答時可以並排看），不再是題目卡下半部的一段 */
 .transcript {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  margin: 0;
+  line-height: 1.8;
 }
-.transcript p:last-child { margin: 0; line-height: 1.75; }
 
 .question { padding: 0.6rem 0 1rem; }
 .question + .question { border-top: 1px solid var(--border); }
@@ -785,6 +1068,7 @@ body {
 .deckbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.7rem;
   margin-bottom: 0.9rem;
   padding-bottom: 0.9rem;
@@ -1347,11 +1631,42 @@ body {
 
 
 
-@media (max-width: 480px) {
+/* ═══════════════════════════════════════════════════════════════════════
+   窄螢幕（手機）
+   改版前這裡只有一條規則（.today__goal），等於「一個剛好塞得進手機的桌機版」。
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  :root {
+    /* 卡片之間的距離跟著縮：390px 寬的螢幕上，1.25rem 的間距等於一頁少半張卡 */
+    --gap: 0.85rem;
+  }
+
+  .page { padding-left: 0.85rem; padding-right: 0.85rem; }
+
+  .card { padding: 1rem; }
+
+  .page__title { font-size: 1.25rem; }
+
+  /* 兩個數字並排（「今天練的字 / 連續天數」），不要各占一整列 */
+  .today { gap: 1.1rem; }
+  .today__block { min-width: 5.5rem; }
+
   .today__goal {
-      margin-left: 0;
-      width: 100%;
-    }
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* 手指不是滑鼠：可點的東西一律至少 44px 高。
+   用 pointer: coarse 而不是螢幕寬度 —— 觸控筆電也該是大目標。 */
+@media (pointer: coarse) {
+  .btn,
+  .tab,
+  .option,
+  .quiz__option,
+  .deckitem {
+    min-height: 44px;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1446,6 +1761,60 @@ body {
 }
 
 .quiz__option--dim { opacity: 0.45; }
+
+/* 答完之後的「其他選項」：另外三個字各自的音標、詞性、簡短釋義與一顆發音鍵。
+   一題看四個字，只有答案那個留得下東西太可惜。發音鍵只在這裡出現 ——
+   作答前給等於直接洩題。 */
+.quiz__others {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.quiz__others-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quiz__other {
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+}
+
+.quiz__other + .quiz__other { margin-top: 0.2rem; }
+
+/* 自己選錯的那個獨立標出來：下面這三個字裡，有一個是剛剛按下去的 */
+.quiz__other--picked { background: var(--danger-bg); }
+
+.quiz__other-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.quiz__other-word { font-weight: 600; }
+
+.quiz__other-ipa {
+  font-family: var(--font-ipa);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quiz__other-pos {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* 發音鍵推到最右邊，三顆對齊比較好按 */
+.quiz__other-speak { margin-left: auto; }
+
+.quiz__other-meaning {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    首頁：每個模式一列

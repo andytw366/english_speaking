@@ -1,9 +1,11 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
+import { bindKeys } from '../lib/keys.js';
 
 export const meta = { id: 'translation', label: '中翻英', icon: '✍️' };
 
@@ -24,7 +26,14 @@ export async function mount(container) {
   all = await res.json();
   applyFilter();
   next();
-  return () => { root = null; };
+  // 作答中的 Enter 由輸入框自己的 onEnter 處理（整句翻譯要能換行，所以是 ⌘+Enter）；
+  // 這裡接的是**對完答案之後**的 Enter —— 那時輸入框是 disabled 的，焦點不在裡面
+  const unbindKeys = bindKeys((key) => {
+    if (!checked) return false;
+    if (key === 'enter' || key === 'space') { next(); return true; }
+    return false;
+  });
+  return () => { unbindKeys(); root = null; };
 }
 
 function applyFilter() {
@@ -48,9 +57,9 @@ function next() {
 // ─── 畫面 ────────────────────────────────────────────────────────────────
 function render() {
   if (!root || !current) return;
-  clear(root);
+  const { main, side } = columns(root);
 
-  append(root, renderDailyCard('translation'));
+  append(side, renderDailyCard('translation'));
 
   const isCloze = current.type === 'cloze';
 
@@ -112,9 +121,9 @@ function render() {
     );
   }
 
-  append(root, card);
+  append(main, card);
 
-  if (checked) append(root, resultCard());
+  if (checked) append(main, resultCard());
 
   // 讓使用者可以直接打字，不用先點輸入框（對完答案就不搶焦點了）
   if (!checked) requestAnimationFrame(() => root?.querySelector('#answer')?.focus());

@@ -10,6 +10,7 @@
     "dev": "node --watch server/index.js",
     "test": "node --test test/*.test.js",
     "test:ui": "node test/ui.mjs",
+    "test:layout": "node test/layout.mjs",
     "test:e2e": "node test/e2e.mjs",
     "sentences:import": "node scripts/import-sentences.mjs",
     "corpus:baseline": "node scripts/corpus-baseline.mjs",

@@ -1,8 +1,10 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { filterBySettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
+import { bindKeys, indexOfKey } from '../lib/keys.js';
 
 export const meta = { id: 'listening', label: '聽力', icon: '🎧' };
 
@@ -22,7 +24,8 @@ export async function mount(container) {
   items = filterBySettings(raw);
   if (items.length === 0) items = raw;
   pick(items[Math.floor(Math.random() * items.length)]);
-  return () => { stopTts(); root = null; };
+  const unbindKeys = bindKeys(onKey);
+  return () => { stopTts(); unbindKeys(); root = null; };
 }
 
 function pick(item) {
@@ -35,11 +38,11 @@ function pick(item) {
 
 function render() {
   if (!root || !current) return;
-  clear(root);
+  const { main, side } = columns(root);
 
-  append(root, renderDailyCard('listening'));
+  append(side, renderDailyCard('listening'));
 
-  append(root, 
+  append(main,
     h('div', { class: 'card' },
       h('div', { class: 'card__meta' },
         h('span', { class: 'chip' }, categoryLabel(current.category)),
@@ -55,16 +58,22 @@ function render() {
         h('button', { class: 'btn btn--ghost', onclick: nextItem }, '🔀 換一題'),
       ),
 
-      (submitted || showTranscript)
-        ? h('div', { class: 'transcript' },
-            h('p', { class: 'card__title' }, '原文'),
-            h('p', {}, current.transcript))
-        : h('button', {
-            class: 'btn btn--link',
-            onclick: () => { showTranscript = true; render(); },
-          }, '聽不出來？顯示原文'),
+      !(submitted || showTranscript) && h('button', {
+        class: 'btn btn--link',
+        onclick: () => { showTranscript = true; render(); },
+      }, '聽不出來？顯示原文'),
     ),
   );
+
+  // 原文放輔助欄：對完答案之後題目與原文可以並排看，不必在兩者之間往回捲
+  if (submitted || showTranscript) {
+    append(side,
+      h('div', { class: 'card' },
+        h('p', { class: 'card__title' }, '原文'),
+        h('p', { class: 'transcript' }, current.transcript),
+      ),
+    );
+  }
 
   const qCard = h('div', { class: 'card' }, h('p', { class: 'card__title' }, '理解測驗'));
 
@@ -106,13 +115,7 @@ function render() {
         h('button', {
           class: 'btn btn--primary',
           disabled: unanswered > 0,
-          onclick: () => {
-            submitted = true;
-            // 一組有好幾題，今天的份照題數算 —— 單位是「題」，
-            // 跟畫面上寫的「答對 4 / 6 題」對得起來
-            recordPractice('listening', current.questions.length);
-            render();
-          },
+          onclick: () => { submitted = true; recordAnswers(); },
         }, '對答案'),
         unanswered > 0 && h('span', { class: 'hint' }, `還有 ${unanswered} 題沒作答`),
       ),
@@ -130,7 +133,45 @@ function render() {
     );
   }
 
-  append(root, qCard);
+  append(main, qCard);
+}
+
+// ─── 鍵盤 ────────────────────────────────────────────────────────────────
+/**
+ * `P` 播放、`1`–`4` 作答、Enter 對答案／下一題、`N` 換一題。
+ *
+ * 一組有好幾題，所以數字鍵**答的是還沒作答的第一題** —— 由上往下 1、2、3
+ * 這樣按下去剛好對得起來。全部答完之後數字鍵就沒事做（要改答案還是用滑鼠，
+ * 跟畫面上一樣）。
+ */
+function onKey(key) {
+  if (!root || !current) return false;
+
+  if (key === 'p') { root.querySelector('#btn-play')?.click(); return true; }
+  if (key === 'n') { nextItem(); return true; }
+
+  if (key === 'enter') {
+    if (submitted) { nextItem(); return true; }
+    if (answers.every((a) => a !== null)) { submitted = true; recordAnswers(); return true; }
+    return false;
+  }
+
+  if (submitted) return false;
+  const qi = answers.findIndex((a) => a === null);
+  if (qi < 0) return false;
+  const oi = indexOfKey(key, current.questions[qi].options.length);
+  if (oi < 0) return false;
+  answers[qi] = oi;
+  render();
+  return true;
+}
+
+/** 對答案。按鈕與 Enter 共用同一份 —— 分兩份寫的話「今天的份」會有一邊忘了記。 */
+function recordAnswers() {
+  // 一組有好幾題，今天的份照題數算 —— 單位是「題」，
+  // 跟畫面上寫的「答對 4 / 6 題」對得起來
+  recordPractice('listening', current.questions.length);
+  render();
 }
 
 async function play() {

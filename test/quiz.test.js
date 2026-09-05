@@ -11,8 +11,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
-  senses, firstSense, canDistract, buildQuestion, pickType,
-  QUIZ_TYPE_IDS, OPTION_COUNT,
+  senses, firstSense, briefMeaning, canDistract, buildQuestion, pickType,
+  QUIZ_TYPE_IDS, OPTION_COUNT, BRIEF_SENSES,
 } from '../public/lib/quiz.js';
 
 const DIR = path.join(import.meta.dirname, '..', 'content', 'vocabulary');
@@ -37,6 +37,16 @@ test('第一個義項就是題目上的那個中文', () => {
   assert.equal(firstSense('說, 講, 念, 說明'), '說');
   assert.equal(firstSense(''), '');
   assert.equal(firstSense(undefined), '');
+});
+
+test('釋義講短一點：前幾個義項，多的用省略號帶過', () => {
+  assert.equal(briefMeaning('說, 講, 念, 說明'), '說、講、念…');
+  assert.equal(briefMeaning('借, 借用'), '借、借用');
+  assert.equal(briefMeaning('前提\n[化] 校正; 訂正', 2), '前提、校正…');
+  // 一個都不留的話畫面上會是空的，所以 max 夾在 1 以上
+  assert.equal(briefMeaning('說, 講, 念', 0), '說…');
+  assert.equal(briefMeaning(''), '');
+  assert.equal(briefMeaning(undefined), '');
 });
 
 // ─── 干擾項規則 ──────────────────────────────────────────────────────────
@@ -113,6 +123,48 @@ test('選項文字不重複 —— 兩個不同的字可能有一樣的第一個
   assert.equal(new Set(texts).size, texts.length, texts.join('、'));
 });
 
+// ─── 選項要帶著自己那個字的資料 ──────────────────────────────────────────
+//
+// 答完之後畫面會列出另外三個選項的字、音標與意思（順便可以聽）。
+// 那些資料是出題的時候一起抓下來的 —— 呼叫端手上只有 question，
+// 少一個欄位的症狀就是那一段整片空白。
+
+const RICH = [
+  { id: 1, word: 'show', pos: 'vt.', ipa: 'ʃəʊ', meaning_zh: '顯示, 表明, 展現' },
+  { id: 2, word: 'borrow', pos: 'vt.', ipa: 'ˈbɒrəʊ', meaning_zh: '借, 借用' },
+  { id: 3, word: 'deliver', pos: 'vt.', ipa: 'dɪˈlɪvə', meaning_zh: '遞送, 交付' },
+  { id: 4, word: 'squeeze', pos: 'vt.', ipa: 'skwiːz', meaning_zh: '擠, 壓榨' },
+  { id: 5, word: 'punish', pos: 'vt.', ipa: 'ˈpʌnɪʃ', meaning_zh: '懲罰, 處罰' },
+];
+
+for (const direction of ['zh2en', 'en2zh']) {
+  test(`${direction}：每個選項都帶著字、音標、詞性與簡短釋義`, () => {
+    const q = buildQuestion(RICH[0], RICH, { direction });
+    for (const option of q.options) {
+      const source = RICH.find((c) => c.id === option.id);
+      assert.equal(option.word, source.word);
+      assert.equal(option.ipa, source.ipa);
+      assert.equal(option.pos, source.pos);
+      assert.equal(option.meaning, briefMeaning(source.meaning_zh));
+    }
+  });
+}
+
+test('缺欄位的字不會讓選項帶著 undefined 出去', () => {
+  const pool = [
+    { id: 1, word: 'show', meaning_zh: '顯示' },
+    { id: 2, word: 'borrow', meaning_zh: '借' },
+    { id: 3, word: 'deliver', meaning_zh: '遞送' },
+    { id: 4, word: 'squeeze', meaning_zh: '擠' },
+  ];
+  const q = buildQuestion(pool[0], pool, { direction: 'zh2en' });
+  for (const option of q.options) {
+    assert.equal(typeof option.ipa, 'string');
+    assert.equal(typeof option.pos, 'string');
+    assert.ok(option.word, '沒有字的話那一列連要唸什麼都不知道');
+  }
+});
+
 test('湊不到足夠的干擾項就回 null（呼叫端要退回翻卡）', () => {
   assert.equal(buildQuestion(CARD, [CARD], { direction: 'zh2en' }), null);
   assert.equal(buildQuestion(CARD, POOL.slice(0, 3), { direction: 'zh2en' }), null);
@@ -155,6 +207,14 @@ test('六個分級都出得了題，而且沒有一題有兩個正確答案', ()
         assert.ok(q, `tier-${tier} 的「${card.word}」出不了 ${direction} 的題`);
         assert.equal(q.options.length, OPTION_COUNT);
         assert.equal(q.options.filter((o) => o.correct).length, 1);
+
+        // 每個選項都講得出「這是哪個字、什麼意思」—— 答完之後那一段要用
+        for (const option of q.options) {
+          assert.ok(option.word, `tier-${tier}：選項 ${option.id} 沒有字`);
+          assert.ok(option.meaning, `tier-${tier}：「${option.word}」沒有釋義`);
+          assert.ok(senses(option.meaning).size <= BRIEF_SENSES,
+            `tier-${tier}：「${option.word}」的釋義沒有截短 → ${option.meaning}`);
+        }
 
         // 沒有任何一個干擾項跟答案共用義項
         const answerSenses = senses(card.meaning_zh);

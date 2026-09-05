@@ -1,4 +1,5 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { grid } from '../lib/layout.js';
 import { loadVoices, speak } from '../lib/tts.js';
 import { getSettings, updateSettings, resetSettings, setGoal, DEFAULTS } from '../lib/settings.js';
 import {
@@ -74,8 +75,9 @@ export async function mount(container) {
 
 function render() {
   if (!root) return;
-  clear(root);
-  append(root, apiCard(), goalCard(), practiceCard(), voiceCard(), dataCard());
+  // 五張卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
+  // 單欄排下來 1440×900 要捲三個螢幕才看得完
+  append(grid(root), apiCard(), goalCard(), practiceCard(), voiceCard(), dataCard());
 }
 
 // ─── API 金鑰 ────────────────────────────────────────────────────────────

@@ -1,4 +1,6 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
+import { bindKeys } from '../lib/keys.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { filterBySettings } from '../lib/settings.js';
@@ -19,6 +21,7 @@ let recorder = null;
 let recState = 'idle';   // idle | recording | done
 let playbackUrl = null;
 let root = null;
+let unbindKeys = null;
 
 export async function mount(container) {
   root = container;
@@ -28,10 +31,36 @@ export async function mount(container) {
   all = filterBySettings(raw);
   if (all.length === 0) all = raw;
   start(all[Math.floor(Math.random() * all.length)]);
+  unbindKeys = bindKeys(onKey);
   return cleanup;
 }
 
+/**
+ * `Enter` 往下一步、`P` 再聽一次對方那句。
+ *
+ * 打字中的 Enter 由輸入框自己處理（⌘+Enter 送出，一般的 Enter 要能換行），
+ * 這裡接的是**焦點不在輸入框時**的 Enter —— 對方在說話、或自己已經對完答案。
+ */
+function onKey(key) {
+  if (!root || !current) return false;
+
+  if (key === 'p') {
+    const btn = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('再聽一次'));
+    if (!btn) return false;
+    btn.click();
+    return true;
+  }
+
+  if (key !== 'enter') return false;
+  if (isFinished()) return false;
+  // 對方講完換我說、或者我已經對完答案要繼續 —— 兩種都是 advance()
+  if (currentTurn().speaker === 'partner' || checked) { advance(); return true; }
+  return false;
+}
+
 function cleanup() {
+  unbindKeys?.();
+  unbindKeys = null;
   stopTts();
   recorder?.cleanup();
   recorder = null;
@@ -96,19 +125,20 @@ function advance() {
 // ─── 畫面 ────────────────────────────────────────────────────────────────
 function render() {
   if (!root || !current) return;
-  clear(root);
+  // 主欄是對話本身，右邊放「我是誰、在哪裡」那張說明卡 ——
+  // 角色與情境在整段對話裡都成立，卻只在最上面看得到一次
+  const { main, side } = columns(root);
 
-  append(root, renderDailyCard('dialogue'));
-  append(root, headerCard());
-  append(root, transcriptCard());
+  append(side, renderDailyCard('dialogue'), headerCard());
+  append(main, transcriptCard());
 
   if (isFinished()) {
-    append(root, summaryCard());
+    append(main, summaryCard());
   } else if (currentTurn().speaker === 'partner') {
-    append(root, partnerCard());
+    append(main, partnerCard());
   } else {
-    append(root, yourTurnCard());
-    if (checked) append(root, resultCard());
+    append(main, yourTurnCard());
+    if (checked) append(main, resultCard());
   }
 }
 

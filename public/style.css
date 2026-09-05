@@ -79,9 +79,11 @@ body {
      < 1024px   模式列在螢幕下方（拇指按得到），練習區占滿寬度
      ≥ 1024px   模式列變成左側常駐的直欄 —— 七個中文標籤直排永遠不換行，
                 下面還放得下「今天練了 / 連續天數」，切模式時它不重畫
-     ≥ 1380px   練習區右邊再開一欄輔助欄（進度、紀錄、參考）。
-                1380 是算出來的：外距 48 + 側欄 232 + 間距 32 + 主欄 720
-                + 間距 20 + 輔助欄 320 = 1372，再留 8px 餘裕
+     ≥ 1200px   練習區右邊再開一欄輔助欄（進度、紀錄、參考）。
+                1200 是算出來的：外距 48 + 側欄 232 + 間距 32 = 312 之後還剩
+                888，扣掉輔助欄 280 與間距 20 之後主欄還有 588 ——
+                練習句與選項在這個寬度還讀得舒服，而 1280 的筆電很常見，
+                為了一條斷點讓它整台都看不到輔助欄不划算
 
    媒體查詢裡不能用自訂屬性，所以上面那幾個數字在下面是寫死的 ——
    改 --rail-w / --aside-w / --main-max 的時候，斷點也要跟著重算。
@@ -240,9 +242,15 @@ body {
 
   .dock { display: none; }
   .page__gear { display: none; }
+
+  /* 多欄網格的畫面（設定頁）沒有輔助欄，那 320px 就直接讓給欄數 ——
+     不然筆電上它還是被關在 720px 裡，排不出第二欄。 */
+  .page:has(#view.view--grid) {
+    max-width: calc(var(--main-max) + var(--aside-w) + var(--gap));
+  }
 }
 
-@media (min-width: 1380px) {
+@media (min-width: 1200px) {
   /* 輔助欄出現時，練習區這一欄要容得下 主欄 + 間距 + 輔助欄 */
   .page { max-width: calc(var(--main-max) + var(--aside-w) + var(--gap)); }
 }
@@ -414,6 +422,9 @@ body {
   font: inherit;
   font-size: 0.925rem;
   font-weight: 500;
+  /* 中文按鈕沒有空白可以斷，瀏覽器會斷在字與字之間（「換難 度」）——
+     窄螢幕上真的會發生。要換行的是外面的 .row，不是按鈕自己。 */
+  white-space: nowrap;
   padding: 0.55rem 1rem;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -601,9 +612,19 @@ body {
    一行的字數才是閱讀舒適度的上限，螢幕變寬不該把同一行拉長。 */
 .page__head,
 .page__foot,
-#view:not(.view--split) {
+#view:not(.view--split):not(.view--grid) {
   max-width: var(--main-max);
   width: 100%;
+}
+
+/* 一頁互不相干的卡片（設定頁）。auto-fit 的意思是「放得下幾欄就幾欄」——
+   不必為平板、筆電、桌機各寫一個斷點，也不會在窄螢幕上擠成兩欄。
+   align-items: start 是必要的：預設的 stretch 會把矮的卡拉到跟同一列最高的
+   那張一樣高，變成一堆下半部空白的卡片。 */
+#view.view--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
 }
 
 .view__main,
@@ -614,15 +635,19 @@ body {
   min-width: 0;
 }
 
-@media (min-width: 1380px) {
+@media (min-width: 1200px) {
   /* 選擇器要跟著 #view 一起寫：id 的優先度比 class 高，寫成 .view--split 的話
      display:grid 會被上面的 #view{display:flex} 蓋掉，而 align-items:start
      照樣生效 —— 症狀是兩欄變成一列擠在左邊、寬度縮成內容的大小。 */
   #view.view--split {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--aside-w);
+    /* 輔助欄可以縮到 280：窄一點的筆電上寧可讓它窄一點，也不要整個不出現 */
+    grid-template-columns: minmax(0, 1fr) minmax(280px, var(--aside-w));
     align-items: start;
   }
+
+    /* 輔助欄只有 320px：卡片內距跟著收，不然一張卡有四成寬度是留白 */
+  #view.view--split .view__aside .card { padding: 1rem; }
 
   /* 輔助欄跟著捲、但捲到底就停住：紀錄比題目長的時候不該把主欄拉高 */
   #view.view--split .view__aside {
@@ -1000,6 +1025,7 @@ body {
 .deckbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.7rem;
   margin-bottom: 0.9rem;
   padding-bottom: 0.9rem;
@@ -1562,11 +1588,42 @@ body {
 
 
 
-@media (max-width: 480px) {
+/* ═══════════════════════════════════════════════════════════════════════
+   窄螢幕（手機）
+   改版前這裡只有一條規則（.today__goal），等於「一個剛好塞得進手機的桌機版」。
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  :root {
+    /* 卡片之間的距離跟著縮：390px 寬的螢幕上，1.25rem 的間距等於一頁少半張卡 */
+    --gap: 0.85rem;
+  }
+
+  .page { padding-left: 0.85rem; padding-right: 0.85rem; }
+
+  .card { padding: 1rem; }
+
+  .page__title { font-size: 1.25rem; }
+
+  /* 兩個數字並排（「今天練的字 / 連續天數」），不要各占一整列 */
+  .today { gap: 1.1rem; }
+  .today__block { min-width: 5.5rem; }
+
   .today__goal {
-      margin-left: 0;
-      width: 100%;
-    }
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* 手指不是滑鼠：可點的東西一律至少 44px 高。
+   用 pointer: coarse 而不是螢幕寬度 —— 觸控筆電也該是大目標。 */
+@media (pointer: coarse) {
+  .btn,
+  .tab,
+  .option,
+  .quiz__option,
+  .deckitem {
+    min-height: 44px;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

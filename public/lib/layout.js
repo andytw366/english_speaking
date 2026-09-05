@@ -24,7 +24,7 @@ import { h, clear } from './dom.js';
  */
 export function columns(root) {
   clear(root);
-  root.classList.add('view--split');
+  root.className = 'view--split';
 
   const main = h('div', { class: 'view__main' });
   // <aside>：這一欄是「補充內容」，不是主要流程。螢幕閱讀器據此可以跳過
@@ -42,6 +42,18 @@ export function columns(root) {
  */
 export function single(root) {
   clear(root);
-  root.classList.remove('view--split');
+  root.className = '';
+  return root;
+}
+
+/**
+ * 一頁互不相干的卡片（設定頁）：寬螢幕上排成好幾欄，窄螢幕上自動變回一欄。
+ *
+ * 這種畫面沒有「主 / 輔」之分 —— 五張設定卡沒有一張比別張重要，它們只是
+ * 一個接一個往下排了 2,800px 而已（1440×900 要捲三個螢幕才看得完）。
+ */
+export function grid(root) {
+  clear(root);
+  root.className = 'view--grid';
   return root;
 }

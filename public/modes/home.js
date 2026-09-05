@@ -36,7 +36,10 @@ function render() {
   const withGoal = rows.filter((r) => r.state.goal > 0);
   const done = withGoal.filter((r) => r.state.done >= r.state.goal).length;
 
-  append(side,
+  // 總覽放主欄的最上面而不是輔助欄：窄螢幕上輔助欄是接在主欄**後面**的，
+  // 而「今天練了幾個」正是這一頁的標題數字，不該掉到清單下面才看得到。
+  // （桌機的側欄也有同一組數字，那是常駐的提醒；這裡是詳細版。）
+  append(main,
     h('div', { class: 'card card--today' },
       h('div', { class: 'today' },
         h('div', { class: 'today__block' },
@@ -51,16 +54,15 @@ function render() {
       ),
       h('p', { class: 'hint' }, headline(withGoal.length, done, today.total)),
     ),
-    reviewCard(),
-  );
 
-  append(main,
     h('div', { class: 'card' },
       h('p', { class: 'card__title' }, '今天的目標'),
       h('div', { class: 'homelist' }, rows.map(({ mode, state }) => modeRow(mode, state))),
       h('p', { class: 'hint' }, '每個模式練幾個可以在「設定 → 每日目標」調整。'),
     ),
   );
+
+  append(side, reviewCard());
 }
 
 function headline(goalCount, doneCount, total) {

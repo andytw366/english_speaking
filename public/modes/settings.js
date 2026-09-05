@@ -22,7 +22,7 @@ const CATEGORIES = Object.entries(CATEGORY_LABEL);
 /** 每日目標的快速選項，依模式各給一組合理的量。數字輸入框還在，這幾顆只是省得手打。 */
 const GOAL_CHOICES = {
   vocabulary: [10, 20, 30, 50],
-  listening: [3, 6, 12, 20],
+  listening: [1, 2, 4, 8],   // 單位是「組」不是「題」——一組要聽完再答 2～6 題
   translation: [5, 10, 20, 30],
   dialogue: [3, 6, 10, 20],
   shadowing: [3, 5, 10, 20],

@@ -793,22 +793,43 @@ check('舊的 vocabDays 搬進計數表', Object.values(built.vocabulary ?? {})[
 check('跟讀紀錄也數成每天幾句', Object.keys(built.shadowing ?? {}).length === 2,
   JSON.stringify(built.shadowing));
 
-// 聽力：一組答完照題數算
-check('聽力有今天的進度卡', (await text('.card--today')).includes('今天練的題'));
-await page.evaluate(() => {
-  const seen = new Set();
-  document.querySelectorAll('#view .option').forEach((el) => {
-    if (seen.has(el.parentElement)) return;
-    seen.add(el.parentElement);
-    el.click();
+// 聽力：**一組算一次**，不是照題數算。
+// 一組有 2～6 題，照題數算的話同樣練完一組、數字跳多少要看運氣。
+const answerWholeSet = async () => {
+  await page.evaluate(() => {
+    const seen = new Set();
+    document.querySelectorAll('#view .option').forEach((el) => {
+      if (seen.has(el.parentElement)) return;
+      seen.add(el.parentElement);
+      el.click();
+    });
   });
-});
-await page.locator('#view button', { hasText: '對答案' }).click();
-await page.waitForTimeout(300);
-const listened = Object.values((await activityOf()).listening ?? {})[0];
-check('聽力照題數記進今天的份', listened > 0, `${listened} 題`);
+  await page.locator('#view button', { hasText: '對答案' }).click();
+  await page.waitForTimeout(300);
+};
+const listeningCount = async () => Object.values((await activityOf()).listening ?? {})[0] ?? 0;
+
+check('聽力有今天的進度卡', (await text('.card--today')).includes('今天練的題組'));
+const questionsInSet = await page.locator('#view .question').count();
+await answerWholeSet();
+const listened = await listeningCount();
+check('聽力一組只算一次，不是照題數算', listened === 1,
+  `這一組有 ${questionsInSet} 題，記了 ${listened}`);
 check('聽力的今天進度跟著動', (await text('.card--today')).startsWith(`${listened} /`),
   (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+
+// 「再做一次」是重練同一組，不是又練完一組 —— 中翻英的「再試一次」是同一條規則
+await page.locator('#view button', { hasText: '再做一次' }).click();
+await page.waitForTimeout(200);
+await answerWholeSet();
+check('聽力「再做一次」同一組不重複算', (await listeningCount()) === 1,
+  `變成 ${await listeningCount()}`);
+
+await page.locator('#view button', { hasText: '下一題' }).click();
+await page.waitForTimeout(400);
+await answerWholeSet();
+check('聽力換一組答完才會再加一次', (await listeningCount()) === 2,
+  `變成 ${await listeningCount()}`);
 await shot(page, 'ui-16-聽力進度');
 
 // 中翻英：一題只算一次
@@ -857,11 +878,12 @@ const todayKey = (offset = 0) => {
 };
 
 // 單字達標、聽力一半、跟讀今天還沒練（但昨天有）
+// 聽力的目標是 2 組（單位是「組」不是「題」），所以「一半」是 1
 await seed({
   mode: 'home',
   activity: {
     vocabulary: { [todayKey(0)]: 20, [todayKey(1)]: 20 },
-    listening: { [todayKey(0)]: 3 },
+    listening: { [todayKey(0)]: 1 },
     shadowing: { [todayKey(1)]: 5 },
   },
   srs: {
@@ -873,7 +895,7 @@ await seed({
 await page.waitForSelector('.homelist');
 
 check('五個練習模式各一列', (await page.locator('.homerow').count()) === 5);
-check('今天的總數是跨模式加起來的', (await text('.today__value')) === '23',
+check('今天的總數是跨模式加起來的', (await text('.today__value')) === '21',
   await text('.today__value'));
 // 昨天練單字、今天練聽力，沒有斷 —— 連續天數不能只看單一模式
 check('連續天數是「任何一個模式有練就算」',

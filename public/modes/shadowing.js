@@ -24,7 +24,9 @@ import {
 } from '../lib/practice.js';
 import { problemWordsFromAssessment, prosodyIssue } from '../lib/azure-issues.js';
 import { renderAssessment } from './assessment-view.js';
-import { renderToday, renderSetSummary, renderHistory, GOAL_CHOICES } from './shadowing-views.js';
+import { renderToday, renderSetSummary, renderHistory } from './shadowing-views.js';
+import { recordPractice } from '../lib/daily.js';
+import { goalOf, setGoal } from '../lib/settings.js';
 
 export const meta = { id: 'shadowing', label: '跟讀', icon: '🗣️' };
 
@@ -101,8 +103,8 @@ function weightedEnabled() {
 }
 
 function dailyGoal() {
-  const saved = Number(getSettings().shadowingGoal);
-  return GOAL_CHOICES.includes(saved) ? saved : DEFAULT_GOAL;
+  const saved = goalOf('shadowing');
+  return saved > 0 ? saved : DEFAULT_GOAL;
 }
 
 function nextSentence() {
@@ -157,8 +159,8 @@ function render() {
   if (!root) return;
   clear(root);
 
-  append(root, renderToday(history, dailyGoal(), (goal) => {
-    updateSettings({ shadowingGoal: goal });
+  append(root, renderToday(dailyGoal(), (goal) => {
+    setGoal('shadowing', goal);
     render();
   }));
 
@@ -501,6 +503,9 @@ async function submit() {
     }
 
     saveAttempt(payload);
+    // 六個模式共用的每日計數表。跟讀的逐筆紀錄（history）另外還是要留，
+    // 分數與弱點音會回頭決定抽句 —— 這裡記的只是「今天練了幾句」。
+    recordPractice('shadowing');
     render();
     setStatus('');
   } catch (err) {

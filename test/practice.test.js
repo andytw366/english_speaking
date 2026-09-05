@@ -19,9 +19,7 @@ import {
   DUE_MAX,
   SRS_BASE_HOURS,
   dayKey,
-  practiceDays,
-  todayCount,
-  streakDays,
+  streakFromDays,
   summariseSet,
   weakIssues,
   focusBoost,
@@ -335,52 +333,44 @@ test('dayKey：用本地時間切一天，壞掉的時間回空字串', () => {
   assert.equal(dayKey(undefined), '');
 });
 
-test('practiceDays：同一天的多筆只算一天', () => {
-  const days = practiceDays([noonDaysAgo(0), noonDaysAgo(0), noonDaysAgo(1)]);
-  assert.equal(days.size, 2);
+// 連續天數吃的是一組 dayKey（計數表整理出來的），六個模式共用同一份算法。
+const daySet = (...offsets) => new Set(offsets.map((n) => dayKey(new Date(NOW_LOCAL - n * 864e5))));
+
+test('streakFromDays：連續三天就是 3', () => {
+  assert.equal(streakFromDays(daySet(0, 1, 2), NOW_LOCAL), 3);
 });
 
-test('todayCount：只算今天、而且有分數的紀錄', () => {
-  const history = [
-    noonDaysAgo(0),
-    noonDaysAgo(0),
-    { ...noonDaysAgo(0), score: undefined }, // 無人聲那種紀錄不算練過一句
-    noonDaysAgo(1),
-  ];
-  assert.equal(todayCount(history, NOW_LOCAL), 2);
+test('streakFromDays：今天還沒練不會馬上歸零，從昨天往回算', () => {
+  // 早上打開看到「連續 0 天」，正好是最不該讓人放棄的時間點
+  assert.equal(streakFromDays(daySet(1, 2), NOW_LOCAL), 2);
 });
 
-test('streakDays：連續三天就是 3', () => {
-  const history = [noonDaysAgo(0), noonDaysAgo(1), noonDaysAgo(2)];
-  assert.equal(streakDays(history, NOW_LOCAL), 3);
+test('streakFromDays：斷了就是 0（前天以前才練過）', () => {
+  assert.equal(streakFromDays(daySet(2, 3), NOW_LOCAL), 0);
 });
 
-test('streakDays：今天還沒練不會馬上歸零，從昨天往回算', () => {
-  // 早上打開 App 看到「連續 0 天」，會讓人覺得昨天的努力已經沒了，
-  // 而那正好是最不該讓人放棄的時間點
-  assert.equal(streakDays([noonDaysAgo(1), noonDaysAgo(2)], NOW_LOCAL), 2);
+test('streakFromDays：中間缺一天就停在缺口', () => {
+  assert.equal(streakFromDays(daySet(0, 1, 3, 4), NOW_LOCAL), 2);
 });
 
-test('streakDays：斷了就是 0（前天以前才練過）', () => {
-  assert.equal(streakDays([noonDaysAgo(2), noonDaysAgo(3)], NOW_LOCAL), 0);
+test('streakFromDays：沒有資料、或型別不對時是 0，不會丟例外', () => {
+  assert.equal(streakFromDays(new Set(), NOW_LOCAL), 0);
+  assert.equal(streakFromDays(undefined, NOW_LOCAL), 0);
+  assert.equal(streakFromDays(['2026-09-05'], NOW_LOCAL), 0);   // 陣列不是 Set
+  assert.equal(streakFromDays(new Set(['壞掉的日期']), NOW_LOCAL), 0);
 });
 
-test('streakDays：中間缺一天就停在缺口', () => {
-  const history = [noonDaysAgo(0), noonDaysAgo(1), noonDaysAgo(3), noonDaysAgo(4)];
-  assert.equal(streakDays(history, NOW_LOCAL), 2);
+test('streakFromDays：跨月也要算得對', () => {
+  // 3 月 1 日往回算會踩到 2 月的天數 —— 交給 Date 自己處理
+  const base = new Date(2026, 2, 1, 12, 0, 0);
+  const days = new Set([
+    dayKey(base),
+    dayKey(new Date(2026, 1, 28, 12, 0, 0)),
+    dayKey(new Date(2026, 1, 27, 12, 0, 0)),
+  ]);
+  assert.equal(streakFromDays(days, base.getTime()), 3);
 });
 
-test('streakDays：沒有紀錄、或時間全壞掉時是 0，不會丟例外', () => {
-  assert.equal(streakDays([], NOW_LOCAL), 0);
-  assert.equal(streakDays(undefined, NOW_LOCAL), 0);
-  assert.equal(streakDays([{ at: 'x', score: 1 }], NOW_LOCAL), 0);
-});
-
-test('streakDays：跨月也要算得對', () => {
-  const base = new Date(2026, 8, 1, 20, 0); // 9/1
-  const history = [0, 1, 2].map((d) => noonDaysAgo(d, base)); // 9/1、8/31、8/30
-  assert.equal(streakDays(history, base.getTime()), 3);
-});
 
 // ─── 一組練習的總結 ──────────────────────────────────────────────────────
 

@@ -252,41 +252,14 @@ function shiftDay(base, days) {
   return dayKey(date);
 }
 
-/** 有練習紀錄的日子（本地時間，去重）。 */
-export function practiceDays(history) {
-  const days = new Set();
-  if (!Array.isArray(history)) return days;
-  for (const record of history) {
-    const key = dayKey(record?.at);
-    if (key) days.add(key);
-  }
-  return days;
-}
-
-/** 今天練了幾句（含沒有分數的紀錄？不含 —— 沒分數代表沒真的練成一句）。 */
-export function todayCount(history, now = Date.now()) {
-  const today = dayKey(new Date(now));
-  if (!Array.isArray(history)) return 0;
-  return history.filter((r) => typeof r?.score === 'number' && dayKey(r.at) === today).length;
-}
-
 /**
- * 連續練習天數。
+ * 連續練習天數。吃的是一組 dayKey（`lib/storage.js` 的計數表整理出來的）。
  *
  * **今天還沒練不會馬上歸零** —— 從昨天開始往回算。
  * 這是刻意的：早上打開 App 看到「連續 0 天」，會讓人覺得昨天的努力已經沒了，
  * 那正好是最不該讓人放棄的時間點。真的斷了（前天以前才練過）才是 0。
- */
-export function streakDays(history, now = Date.now()) {
-  return streakFromDays(practiceDays(history), now);
-}
-
-/**
- * 同樣的連續天數，但直接吃一組 dayKey。
  *
- * 單字卡記的是「哪一天練了幾個字」的計數表，不是一筆一筆的紀錄，
- * 所以它組不出 practiceDays() 要的陣列 —— 但「連續幾天」的算法必須只有一份，
- * 不然兩個模式的連續天數會在跨月、日光節約這些邊界上各錯各的。
+ * 六個模式共用這一份 —— 各寫各的話，跨月、日光節約這些邊界會各錯各的。
  */
 export function streakFromDays(days, now = Date.now()) {
   if (!(days instanceof Set) || days.size === 0) return 0;

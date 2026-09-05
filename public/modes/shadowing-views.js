@@ -9,8 +9,8 @@ import { statTile } from '../lib/stat-tile.js';
 import { buildTrendChart } from '../lib/trend-chart.js';
 import { summarise } from '../lib/storage.js';
 import { categoryLabel, formatTime, issueLabel, scoreClass } from '../lib/labels.js';
-import { trendPoints, TREND_LIMIT, streakDays, todayCount, SET_SIZE } from '../lib/practice.js';
-import { renderTodayCard } from '../lib/today-card.js';
+import { trendPoints, TREND_LIMIT, SET_SIZE } from '../lib/practice.js';
+import { renderDailyCard } from '../lib/daily.js';
 
 /** 紀錄清單最多列這麼多筆。再多就變成一整頁捲不完的東西，趨勢圖才是看長期的地方。 */
 const LIST_LIMIT = 20;
@@ -21,16 +21,12 @@ export const GOAL_CHOICES = [3, 5, 10, 20];
 // ─── 今天的進度與連續天數 ────────────────────────────────────────────────
 
 /**
- * 卡片本身在 `lib/today-card.js`（單字卡也用同一張）。這裡只負責跟讀專屬的部分：
- * 從練習紀錄算出今天練了幾句，以及把每日目標的下拉選單放進去。
+ * 卡片與數字都是六個模式共用的（`lib/today-card.js` 與 `lib/daily.js`）。
+ * 這裡只負責跟讀專屬的部分：把每日目標的下拉選單放進卡片裡 ——
+ * 跟讀是唯一把目標放在畫面上的模式，因為一次練幾句很看當下有多少時間。
  */
-export function renderToday(history, goal, onGoalChange) {
-  return renderTodayCard({
-    done: todayCount(history),
-    goal,
-    streak: streakDays(history),
-    unit: '句',
-    label: '今天練的句子',
+export function renderToday(goal, onGoalChange) {
+  return renderDailyCard('shadowing', {
     control: h('label', { class: 'field field--inline today__goal' },
       h('span', { class: 'field__label' }, '每日目標'),
       h('select', {

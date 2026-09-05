@@ -2,6 +2,7 @@ import { h, clear, append } from '../lib/dom.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings } from '../lib/settings.js';
+import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
 
 export const meta = { id: 'translation', label: '中翻英', icon: '✍️' };
@@ -12,6 +13,7 @@ let all = [];
 let pool = [];
 let current = null;
 let checked = null;      // null = 還沒對答案
+let counted = false;     // 這一題算進今天的進度了沒（「再試一次」不會再算一次）
 let showHint = false;
 let root = null;
 
@@ -38,6 +40,7 @@ function next() {
   }
   current = candidate ?? pool[0];
   checked = null;
+  counted = false;
   showHint = false;
   render();
 }
@@ -46,6 +49,8 @@ function next() {
 function render() {
   if (!root || !current) return;
   clear(root);
+
+  append(root, renderDailyCard('translation'));
 
   const isCloze = current.type === 'cloze';
 
@@ -178,7 +183,17 @@ function onEnter(e) {
 function check() {
   const el = root?.querySelector('#answer');
   const input = el?.value ?? '';
-  checked = { input, result: grade({ ...current, strict: current.type === 'cloze' }, input) };
+  const result = grade({ ...current, strict: current.type === 'cloze' }, input);
+
+  // 空白的答案不算練習 —— 一路按「對答案」不該累積出今天的進度。
+  // 一題只記一次：「再試一次」會把 checked 清成 null，所以不能拿它當判斷依據，
+  // 要用一個跟著題目走的旗標。
+  if (result.level !== 'empty' && !counted) {
+    counted = true;
+    recordPractice('translation');
+  }
+
+  checked = { input, result };
   render();
 }
 

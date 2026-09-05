@@ -16,7 +16,7 @@ import {
 const STATE = {
   srs: { 'ecdict:1': { box: 5, due: 1, seen: 6, correct: 6 }, 'curated:2': { box: 1 } },
   srsVersion: 2,
-  vocabDays: { '2026-09-04': 20, '2026-09-05': 12 },
+  activity: { vocabulary: { '2026-09-04': 20, '2026-09-05': 12 }, listening: { '2026-09-05': 6 } },
   history: [{ sentenceId: 3, score: 88 }, { sentenceId: 4, score: 72 }],
   settings: { vocabDailyGoal: 20, vocabDeck: 'tier-2' },
 };
@@ -24,13 +24,15 @@ const NOW = Date.parse('2026-09-05T04:30:00Z');
 
 // ─── 匯出 ────────────────────────────────────────────────────────────────
 
-test('備份帶走全部五種資料，並標上 app 與版本', () => {
+test('備份帶走手上有的每一種資料，並標上 app 與版本', () => {
   const backup = buildBackup(STATE, NOW);
 
   assert.equal(backup.app, BACKUP_APP);
   assert.equal(backup.version, BACKUP_VERSION);
   assert.equal(backup.exportedAt, '2026-09-05T04:30:00.000Z');
-  assert.deepEqual(Object.keys(backup.data).sort(), [...BACKUP_KEYS].sort());
+  // STATE 沒有 vocabDays（那是舊版的鍵），所以比對的是「有的都帶走了」
+  assert.deepEqual(Object.keys(backup.data).sort(), Object.keys(STATE).sort());
+  assert.ok(Object.keys(backup.data).every((k) => BACKUP_KEYS.includes(k)));
 });
 
 test('沒有的鍵就不寫進去（不要把 undefined 存成 null）', () => {
@@ -118,7 +120,7 @@ test('摘要數得出字數、天數與跟讀筆數', () => {
   const s = backupSummary(STATE);
   assert.equal(s.words, 2);
   assert.equal(s.days, 2);
-  assert.equal(s.cards, 32);      // 20 + 12
+  assert.equal(s.items, 38);      // 單字 20 + 12、聽力 6
   assert.equal(s.attempts, 2);
   assert.equal(s.hasSettings, true);
 });
@@ -126,14 +128,15 @@ test('摘要數得出字數、天數與跟讀筆數', () => {
 test('摘要不會因為資料壞掉就丟例外', () => {
   assert.doesNotThrow(() => backupSummary({}));
   assert.doesNotThrow(() => backupSummary(null));
-  assert.equal(backupSummary({ vocabDays: { x: 'abc', y: -3 } }).cards, 0);
+  assert.equal(backupSummary({ activity: { vocabulary: { x: 'abc', y: -3 } } }).items, 0);
+  assert.equal(backupSummary({ activity: '不是物件' }).days, 0);
   assert.equal(backupSummary({ history: '不是陣列' }).attempts, 0);
 });
 
 test('摘要寫成一句話給人看', () => {
   const text = summaryText(backupSummary(STATE));
   assert.match(text, /單字進度 2 個字/);
-  assert.match(text, /每日紀錄 2 天/);
+  assert.match(text, /每日紀錄 2 天/);   // 兩個模式練在同一批日子裡，天數不重複算
   assert.match(text, /跟讀紀錄 2 筆/);
 });
 
@@ -148,4 +151,10 @@ test('檔名用本地日期 —— 使用者說的「今天」是他自己的今
 test('檔名全是 ASCII —— 中文檔名會讓 Chromium 忽略整個 download 屬性', () => {
   // 實際踩過：檔案被存成 `download`，沒有副檔名
   assert.match(backupFilename(Date.now()), /^[\x20-\x7E]+$/);
+});
+
+test('舊版備份（只有 vocabDays）的摘要也算得出來', () => {
+  const s = backupSummary({ srs: { a: 1 }, vocabDays: { '2026-09-01': 5, '2026-09-02': 7 } });
+  assert.equal(s.days, 2);
+  assert.equal(s.items, 12);
 });

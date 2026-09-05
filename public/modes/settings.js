@@ -1,14 +1,16 @@
 import { h, clear, append } from '../lib/dom.js';
 import { loadVoices, speak } from '../lib/tts.js';
-import { getSettings, updateSettings, resetSettings, DEFAULTS } from '../lib/settings.js';
+import { getSettings, updateSettings, resetSettings, setGoal, DEFAULTS } from '../lib/settings.js';
 import {
   resetSrs, clearHistory, getHistory, getSrsState, exportState, importState,
+  clearActivity, getActivity, activityDays,
 } from '../lib/storage.js';
 import {
   buildBackup, parseBackup, backupSummary, summaryText, backupFilename,
 } from '../lib/backup.js';
 import { CATEGORY_LABEL, DIFFICULTY_LABEL, DIFFICULTY_ORDER, formatTime } from '../lib/labels.js';
 import { QUIZ_TYPES } from '../lib/quiz.js';
+import { PRACTICE_MODES } from '../lib/modes.js';
 
 export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 
@@ -16,8 +18,14 @@ export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 // 句庫已經有八種情境（原本這裡只列四種，新增的四種就選不到）。
 const CATEGORIES = Object.entries(CATEGORY_LABEL);
 
-/** 每日單字數的快速選項。數字輸入框還在，這幾顆只是省得手打。 */
-const VOCAB_GOALS = [10, 20, 30, 50];
+/** 每日目標的快速選項，依模式各給一組合理的量。數字輸入框還在，這幾顆只是省得手打。 */
+const GOAL_CHOICES = {
+  vocabulary: [10, 20, 30, 50],
+  listening: [3, 6, 12, 20],
+  translation: [5, 10, 20, 30],
+  dialogue: [3, 6, 10, 20],
+  shadowing: [3, 5, 10, 20],
+};
 const DIFFICULTIES = DIFFICULTY_ORDER.map((id) => [id, DIFFICULTY_LABEL[id]]);
 
 let voices = [];
@@ -67,7 +75,7 @@ export async function mount(container) {
 function render() {
   if (!root) return;
   clear(root);
-  append(root, apiCard(), practiceCard(), voiceCard(), dataCard());
+  append(root, apiCard(), goalCard(), practiceCard(), voiceCard(), dataCard());
 }
 
 // ─── API 金鑰 ────────────────────────────────────────────────────────────
@@ -180,6 +188,41 @@ async function saveKeys() {
   render();
 }
 
+// ─── 每日目標 ────────────────────────────────────────────────────────────
+//
+// 五個模式各一個數字，放在同一張卡上 —— 分散在各模式裡的話，
+// 「我每天總共要練多少」這個問題就得切五個分頁才回答得出來。
+function goalCard() {
+  const s = getSettings();
+
+  return h('div', { class: 'card' },
+    h('p', { class: 'card__title' }, '每日目標'),
+    h('p', { class: 'hint' },
+      '每個模式每天練幾個。練滿了會告訴你今天完成了，但不會擋著不讓你繼續練 ——' +
+      '目標是拿來知道自己完成了，不是拿來鎖門的。0 表示不設目標。'),
+
+    PRACTICE_MODES.map((mode) => h('div', { class: 'field' },
+      h('label', { class: 'field__label', for: `goal-${mode.id}` },
+        `${mode.icon} ${mode.label}`),
+      h('div', { class: 'chips' },
+        GOAL_CHOICES[mode.id].map((n) => toggleChip(
+          `${n} ${mode.unit}`,
+          (s.dailyGoals?.[mode.id] ?? 0) === n,
+          () => { setGoal(mode.id, n); render(); },
+        ))),
+      h('input', {
+        class: 'field__input', id: `goal-${mode.id}`, type: 'number', min: '0', max: '500',
+        value: String(s.dailyGoals?.[mode.id] ?? 0),
+        onchange: (e) => { setGoal(mode.id, e.target.value); render(); },
+      }),
+    )),
+
+    h('p', { class: 'hint' },
+      '單字卡的目標同時決定一輪抽幾張（到期要複習的優先，再補沒學過的）；' +
+      '其他模式只是拿來記錄與累積連續天數，不會限制你能練多少。'),
+  );
+}
+
 // ─── 練習偏好 ────────────────────────────────────────────────────────────
 function practiceCard() {
   const s = getSettings();
@@ -244,25 +287,6 @@ function practiceCard() {
           ? '一種都沒選 —— 會用翻卡（自己判斷記不記得）。'
           : `勾幾種就混哪幾種出題。選擇題是四選一，干擾項只會從同一級裡挑` +
             `跟答案完全不同義的字，所以不會出現兩個都對的選項。`),
-    ),
-
-    h('div', { class: 'field' },
-      h('label', { class: 'field__label', for: 'vocab-daily-goal' }, '單字卡每天練幾個字'),
-      h('div', { class: 'chips' },
-        VOCAB_GOALS.map((n) => toggleChip(`${n} 個`, s.vocabDailyGoal === n, () => {
-          updateSettings({ vocabDailyGoal: n });
-          render();
-        }))),
-      h('input', {
-        class: 'field__input', id: 'vocab-daily-goal', type: 'number', min: '0', max: '200',
-        value: String(s.vocabDailyGoal),
-        onchange: (e) => { updateSettings({ vocabDailyGoal: Math.max(0, Number(e.target.value) || 0) }); render(); },
-      }),
-      h('p', { class: 'hint' },
-        s.vocabDailyGoal > 0
-          ? `選好難度之後，單字卡每天就從那一級抽 ${s.vocabDailyGoal} 個字（到期要複習的優先）。` +
-            '練完會告訴你今天完成了，想再多練也可以繼續。'
-          : '0 表示不設每日目標 —— 那一級的字會一次全部排進來，練到你自己停。'),
     ),
 
     h('div', { class: 'field' },
@@ -366,11 +390,17 @@ function voiceCard() {
 function dataCard() {
   const srsCount = Object.keys(getSrsState()).length;
   const historyCount = getHistory().length;
+  // 有練過的日子（任何一個模式都算）—— 連續天數就是從這裡算的
+  const activity = getActivity();
+  const activeDays = new Set(
+    PRACTICE_MODES.flatMap((m) => [...activityDays(activity, m.id)])
+  ).size;
 
   return h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '學習資料'),
     h('p', { class: 'hint' },
-      `單字卡進度：${srsCount} 張有紀錄　|　跟讀紀錄：${historyCount} 筆。` +
+      `單字卡進度：${srsCount} 張有紀錄　|　跟讀紀錄：${historyCount} 筆　|　` +
+      `每日紀錄：${activeDays} 天。` +
       '這些都存在這個瀏覽器的 localStorage，換瀏覽器或清除瀏覽資料就會消失。'),
 
     // 備份放在清除按鈕的**上面**：這一區最危險的三顆按鈕就在下面，
@@ -399,6 +429,12 @@ function dataCard() {
         class: 'btn',
         onclick: () => confirmThen('確定要清除跟讀練習紀錄嗎？', () => { clearHistory(); render(); }),
       }, '清除跟讀紀錄'),
+      h('button', {
+        class: 'btn',
+        onclick: () => confirmThen(
+          '確定要清除每日紀錄嗎？連續天數會歸零。（複習進度與跟讀成績不受影響）',
+          () => { clearActivity(); render(); }),
+      }, '清除每日紀錄'),
       h('button', {
         class: 'btn',
         onclick: () => confirmThen('確定要把所有偏好設定恢復成預設值嗎？（不影響金鑰）',

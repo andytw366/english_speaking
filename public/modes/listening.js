@@ -1,6 +1,7 @@
 import { h, clear, append } from '../lib/dom.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { filterBySettings } from '../lib/settings.js';
+import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 
 export const meta = { id: 'listening', label: '聽力', icon: '🎧' };
@@ -35,6 +36,8 @@ function pick(item) {
 function render() {
   if (!root || !current) return;
   clear(root);
+
+  append(root, renderDailyCard('listening'));
 
   append(root, 
     h('div', { class: 'card' },
@@ -103,7 +106,13 @@ function render() {
         h('button', {
           class: 'btn btn--primary',
           disabled: unanswered > 0,
-          onclick: () => { submitted = true; render(); },
+          onclick: () => {
+            submitted = true;
+            // 一組有好幾題，今天的份照題數算 —— 單位是「題」，
+            // 跟畫面上寫的「答對 4 / 6 題」對得起來
+            recordPractice('listening', current.questions.length);
+            render();
+          },
         }, '對答案'),
         unanswered > 0 && h('span', { class: 'hint' }, `還有 ${unanswered} 題沒作答`),
       ),

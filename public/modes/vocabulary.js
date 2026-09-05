@@ -4,11 +4,9 @@ import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
   buildQueue, recordAnswer, srsSummary, getCardState, resetSrs,
   getSrsState, tierProgress,
-  getVocabDays, recordVocabAnswer, vocabDayCount, vocabActiveDays,
 } from '../lib/storage.js';
-import { dayKey, streakFromDays } from '../lib/practice.js';
+import { dailyState as modeDaily, recordPractice, renderDailyCard } from '../lib/daily.js';
 import { pickType, buildQuestion } from '../lib/quiz.js';
-import { renderTodayCard } from '../lib/today-card.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
@@ -115,15 +113,11 @@ function currentPool() {
  * 等於沒有限制任何東西。
  */
 function dailyState(now = Date.now()) {
-  const goal = getSettings().vocabDailyGoal;
-  const days = getVocabDays();
-  const done = vocabDayCount(days, dayKey(new Date(now)));
+  const state = modeDaily('vocabulary', now);
   return {
-    goal,
-    done,
-    streak: streakFromDays(vocabActiveDays(days), now),
-    // 目標設 0 = 不限，這一級的字全部排進來
-    remaining: goal > 0 ? Math.max(0, goal + extra - done) : Infinity,
+    ...state,
+    // 「再多練 10 個」加的量只有單字卡有，所以在這裡才加上去
+    remaining: state.goal > 0 ? Math.max(0, state.goal + extra - state.done) : Infinity,
   };
 }
 
@@ -169,7 +163,7 @@ function render() {
   const summary = srsSummary(currentPool());
   const daily = dailyState();
 
-  append(root, deckCard(deck, summary), todayCard(daily));
+  append(root, deckCard(deck, summary), renderDailyCard('vocabulary'));
 
   // 今天的份練完了。**不擋著不讓練** —— 目標是拿來知道自己完成了，不是拿來鎖門的。
   if (daily.remaining <= 0) {
@@ -319,7 +313,7 @@ function submitChoice(card, option) {
   if (picked) return;
   picked = { id: option.id, correct: option.correct };
   recordAnswer(card, option.correct);
-  recordVocabAnswer(dayKey(new Date()));
+  recordPractice('vocabulary');
   render();
 }
 
@@ -371,22 +365,6 @@ function deckCard(deck, summary) {
       }, `進到「${next.label}」`),
     ),
   );
-}
-
-/** 今天練了幾個字、連續幾天。跟讀用的是同一張卡（`lib/today-card.js`）。 */
-function todayCard(daily) {
-  return renderTodayCard({
-    done: daily.done,
-    goal: daily.goal,
-    streak: daily.streak,
-    unit: '個字',
-    label: '今天練的字',
-    // 跟讀把每日目標的選單直接放在卡上；單字卡的目標放在「設定」，
-    // 所以這裡只用一句話指路，不再放第二個能改同一個數字的地方。
-    hint: daily.goal > 0 && daily.done < daily.goal
-      ? `再 ${daily.goal - daily.done} 個字就達成今天的目標了。（每天幾個字在「設定」可以改）`
-      : '',
-  });
 }
 
 function shouldAdvance(summary) {
@@ -566,6 +544,6 @@ function answer(card, wasCorrect) {
   recordAnswer(card, wasCorrect);
   // 記進「哪一天練了幾張」的計數表。答對答錯都算 —— 今天的份算的是練習量，
   // 不是正確率（正確率在 srs 的 box 裡）。
-  recordVocabAnswer(dayKey(new Date()));
+  recordPractice('vocabulary');
   nextCard();
 }

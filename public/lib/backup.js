@@ -22,7 +22,7 @@ export const BACKUP_APP = 'speaking-coach';
  * 塞進別的鍵，也進不了 localStorage。新增要備份的資料時記得加進來 ——
  * 漏加的症狀是「還原之後某一種進度不見了」，而且不會有任何錯誤訊息。
  */
-export const BACKUP_KEYS = ['srs', 'srsVersion', 'vocabDays', 'history', 'settings'];
+export const BACKUP_KEYS = ['srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings'];
 
 /**
  * 把目前的狀態組成一份備份。
@@ -104,15 +104,30 @@ export function parseBackup(text) {
  */
 export function backupSummary(data) {
   const count = (value) => (value && typeof value === 'object' ? Object.keys(value).length : 0);
-  const vocabDays = data?.vocabDays;
+
+  // 每日紀錄有兩種來源：新的 activity（六個模式各一張計數表）與
+  // 舊版的 vocabDays（只有單字卡）。舊備份還讀得回去，所以兩種都算。
+  const perMode = Object.values(data?.activity ?? {}).filter(
+    (days) => days && typeof days === 'object' && !Array.isArray(days)
+  );
+  const legacy = data?.vocabDays && typeof data.vocabDays === 'object' ? [data.vocabDays] : [];
+  const tables = perMode.length ? perMode : legacy;
+
+  const allDays = new Set();
+  let items = 0;
+  for (const days of tables) {
+    for (const [key, value] of Object.entries(days)) {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      allDays.add(key);
+      items += Math.floor(n);
+    }
+  }
+
   return {
     words: count(data?.srs),
-    days: count(vocabDays),
-    // 練過的總張數：計數表的值加起來
-    cards: Object.values(vocabDays ?? {}).reduce(
-      (sum, n) => sum + (Number.isFinite(Number(n)) ? Math.max(0, Math.floor(Number(n))) : 0),
-      0
-    ),
+    days: allDays.size,
+    items,
     attempts: Array.isArray(data?.history) ? data.history.length : 0,
     hasSettings: Boolean(data?.settings),
   };

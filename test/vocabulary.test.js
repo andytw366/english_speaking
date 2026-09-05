@@ -14,7 +14,8 @@ import path from 'node:path';
 
 import { TIERS, TIER_IDS, tierFor } from '../scripts/vocab-levels.js';
 import {
-  migrateSrs, tierProgress, addVocabDay, vocabDayCount, vocabActiveDays, VOCAB_DAY_LIMIT,
+  migrateSrs, tierProgress, addActivity, activityCount, activityDays, activityToday,
+  buildActivity, ACTIVITY_DAY_LIMIT, MODE_IDS,
 } from '../public/lib/storage.js';
 import { streakFromDays, dayKey } from '../public/lib/practice.js';
 import { todayNote } from '../public/lib/today-card.js';
@@ -249,73 +250,125 @@ test('對照表載不到時回空陣列，不是丟例外（總覽只是不畫�
   assert.deepEqual(tierProgress({}, {}, NOW), []);
 });
 
-// ─── 每日進度 ────────────────────────────────────────────────────────────
+// ─── 每天練了什麼（六個模式共用的計數表）──────────────────────────────────
 //
 // 舊的「一輪最多幾張」關掉重開就再來一輪，等於沒有限制任何東西。
-// 每日目標算的是**日期**，所以下面這幾條釘的都是「跨場次還記得」這件事。
+// 計數表算的是**日期**，所以下面這幾條釘的都是「跨場次、跨模式還記得」這件事。
 
-test('同一天累加，不同天各算各的', () => {
-  let days = addVocabDay({}, '2026-09-05');
-  days = addVocabDay(days, '2026-09-05');
-  days = addVocabDay(days, '2026-09-04');
+const TODAY = '2026-09-05';
 
-  assert.equal(vocabDayCount(days, '2026-09-05'), 2);
-  assert.equal(vocabDayCount(days, '2026-09-04'), 1);
-  assert.equal(vocabDayCount(days, '2026-09-03'), 0);
+test('同一天累加，不同天、不同模式各算各的', () => {
+  let a = addActivity({}, 'vocabulary', TODAY);
+  a = addActivity(a, 'vocabulary', TODAY);
+  a = addActivity(a, 'vocabulary', '2026-09-04');
+  a = addActivity(a, 'listening', TODAY, 6);
+
+  assert.equal(activityCount(a, 'vocabulary', TODAY), 2);
+  assert.equal(activityCount(a, 'vocabulary', '2026-09-04'), 1);
+  assert.equal(activityCount(a, 'listening', TODAY), 6);
+  assert.equal(activityCount(a, 'translation', TODAY), 0);
 });
 
-test('addVocabDay 不改到原本的計數表（畫面拿著舊的那份在算）', () => {
-  const before = { '2026-09-05': 1 };
-  const after = addVocabDay(before, '2026-09-05');
-  assert.equal(before['2026-09-05'], 1);
-  assert.equal(after['2026-09-05'], 2);
+test('addActivity 不改到原本的計數表（畫面拿著舊的那份在算）', () => {
+  const before = { vocabulary: { [TODAY]: 1 } };
+  const after = addActivity(before, 'vocabulary', TODAY);
+  assert.equal(before.vocabulary[TODAY], 1);
+  assert.equal(after.vocabulary[TODAY], 2);
+});
+
+test('不認得的模式與不合理的數量不會寫進去', () => {
+  assert.deepEqual(addActivity({}, '亂寫', TODAY), {});
+  assert.deepEqual(addActivity({}, 'vocabulary', ''), {});
+  assert.deepEqual(addActivity({}, 'vocabulary', TODAY, 0), {});
+  assert.deepEqual(addActivity({}, 'vocabulary', TODAY, -5), {});
+  assert.deepEqual(addActivity({}, 'vocabulary', TODAY, NaN), {});
 });
 
 test('壞掉的值當成 0 —— 這是使用者改得到的 localStorage', () => {
-  assert.equal(vocabDayCount({ x: 'abc' }, 'x'), 0);
-  assert.equal(vocabDayCount({ x: -5 }, 'x'), 0);
-  assert.equal(vocabDayCount({ x: 2.7 }, 'x'), 2);
-  assert.equal(vocabDayCount(null, 'x'), 0);
-  assert.equal(vocabDayCount({}, ''), 0);
-});
-
-test('日期壞掉時不會生出一個空字串的鍵', () => {
-  assert.deepEqual(addVocabDay({ a: 1 }, ''), { a: 1 });
+  assert.equal(activityCount({ vocabulary: { x: 'abc' } }, 'vocabulary', 'x'), 0);
+  assert.equal(activityCount({ vocabulary: { x: -5 } }, 'vocabulary', 'x'), 0);
+  assert.equal(activityCount({ vocabulary: { x: 2.7 } }, 'vocabulary', 'x'), 2);
+  assert.equal(activityCount(null, 'vocabulary', 'x'), 0);
 });
 
 test('只留最近幾天，而且留下來的是最新的那幾天', () => {
-  let days = {};
-  // 造 VOCAB_DAY_LIMIT + 5 天的資料（日期字串排序就是時間順序）
-  for (let i = 0; i < VOCAB_DAY_LIMIT + 5; i++) {
-    days = addVocabDay(days, `2020-01-01+${String(i).padStart(4, '0')}`);
+  let a = {};
+  for (let i = 0; i < ACTIVITY_DAY_LIMIT + 5; i++) {
+    a = addActivity(a, 'vocabulary', `2020-01-01+${String(i).padStart(4, '0')}`);
   }
-  const keys = Object.keys(days);
-  assert.equal(keys.length, VOCAB_DAY_LIMIT);
-  assert.ok(keys.includes(`2020-01-01+${String(VOCAB_DAY_LIMIT + 4).padStart(4, '0')}`), '最新的一天被丟掉了');
+  const keys = Object.keys(a.vocabulary);
+  assert.equal(keys.length, ACTIVITY_DAY_LIMIT);
+  assert.ok(keys.includes(`2020-01-01+${String(ACTIVITY_DAY_LIMIT + 4).padStart(4, '0')}`), '最新的一天被丟掉了');
   assert.ok(!keys.includes('2020-01-01+0000'), '最舊的一天沒有被丟掉');
 });
 
+test('一個模式的天數爆掉不會影響另一個模式', () => {
+  let a = { listening: { '2020-01-01': 3 } };
+  for (let i = 0; i < ACTIVITY_DAY_LIMIT + 5; i++) {
+    a = addActivity(a, 'vocabulary', `2020-01-01+${String(i).padStart(4, '0')}`);
+  }
+  assert.equal(activityCount(a, 'listening', '2020-01-01'), 3);
+});
+
+test('今天全部模式的總和，給首頁用', () => {
+  const a = { vocabulary: { [TODAY]: 20 }, listening: { [TODAY]: 6 }, dialogue: { '2026-09-04': 3 } };
+  const today = activityToday(a, TODAY);
+  assert.equal(today.total, 26);
+  assert.equal(today.byMode.dialogue, 0);
+  assert.deepEqual(Object.keys(today.byMode).sort(), [...MODE_IDS].sort());
+});
+
 test('連續天數用的是跟跟讀同一套算法', () => {
-  // 用真實日期字串（streakFromDays 會拿它去 new Date）
   const today = dayKey(new Date());
   const yesterday = dayKey(new Date(Date.now() - 864e5));
   const twoDaysAgo = dayKey(new Date(Date.now() - 2 * 864e5));
 
-  const days = { [today]: 5, [yesterday]: 20, [twoDaysAgo]: 20 };
-  assert.equal(streakFromDays(vocabActiveDays(days)), 3);
+  const a = { vocabulary: { [today]: 5, [yesterday]: 20, [twoDaysAgo]: 20 } };
+  assert.equal(streakFromDays(activityDays(a, 'vocabulary')), 3);
 
   // 今天還沒練不會馬上歸零 —— 從昨天開始往回算
-  const withoutToday = { [yesterday]: 20, [twoDaysAgo]: 20 };
-  assert.equal(streakFromDays(vocabActiveDays(withoutToday)), 2);
+  assert.equal(streakFromDays(activityDays({ vocabulary: { [yesterday]: 20, [twoDaysAgo]: 20 } }, 'vocabulary')), 2);
 
-  // 練了 0 個字的那天不算「有練」
-  assert.equal(streakFromDays(vocabActiveDays({ [today]: 0, [yesterday]: 3 })), 1);
+  // 練了 0 個的那天不算「有練」
+  assert.equal(streakFromDays(activityDays({ vocabulary: { [today]: 0, [yesterday]: 3 } }, 'vocabulary')), 1);
+
+  // 一個模式的連續天數不會被另一個模式撐起來
+  assert.equal(streakFromDays(activityDays(a, 'listening')), 0);
 });
 
 test('沒有任何紀錄時連續天數是 0，而不是丟例外', () => {
-  assert.equal(streakFromDays(vocabActiveDays({})), 0);
-  assert.equal(streakFromDays(vocabActiveDays(null)), 0);
-  assert.equal(streakFromDays(undefined), 0);
+  assert.equal(streakFromDays(activityDays({}, 'vocabulary')), 0);
+  assert.equal(streakFromDays(activityDays(null, 'vocabulary')), 0);
+});
+
+// ─── 從舊資料生出計數表 ──────────────────────────────────────────────────
+//
+// 這段只跑一次，跑錯就是使用者的連續天數歸零 —— 沒有錯誤訊息，只有「咦我明明有練」。
+
+test('舊的 vocabDays 直接搬成單字卡那一欄', () => {
+  const a = buildActivity({ vocabDays: { '2026-09-04': 20, [TODAY]: 12 } });
+  assert.equal(activityCount(a, 'vocabulary', '2026-09-04'), 20);
+  assert.equal(activityCount(a, 'vocabulary', TODAY), 12);
+});
+
+test('跟讀從逐筆紀錄數出每天幾句', () => {
+  const at = (daysAgo) => new Date(Date.now() - daysAgo * 864e5).toISOString();
+  const a = buildActivity({
+    history: [
+      { at: at(0), score: 80 }, { at: at(0), score: 60 },
+      { at: at(1), score: 90 },
+      { at: at(1), score: null },        // 沒分數 = 沒真的練成一句，不算
+      { at: 'x', score: 70 },            // 時間壞掉的那筆跳過
+    ],
+  });
+  assert.equal(activityCount(a, 'shadowing', dayKey(new Date())), 2);
+  assert.equal(activityCount(a, 'shadowing', dayKey(new Date(Date.now() - 864e5))), 1);
+});
+
+test('沒有舊資料時生出空的計數表，不會生出一堆空欄位', () => {
+  assert.deepEqual(buildActivity({}), {});
+  assert.deepEqual(buildActivity(), {});
+  assert.deepEqual(buildActivity({ history: [] }), {});
 });
 
 test('每日進度的那句話：達成、還差幾個、沒設目標各講各的', () => {

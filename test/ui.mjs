@@ -91,22 +91,27 @@ const fakeHistory = (specs) =>
 /**
  * 塞紀錄與設定，重新載入，切到指定模式。
  *
- * `srs`（複習進度）與 `vocabDays`（每天練了幾張）預設清空 —— 不清的話上一段
- * 測試留下的資料會讓「還沒開始」「今天 0 / 20」這種斷言時好時壞。
+ * `srs`（複習進度）與 `activity`（每天各模式練了幾個）預設清空 —— 不清的話
+ * 上一段測試留下的資料會讓「還沒開始」「今天 0 / 20」這種斷言時好時壞。
  * 實際踩過：加了選擇題那一段之後，它接在「每日目標」後面跑，
  * 今天的份已經被上一段用掉 3 張，counter 變成 1 / 17 而不是 1 / 20。
+ *
+ * **沒給 `activity` 時是把那個鍵刪掉、不是寫成 `{}`** —— App 找不到它才會從
+ * 舊的 `vocabDays` 與跟讀紀錄生一份出來，而跟讀那幾段正是靠這條路徑拿到今天的數字。
  */
 async function seed({
-  history = [], settings = {}, mode = 'shadowing', srs = {}, vocabDays = {},
+  history = [], settings = {}, mode = 'shadowing', srs = {}, activity = null,
 } = {}) {
-  await page.evaluate(({ h, s, m, r, v }) => {
+  await page.evaluate(({ h, s, m, r, a }) => {
     localStorage.setItem('speaking-coach:history', JSON.stringify(h));
     localStorage.setItem('speaking-coach:settings', JSON.stringify(s));
     localStorage.setItem('speaking-coach:mode', m);
     localStorage.setItem('speaking-coach:srs', JSON.stringify(r));
-    localStorage.setItem('speaking-coach:vocabDays', JSON.stringify(v));
     localStorage.removeItem('speaking-coach:srsVersion');
-  }, { h: history, s: settings, m: mode, r: srs, v: vocabDays });
+    localStorage.removeItem('speaking-coach:vocabDays');
+    if (a) localStorage.setItem('speaking-coach:activity', JSON.stringify(a));
+    else localStorage.removeItem('speaking-coach:activity');
+  }, { h: history, s: settings, m: mode, r: srs, a: activity });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#nav .tab');
   await page.waitForTimeout(500);
@@ -395,9 +400,12 @@ check('都唸對時講的是好消息，不是一片空白',
 console.log('\n【10】設定頁');
 
 await seed({ history: [], settings: {}, mode: 'settings' });
-const catChips = await page.locator('.chips').first().locator('button').allTextContents();
+// 用 .field + hasText 抓，不吃 .chips 的順序 —— 順序型的選擇器被新卡片插隊過一次了
+const catChips = await page.locator('.field', { hasText: '只練這些情境' })
+  .locator('button').allTextContents();
 check('八種情境都選得到', catChips.length === 8, catChips.join('、'));
-check('三種難度都選得到', (await page.locator('.chips').nth(1).locator('button').count()) === 3);
+check('三種難度都選得到', (await page.locator('.field', { hasText: '只練這些難度' })
+  .locator('button').count()) === 3);
 check('有 Gemini model 選單', (await page.locator('#gemini-model option').count()) >= 3,
   `${await page.locator('#gemini-model option').count()} 個`);
 
@@ -432,7 +440,7 @@ for (let i = 1; i <= 40; i++) {
 }
 legacySrs['curated:1'] = { box: 3, due: Date.now(), seen: 3, correct: 2 };
 
-await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabDailyGoal: 3 }, srs: legacySrs });
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 3 } }, srs: legacySrs });
 await page.waitForSelector('.deckbar');
 
 check('顯示我在第幾級', (await text('.deckbar')).includes('第 1 級 / 共 6 級'),
@@ -485,7 +493,7 @@ console.log('\n【12】單字卡：每日目標');
 // 題型固定成翻卡：這一段驗的是「每日目標」，不該因為選擇題抽到什麼而時好時壞。
 await seed({
   mode: 'vocabulary',
-  settings: { vocabDeck: 'tier-1', vocabDailyGoal: 3, vocabQuizTypes: [] },
+  settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 3 }, vocabQuizTypes: [] },
 });
 await page.waitForSelector('.card--today');
 
@@ -501,7 +509,7 @@ check('練滿之後今天的進度是滿的', (await text('.card--today')).inclu
 check('連續天數從 0 變成 1', (await text('.today__block--streak .today__value')) === '1');
 check('告訴使用者今天完成了', (await viewText()).includes('今天的 3 個字練完了'));
 check('答對答錯都算進今天的份', (await page.evaluate(() =>
-  Object.values(JSON.parse(localStorage.getItem('speaking-coach:vocabDays') ?? '{}'))[0])) === 3);
+  Object.values(JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}').vocabulary ?? {})[0])) === 3);
 await shot(page, 'ui-12-每日目標');
 
 // 這是每日目標跟舊的「一輪最多幾張」最重要的差別
@@ -524,15 +532,17 @@ await page.waitForTimeout(700);
 check('換難度不會把今天的進度歸零', (await text('.card--today')).includes('3 / 3'));
 
 // 設定頁改得到那個數字
-await seed({ mode: 'settings', settings: { vocabDailyGoal: 20 } });
-const goalChips = page.locator('.field', { hasText: '單字卡每天練幾個字' }).locator('button');
+await seed({ mode: 'settings', settings: { dailyGoals: { vocabulary: 20 } } });
+const goalChips = page.locator('.card', { hasText: '每日目標' })
+  .locator('.field', { hasText: '單字卡' }).locator('button');
 check('設定頁有每日單字數', (await goalChips.count()) === 4);
 await goalChips.nth(2).click();
 await page.waitForTimeout(200);
-check('改得動而且存得起來', (await page.evaluate(() =>
-  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDailyGoal)) === 30,
-  String(await page.evaluate(() =>
-    JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDailyGoal)));
+const savedGoal = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).dailyGoals.vocabulary);
+check('改得動而且存得起來', savedGoal === 30, String(savedGoal));
+check('五個模式都設得到目標',
+  (await page.locator('.card', { hasText: '每日目標' }).locator('.field').count()) === 5);
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【13】單字卡：選擇題');
@@ -541,7 +551,7 @@ const tier1 = await fetch(`${BASE}/api/vocabulary/tier-1.json`).then((r) => r.js
 const meaningOf = (word) => firstSense(tier1.find((c) => c.word === word)?.meaning_zh);
 
 // 固定成「看英文選中文」，這樣測試知道正確答案是哪一個字串
-await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabDailyGoal: 20, vocabQuizTypes: ['en2zh'] } });
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 20 }, vocabQuizTypes: ['en2zh'] } });
 await page.waitForSelector('.quiz__options');
 
 check('出的是選擇題', (await text('.card__meta .chip')).includes('看英文選中文'));
@@ -618,9 +628,9 @@ console.log('\n【14】備份與還原');
 // 只驗「按鈕在」沒有意義 —— 備份唯一重要的是**還原真的救得回來**。
 await seed({
   mode: 'settings',
-  settings: { vocabDailyGoal: 30, vocabDeck: 'tier-2' },
+  settings: { dailyGoals: { vocabulary: 30 }, vocabDeck: 'tier-2' },
   srs: { 'ecdict:1': { box: 5, due: 1, seen: 6, correct: 6 }, 'ecdict:2': { box: 2, due: 1, seen: 2, correct: 1 } },
-  vocabDays: { '2026-09-04': 20, '2026-09-05': 12 },
+  activity: { vocabulary: { '2026-09-04': 20, '2026-09-05': 12 } },
   history: fakeHistory([[0, 88, 0]]),
 });
 await page.waitForSelector('#backup-download');
@@ -641,16 +651,16 @@ const backupJson = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
 // 而搬家是冪等的、每次載入都會跑，所以沒有它也還原得回去。
 const backupKeys = Object.keys(backupJson.data);
 check('備份帶走四種進度資料',
-  ['srs', 'vocabDays', 'history', 'settings'].every((k) => backupKeys.includes(k)),
+  ['srs', 'activity', 'history', 'settings'].every((k) => backupKeys.includes(k)),
   backupKeys.join());
 check('備份沒有夾帶白名單以外的鍵',
-  backupKeys.every((k) => ['srs', 'srsVersion', 'vocabDays', 'history', 'settings'].includes(k)),
+  backupKeys.every((k) => ['srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings'].includes(k)),
   backupKeys.join());
 check('備份裡沒有金鑰', !JSON.stringify(backupJson).includes('AIza'));
 check('下載後畫面說出帶走了什麼', (await viewText()).includes('已下載'));
 
 // 把資料清掉，再用剛剛那個檔案救回來
-await seed({ mode: 'settings', settings: { vocabDailyGoal: 5 } });
+await seed({ mode: 'settings', settings: { dailyGoals: { vocabulary: 5 } } });
 check('清空後真的是空的', (await viewText()).includes('單字卡進度：0 張'));
 
 page.once('dialog', (d) => {
@@ -663,9 +673,9 @@ await page.waitForTimeout(1200);          // 還原之後會重新整理
 check('還原救回複習進度', (await viewText()).includes('單字卡進度：2 張'),
   (await viewText()).match(/單字卡進度：\d+ 張/)?.[0] ?? '找不到那行字');
 check('還原救回偏好設定', (await page.evaluate(() =>
-  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDailyGoal)) === 30);
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).dailyGoals.vocabulary)) === 30);
 check('還原救回每日紀錄', (await page.evaluate(() =>
-  Object.keys(JSON.parse(localStorage.getItem('speaking-coach:vocabDays') ?? '{}')).length)) === 2);
+  Object.keys(JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}').vocabulary ?? {}).length)) === 2);
 await shot(page, 'ui-14-備份');
 
 // 壞掉的檔案要擋下來，而且**不能動到現有資料**
@@ -686,10 +696,90 @@ await page.waitForTimeout(400);
 check('紀錄清單清空', (await page.locator('.history__item').count()) === 0);
 check('趨勢圖收起來', (await page.locator('.trend').count()) === 0);
 check('成績 chip 收起來', (await page.locator('.chip--past').count()) === 0);
-check('今天的進度歸零', (await text('.today__value')).startsWith('0 /'));
+// 清「跟讀紀錄」清的是成績，不是「有沒有回來練」—— 連續天數留著是刻意的，
+// 要清那個得去設定頁按「清除每日紀錄」（下面那一段）
+check('連續天數不會被清成績一起清掉', !(await text('.today__value')).startsWith('0 /'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 24));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【16】JS 錯誤');
+console.log('\n【16】三個模式的每日進度');
+
+// 舊資料只有跟讀紀錄與單字的 vocabDays 時，App 要自己生出計數表 ——
+// 不然改版之後既有使用者的連續天數會歸零
+await seed({ mode: 'listening', history: fakeHistory([[0, 80, 0], [1, 90, 1]]) });
+await page.evaluate(() => {
+  const today = new Date();
+  const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  localStorage.setItem('speaking-coach:vocabDays', JSON.stringify({ [key]: 12 }));
+  localStorage.removeItem('speaking-coach:activity');
+});
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForSelector('.card--today');
+
+const activityOf = () => page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}'));
+const built = await activityOf();
+check('舊的 vocabDays 搬進計數表', Object.values(built.vocabulary ?? {})[0] === 12,
+  JSON.stringify(built.vocabulary));
+check('跟讀紀錄也數成每天幾句', Object.keys(built.shadowing ?? {}).length === 2,
+  JSON.stringify(built.shadowing));
+
+// 聽力：一組答完照題數算
+check('聽力有今天的進度卡', (await text('.card--today')).includes('今天練的題'));
+await page.evaluate(() => {
+  const seen = new Set();
+  document.querySelectorAll('#view .option').forEach((el) => {
+    if (seen.has(el.parentElement)) return;
+    seen.add(el.parentElement);
+    el.click();
+  });
+});
+await page.locator('#view button', { hasText: '對答案' }).click();
+await page.waitForTimeout(300);
+const listened = Object.values((await activityOf()).listening ?? {})[0];
+check('聽力照題數記進今天的份', listened > 0, `${listened} 題`);
+check('聽力的今天進度跟著動', (await text('.card--today')).startsWith(`${listened} /`),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+await shot(page, 'ui-16-聽力進度');
+
+// 中翻英：一題只算一次
+await seed({ mode: 'translation' });
+await page.waitForSelector('.card--today');
+await page.fill('#answer', 'this is my answer');
+await page.locator('#view button', { hasText: '對答案' }).click();
+await page.waitForTimeout(250);
+check('中翻英答一題記一題', (await text('.card--today')).startsWith('1 /'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 16));
+await page.locator('#view button', { hasText: '再試一次' }).click();
+await page.waitForTimeout(150);
+await page.locator('#view button', { hasText: '對答案' }).click();
+await page.waitForTimeout(250);
+check('「再試一次」不會重複計一次', (await text('.card--today')).startsWith('1 /'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 16));
+
+// 情境對話：對方的台詞不算自己的練習量
+await seed({ mode: 'dialogue' });
+await page.waitForSelector('.card--today');
+check('對話有今天的進度卡', (await text('.card--today')).includes('今天說的台詞'));
+const partnerButton = page.locator('#view button', { hasText: '換我說' });
+if (await partnerButton.count()) {
+  await partnerButton.click();
+  await page.waitForTimeout(250);
+}
+check('對方講的那句不算進度', (await text('.card--today')).startsWith('0 /'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 16));
+
+// 清除每日紀錄（連續天數唯一清得掉的地方）
+await seed({ mode: 'settings', activity: { vocabulary: { '2026-09-04': 20, '2026-09-05': 12 } } });
+await page.waitForSelector('.card', { hasText: '學習資料' });
+check('學習資料寫出有幾天的紀錄', (await viewText()).includes('每日紀錄：2 天'));
+page.once('dialog', (d) => d.accept());
+await page.locator('#view button', { hasText: '清除每日紀錄' }).click();
+await page.waitForTimeout(300);
+check('清得掉每日紀錄', (await viewText()).includes('每日紀錄：0 天'));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【17】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

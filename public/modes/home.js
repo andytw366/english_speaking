@@ -1,8 +1,8 @@
 import { h, clear, append } from '../lib/dom.js';
 import { PRACTICE_MODES } from '../lib/modes.js';
-import { dailyState } from '../lib/daily.js';
-import { getSrsState, getActivity, activityDays, activityToday } from '../lib/storage.js';
-import { dayKey, streakFromDays } from '../lib/practice.js';
+import { dailyState, overallToday } from '../lib/daily.js';
+import { getSrsState, getActivity, activityToday } from '../lib/storage.js';
+import { dayKey } from '../lib/practice.js';
 
 export const meta = { id: 'home', label: '今天', icon: '🏠' };
 
@@ -26,6 +26,7 @@ function render() {
 
   const activity = getActivity();
   const today = activityToday(activity, dayKey(new Date()));
+  const overall = overallToday();
   const rows = PRACTICE_MODES.map((mode) => ({ mode, state: dailyState(mode.id) }));
 
   // 有目標的模式裡，全部達標了沒
@@ -41,7 +42,7 @@ function render() {
           h('span', { class: 'today__label' }, '今天練了'),
         ),
         h('div', { class: 'today__block today__block--streak' },
-          h('span', { class: 'today__value' }, String(overallStreak(activity))),
+          h('span', { class: 'today__value' }, String(overall.streak)),
           h('span', { class: 'today__label' }, '連續天數'),
         ),
       ),
@@ -56,20 +57,6 @@ function render() {
 
     reviewCard(),
   );
-}
-
-/**
- * 整體的連續天數：**任何一個模式**有練就算那天有練。
- *
- * 不是各模式取最大值 —— 昨天只練單字、今天只練跟讀，那也是連續兩天沒有斷。
- * 用「最長的那一個模式」會讓換著練的人看起來像沒在練。
- */
-function overallStreak(activity, now = Date.now()) {
-  const days = new Set();
-  for (const mode of PRACTICE_MODES) {
-    for (const day of activityDays(activity, mode.id)) days.add(day);
-  }
-  return streakFromDays(days, now);
 }
 
 function headline(goalCount, doneCount, total) {

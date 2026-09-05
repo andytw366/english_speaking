@@ -2,29 +2,45 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>英語學習練習</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="app">
-      <header class="app__header">
-        <h1>英語學習練習</h1>
-        <p class="app__subtitle" id="subtitle"></p>
-      </header>
+    <!--
+      三個區塊的外殼：左側常駐的模式列（桌機）、中間的練習區、
+      螢幕下方的模式列（手機）。模式模組只認得 #view，不必知道自己被排在哪裡。
+    -->
+    <div class="shell">
+      <aside class="rail">
+        <h1 class="rail__title">英語學習練習</h1>
+        <nav class="tabs" id="nav" aria-label="練習模式"></nav>
+        <div class="rail__today" id="railToday"></div>
+      </aside>
 
-      <nav class="tabs" id="nav" aria-label="練習模式"></nav>
+      <main class="page">
+        <header class="page__head">
+          <div class="page__heading">
+            <h2 class="page__title" id="pageTitle">載入中…</h2>
+            <p class="page__subtitle" id="subtitle"></p>
+          </div>
+          <!-- 沒有側欄的寬度才看得到：設定沒有進下方那一列 -->
+          <button class="page__gear" id="gear" type="button" aria-label="設定">⚙️</button>
+        </header>
 
-      <div id="view"></div>
+        <div id="view"></div>
 
-      <footer class="app__footer">
-        <p class="hint">
-          跟讀模式的錄音需要麥克風權限，且必須從 <code>localhost</code> 開啟（區網 IP
-          不算 secure context，瀏覽器會擋掉麥克風）。學習進度存在瀏覽器的
-          <code>localStorage</code>，換瀏覽器或清除資料就會消失。
-        </p>
-      </footer>
-    </main>
+        <footer class="page__foot">
+          <p class="hint">
+            跟讀模式的錄音需要麥克風權限，且必須從 <code>localhost</code> 開啟（區網 IP
+            不算 secure context，瀏覽器會擋掉麥克風）。學習進度存在瀏覽器的
+            <code>localStorage</code>，換瀏覽器或清除資料就會消失。
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <nav class="dock" id="dock" aria-label="練習模式（螢幕下方）"></nav>
 
     <script type="module" src="app.js"></script>
   </body>

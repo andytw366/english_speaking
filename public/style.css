@@ -178,6 +178,45 @@ body {
   color: var(--text-muted);
 }
 
+/* 快捷鍵提示。只在側欄出現（手機沒有鍵盤，那裡連側欄都不畫） */
+.railkeys {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.railkeys__title {
+  margin: 0 0 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.railkeys__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.railkeys__what {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.kbd {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  padding: 0 0.35rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
 /* ─── 螢幕下方的模式列（<1024px） ──────────────────────────────────────── */
 .dock {
   position: fixed;

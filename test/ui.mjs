@@ -919,7 +919,90 @@ check('沒設目標時不寫成 0 / 0', !(await viewText()).includes('0 / 0'), a
 check('沒設目標時指路到設定', (await viewText()).includes('設定 → 每日目標'));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【18】JS 錯誤');
+console.log('\n【18】鍵盤操作');
+
+// 單字卡的選擇題：數字鍵選答案、Enter 下一題
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'], dailyGoals: { vocabulary: 20 } },
+  srs: { 'ecdict:1': { box: 1, due: Date.now() - 1000, seen: 1 } },
+});
+await page.waitForSelector('.quiz__options');
+await page.keyboard.press('1');
+await page.waitForTimeout(250);
+const firstClass = await page.locator('.quiz__option').first().getAttribute('class');
+check('按 1 選的是第一個選項',
+  firstClass.includes('quiz__option--correct') || firstClass.includes('quiz__option--wrong'), firstClass);
+check('鍵盤作答也算進今天的份', (await text('.card--today')).includes('1 / 20'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 12));
+
+await page.keyboard.press('Enter');
+await page.waitForTimeout(300);
+check('Enter 換下一題', (await text('.counter')).trim() === '2 / 20', (await text('.counter')).trim());
+
+// 翻卡：空白鍵翻開、1 是「還不熟」
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: [], dailyGoals: { vocabulary: 20 } },
+  srs: { 'ecdict:1': { box: 3, due: Date.now() - 1000, seen: 5 } },
+});
+await page.waitForSelector('.vocab__word');
+await page.keyboard.press('Space');
+await page.waitForTimeout(200);
+check('空白鍵翻卡', (await viewText()).includes('剛剛記得嗎'));
+await page.keyboard.press('1');
+await page.waitForTimeout(250);
+check('翻卡按 1 是「還不熟」（回到第 1 盒）',
+  (await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 1);
+
+// 正在打字的時候不接快捷鍵 —— 不擋的話打一個 n 就換題，答案直接消失
+await seed({ mode: 'translation' });
+await page.waitForSelector('#answer');
+const beforeTyping = await text('.trans__zh');
+await page.locator('#answer').click();
+await page.keyboard.type('no news');
+await page.waitForTimeout(200);
+check('打字中的 N 不會換題', (await text('.trans__zh')) === beforeTyping);
+check('打的字留在輸入框裡', (await page.locator('#answer').inputValue()) === 'no news');
+
+// 聽力：數字鍵答的是「還沒作答的第一題」，Enter 對答案
+await seed({ mode: 'listening' });
+await page.waitForSelector('.options');
+const questionCount = await page.locator('.question').count();
+for (let i = 0; i < questionCount; i++) await page.keyboard.press('1');
+await page.waitForTimeout(250);
+check('數字鍵由上往下答', (await page.locator('.option--chosen').count()) === questionCount,
+  `${await page.locator('.option--chosen').count()} / ${questionCount}`);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(300);
+check('Enter 對答案', (await viewText()).includes('答對'));
+
+// 跟讀：N 換一句（空白鍵的錄音沒辦法在無麥克風的環境驗，見 e2e.mjs）
+await seed({ mode: 'shadowing' });
+await page.waitForSelector('#sentence');
+const before = await text('#sentence');
+await page.keyboard.press('n');
+await page.waitForTimeout(300);
+check('跟讀按 N 換一句', (await text('#sentence')) !== before,
+  `${before.slice(0, 20)} → ${(await text('#sentence')).slice(0, 20)}`);
+
+// 首頁：1–5 跳到那個模式
+await seed({ mode: 'home' });
+await page.waitForSelector('.homelist');
+await page.keyboard.press('2');
+await page.waitForTimeout(600);
+check('首頁按 2 跳到聽力', (await text('#pageTitle')).includes('聽力'), await text('#pageTitle'));
+
+// 側欄要講出有哪些鍵可以按 —— 快捷鍵最大的問題是沒人知道有這個東西
+check('側欄有快捷鍵提示', (await page.locator('#railKeys .kbd').count()) > 0);
+check('提示跟著模式換', (await page.textContent('#railKeys')).includes('換一題'),
+  await page.textContent('#railKeys'));
+await seed({ mode: 'settings' });
+check('設定頁沒有快捷鍵就不畫那一區', await page.locator('#railKeys').isHidden());
+await shot(page, 'ui-18-鍵盤');
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【19】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

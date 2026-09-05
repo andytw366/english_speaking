@@ -10,6 +10,7 @@
 
 import { h, append } from '../lib/dom.js';
 import { columns } from '../lib/layout.js';
+import { bindKeys } from '../lib/keys.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
@@ -50,6 +51,7 @@ let setRecords = [];     // 這一組練到第幾句（只存在記憶體：一�
 let lastSetSummary = null;
 let outOfPoolNote = '';
 let root = null;
+let unbindKeys = null;
 
 // ─── 生命週期 ────────────────────────────────────────────────────────────
 
@@ -64,11 +66,34 @@ export async function mount(container) {
   loadHistory();
   nextSentence();
   window.addEventListener('settings-changed', onSettingsChanged);
+  unbindKeys = bindKeys(onKey);
   return cleanup;
+}
+
+/**
+ * 空白鍵開始／停止錄音、`P` 播放範例、`N` 換一句。
+ *
+ * 空白鍵是這裡最有感的一個 —— 錄音是「開始說話前一刻按下、說完馬上按停」，
+ * 中間還要移動滑鼠去點按鈕的話，前後都會多錄到一段空白（而空白會拉低流暢度分數）。
+ *
+ * **錄音中只有空白鍵有事做**：`N` 換一句會讓錄好的音對不上句子，所以跟畫面上
+ * 那顆被停用的按鈕一樣，錄音中直接不接。
+ */
+function onKey(key) {
+  if (!root || !current) return false;
+  const recording = Boolean(recorder?.isRecording);
+
+  if (key === 'space') { toggleRecord(); return true; }
+  if (recording) return false;
+  if (key === 'p') { playDemo(); return true; }
+  if (key === 'n') { nextSentence(); return true; }
+  return false;
 }
 
 function cleanup() {
   window.removeEventListener('settings-changed', onSettingsChanged);
+  unbindKeys?.();
+  unbindKeys = null;
   recorder?.cleanup();
   recorder = null;
   waveform?.stop();
@@ -316,15 +341,16 @@ function setStatus(text, kind = '') {
 
 // ─── 示範發音 ────────────────────────────────────────────────────────────
 
-async function playDemo(e) {
-  const btn = e.currentTarget;   // 非同步 callback 裡 currentTarget 會變 null，先抓下來
-  btn.disabled = true;
+/** @param {Event|null} e 鍵盤按 P 的時候沒有按鈕可以停用，所以可以不給 */
+async function playDemo(e = null) {
+  const btn = e?.currentTarget ?? null;   // 非同步 callback 裡 currentTarget 會變 null，先抓下來
+  if (btn) btn.disabled = true;
   try {
     await speak(current.text);
   } catch (err) {
     setStatus(err.message, 'error');
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
 

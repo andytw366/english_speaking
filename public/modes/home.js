@@ -4,6 +4,7 @@ import { PRACTICE_MODES } from '../lib/modes.js';
 import { dailyState, overallToday } from '../lib/daily.js';
 import { getSrsState, getActivity, activityToday } from '../lib/storage.js';
 import { dayKey } from '../lib/practice.js';
+import { bindKeys, indexOfKey } from '../lib/keys.js';
 
 export const meta = { id: 'home', label: '今天', icon: '🏠' };
 
@@ -18,7 +19,18 @@ export async function mount(container) {
   render();
   // 別的模式練完回到首頁時要看到新的數字。設定改了（例如調高目標）也一樣。
   window.addEventListener('settings-changed', render);
-  return () => { window.removeEventListener('settings-changed', render); root = null; };
+  // 1–5 直接跳到清單上的那個模式（順序就是畫面上的順序）
+  const unbindKeys = bindKeys((key) => {
+    const i = indexOfKey(key, PRACTICE_MODES.length);
+    if (i < 0) return false;
+    goTo(PRACTICE_MODES[i].id);
+    return true;
+  });
+  return () => {
+    window.removeEventListener('settings-changed', render);
+    unbindKeys();
+    root = null;
+  };
 }
 
 function render() {

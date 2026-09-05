@@ -13,6 +13,7 @@ const view = document.getElementById('view');
 const subtitle = document.getElementById('subtitle');
 const pageTitle = document.getElementById('pageTitle');
 const railToday = document.getElementById('railToday');
+const railKeys = document.getElementById('railKeys');
 const gear = document.getElementById('gear');
 
 /** 螢幕下方那一列放得下的模式：設定不放（它在頁首的齒輪）。 */
@@ -35,6 +36,7 @@ async function switchTo(id) {
   renderNav();
   renderToday();
   const meta = modeMeta(id);
+  renderKeys(meta);
   pageTitle.textContent = `${meta.icon} ${meta.label}`.trim();
   subtitle.textContent = meta.subtitle;
   clear(view);
@@ -114,6 +116,31 @@ function renderToday() {
       h('span', { class: 'railstat__value' }, String(streak)),
       h('span', { class: 'railstat__label' }, '連續天數'),
     ),
+  );
+}
+
+/**
+ * 這個模式有哪些快捷鍵。
+ *
+ * 放在側欄的理由：快捷鍵最大的問題不是難按，是**沒人知道有這個東西**。
+ * 放在卡片上會變成每一題都在講同一件事，放在說明頁等於沒放。側欄是常駐的，
+ * 而且只在桌機出現 —— 手機沒有鍵盤，那裡連側欄都不會畫出來。
+ *
+ * 文字來自 `lib/modes.js` 的 `keys`，實作在各模式的 `onKey()`。**兩邊要一起改**。
+ */
+function renderKeys(meta) {
+  if (!railKeys) return;
+  clear(railKeys);
+  const keys = meta.keys ?? [];
+  railKeys.hidden = keys.length === 0;
+  if (keys.length === 0) return;
+
+  append(railKeys,
+    h('p', { class: 'railkeys__title' }, '鍵盤'),
+    keys.map(([key, what]) => h('div', { class: 'railkeys__row' },
+      h('kbd', { class: 'kbd' }, key),
+      h('span', { class: 'railkeys__what' }, what),
+    )),
   );
 }
 

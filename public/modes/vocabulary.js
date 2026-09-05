@@ -8,6 +8,7 @@ import {
 } from '../lib/storage.js';
 import { dailyState as modeDaily, recordPractice, renderDailyCard } from '../lib/daily.js';
 import { pickType, buildQuestion, senses } from '../lib/quiz.js';
+import { bindKeys, indexOfKey } from '../lib/keys.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
@@ -73,7 +74,12 @@ export async function mount(container) {
   await loadDeck(wanted.id);
 
   window.addEventListener('settings-changed', startSession);
-  return () => { window.removeEventListener('settings-changed', startSession); root = null; };
+  const unbindKeys = bindKeys(onKey);
+  return () => {
+    window.removeEventListener('settings-changed', startSession);
+    unbindKeys();
+    root = null;
+  };
 }
 
 const decks = () => catalog?.decks ?? [];
@@ -605,21 +611,66 @@ function stat(label, value, kind) {
   );
 }
 
-async function playWord(card, button) {
-  const original = button.textContent;
-  button.disabled = true;
+/** @param {HTMLElement|null} button 鍵盤按 S 的時候沒有按鈕可以改字，所以可以是 null */
+async function playWord(card, button = null) {
+  const original = button?.textContent;
+  if (button) button.disabled = true;
   try {
     // 先唸單字，再唸例句，中間讓 speak 自己等唸完
     await speak(card.word, { rate: 0.85 });
     if (card.example_en) await speak(card.example_en, { rate: 0.9 });
   } catch (err) {
-    button.textContent = '⚠️ 無法播放';
     console.error('[tts]', err);
-    setTimeout(() => { button.textContent = original; }, 2000);
+    if (button) {
+      button.textContent = '⚠️ 無法播放';
+      setTimeout(() => { button.textContent = original; }, 2000);
+    }
     return;
   } finally {
-    button.disabled = false;
+    if (button) button.disabled = false;
   }
+}
+
+// ─── 鍵盤 ────────────────────────────────────────────────────────────────
+/**
+ * 單字卡的鍵盤操作：`1`–`4` 選答案、Enter／空白鍵下一題、`S` 唸一次。
+ *
+ * 翻卡的 `1` / `2` 是「還不熟 / 記得」，而空白鍵在兩種題型裡都是「往下一步」
+ * —— 選擇題答完是下一題，翻卡沒翻是顯示答案、翻了是「記得」（跟 Anki 一樣）。
+ *
+ * **`S` 在中→英 作答前不能用** —— 唸出來就等於直接給答案，跟畫面上作答前
+ * 不給發音鍵是同一條規則。
+ */
+function onKey(key) {
+  if (picking || !root) return false;
+  const card = queue[index];
+  if (!card || index >= queue.length) return false;
+
+  if (key === 's') {
+    const leaks = question && question.direction === 'zh2en' && !picked;
+    if (leaks) return false;
+    playWord(card);
+    return true;
+  }
+
+  if (question) {
+    if (!picked) {
+      const i = indexOfKey(key, question.options.length);
+      if (i < 0) return false;
+      submitChoice(card, question.options[i]);
+      return true;
+    }
+    if (key === 'enter' || key === 'space') { nextCard(); return true; }
+    return false;
+  }
+
+  if (!revealed) {
+    if (key === 'enter' || key === 'space') { revealed = true; render(); return true; }
+    return false;
+  }
+  if (key === '1') { answer(card, false); return true; }
+  if (key === '2' || key === 'enter' || key === 'space') { answer(card, true); return true; }
+  return false;
 }
 
 /** 翻卡的作答：使用者自己判斷記不記得。 */

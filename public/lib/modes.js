@@ -14,6 +14,7 @@ export const MODES = [
     icon: '🏠',
     subtitle: '今天練了多少、還差多少，以及有幾個字該複習了。',
     // 沒有 unit：首頁自己不累積進度，它只是把別的模式的進度放在一起
+    keys: [['1–5', '跳到那個模式']],
   },
   {
     id: 'vocabulary',
@@ -23,6 +24,7 @@ export const MODES = [
     // 每日進度的單位。有 unit 的模式才算進「今天練了什麼」
     unit: '個字',
     todayLabel: '今天練的字',
+    keys: [['1–4', '選答案'], ['Enter', '下一題'], ['空白', '翻卡・下一步'], ['S', '唸一次']],
   },
   {
     id: 'listening',
@@ -31,6 +33,7 @@ export const MODES = [
     subtitle: '先聽，再作答。聽不出來可以看原文。',
     unit: '題',
     todayLabel: '今天練的題',
+    keys: [['P', '播放'], ['1–4', '作答'], ['Enter', '對答案・下一題'], ['N', '換一題']],
   },
   {
     id: 'translation',
@@ -39,6 +42,7 @@ export const MODES = [
     subtitle: '看中文寫英文 —— 填空練用字，整句練組織。',
     unit: '題',
     todayLabel: '今天練的題',
+    keys: [['⌘/Ctrl+Enter', '對答案'], ['Enter', '下一題']],
   },
   {
     id: 'dialogue',
@@ -47,6 +51,7 @@ export const MODES = [
     subtitle: '角色扮演 —— 對方由語音扮演，你依中文意圖說出自己的台詞。',
     unit: '句',
     todayLabel: '今天說的台詞',
+    keys: [['⌘/Ctrl+Enter', '對答案'], ['Enter', '繼續'], ['P', '再聽一次']],
   },
   {
     id: 'shadowing',
@@ -55,6 +60,7 @@ export const MODES = [
     subtitle: '聽示範發音，錄下自己的版本，比對差在哪。',
     unit: '句',
     todayLabel: '今天練的句子',
+    keys: [['空白', '開始・停止錄音'], ['P', '播放範例'], ['N', '換一句']],
   },
   {
     id: 'settings',
@@ -63,6 +69,10 @@ export const MODES = [
     subtitle: '金鑰、每日目標、練習範圍、語音與學習資料。',
   },
 ];
+
+// `keys` 是給左側模式列的快捷鍵提示用的（手機沒有鍵盤，所以只在桌機出現）。
+// 快捷鍵本身在各模式自己的 onKey()，這裡只是**說明** —— 兩邊不同步的症狀是
+// 「畫面上寫的鍵按了沒反應」，改快捷鍵的時候記得回來改這一行。
 
 /** 會累積每日進度的模式（設定頁不算）。順序就是畫面上的順序。 */
 export const PRACTICE_MODES = MODES.filter((m) => m.unit);

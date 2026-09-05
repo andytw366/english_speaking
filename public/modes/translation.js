@@ -5,6 +5,7 @@ import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
+import { bindKeys } from '../lib/keys.js';
 
 export const meta = { id: 'translation', label: '中翻英', icon: '✍️' };
 
@@ -25,7 +26,14 @@ export async function mount(container) {
   all = await res.json();
   applyFilter();
   next();
-  return () => { root = null; };
+  // 作答中的 Enter 由輸入框自己的 onEnter 處理（整句翻譯要能換行，所以是 ⌘+Enter）；
+  // 這裡接的是**對完答案之後**的 Enter —— 那時輸入框是 disabled 的，焦點不在裡面
+  const unbindKeys = bindKeys((key) => {
+    if (!checked) return false;
+    if (key === 'enter' || key === 'space') { next(); return true; }
+    return false;
+  });
+  return () => { unbindKeys(); root = null; };
 }
 
 function applyFilter() {

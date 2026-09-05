@@ -1447,6 +1447,60 @@ body {
 
 .quiz__option--dim { opacity: 0.45; }
 
+/* 答完之後的「其他選項」：另外三個字各自的音標、詞性、簡短釋義與一顆發音鍵。
+   一題看四個字，只有答案那個留得下東西太可惜。發音鍵只在這裡出現 ——
+   作答前給等於直接洩題。 */
+.quiz__others {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.quiz__others-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quiz__other {
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+}
+
+.quiz__other + .quiz__other { margin-top: 0.2rem; }
+
+/* 自己選錯的那個獨立標出來：下面這三個字裡，有一個是剛剛按下去的 */
+.quiz__other--picked { background: var(--danger-bg); }
+
+.quiz__other-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.quiz__other-word { font-weight: 600; }
+
+.quiz__other-ipa {
+  font-family: var(--font-ipa);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quiz__other-pos {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* 發音鍵推到最右邊，三顆對齊比較好按 */
+.quiz__other-speak { margin-left: auto; }
+
+.quiz__other-meaning {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    首頁：每個模式一列
    ═══════════════════════════════════════════════════════════════════════ */

@@ -566,7 +566,10 @@ const options1 = await page.locator('.quiz__option').allTextContents();
 check('正確答案在選項裡', options1.map((o) => o.trim()).includes(answer1), options1.join(' / '));
 check('選項沒有重複', new Set(options1.map((o) => o.trim())).size === 4, options1.join(' / '));
 
-await page.locator('.quiz__option', { hasText: options1.map((o) => o.trim()).find((o) => o !== answer1) }).first().click();
+check('作答前不先講其他選項是什麼字（會洩題）', (await page.locator('.quiz__other').count()) === 0);
+
+const wrongPick = options1.map((o) => o.trim()).find((o) => o !== answer1);
+await page.locator('.quiz__option', { hasText: wrongPick }).first().click();
 await page.waitForTimeout(250);
 check('答錯時說出正確答案', (await text('.card__title')).includes(`正確答案是「${answer1}」`),
   await text('.card__title'));
@@ -574,6 +577,25 @@ check('答錯時同時標出正確答案與自己選的',
   (await page.locator('.quiz__option--correct').count()) === 1 &&
   (await page.locator('.quiz__option--wrong').count()) === 1);
 check('答完之後不能再改答案', await page.locator('.quiz__option').first().isDisabled());
+
+// 答完之後另外三個選項也講清楚是哪個字、什麼意思，順便可以聽
+check('答完之後列出另外三個選項', (await page.locator('.quiz__other').count()) === 3,
+  `${await page.locator('.quiz__other').count()} 個`);
+const otherWords = (await page.locator('.quiz__other-word').allTextContents()).map((w) => w.trim());
+check('其他選項列的是英文字（英→中 的選項本身是中文）',
+  otherWords.every((w) => /^[a-zA-Z' -]+$/.test(w)), otherWords.join(' / '));
+check('正確答案不重複列一次', !otherWords.includes(prompt1), otherWords.join(' / '));
+check('其他選項都有音標', (await page.locator('.quiz__other-ipa').count()) === 3);
+check('其他選項都有中文意思',
+  (await page.locator('.quiz__other-meaning').allTextContents()).every((m) => /[\u4e00-\u9fff]/.test(m)),
+  (await page.locator('.quiz__other-meaning').allTextContents()).join(' / '));
+check('標出自己選錯的是哪一個', (await page.locator('.quiz__other--picked').count()) === 1);
+check('標出來的那一列就是剛剛按下去的選項',
+  (await text('.quiz__other--picked .quiz__other-meaning')).startsWith(wrongPick),
+  `${await text('.quiz__other--picked .quiz__other-meaning')} vs ${wrongPick}`);
+if (await page.evaluate(() => 'speechSynthesis' in window)) {
+  check('每個選項配一顆發音鍵', (await page.locator('.quiz__other-speak').count()) === 3);
+}
 check('答錯的卡回到第 1 盒', (await page.evaluate(() =>
   Object.values(JSON.parse(localStorage.getItem('speaking-coach:srs')))[0].box)) === 1);
 await shot(page, 'ui-13-選擇題');
@@ -602,6 +624,15 @@ check('中→英：選項是英文', (await page.locator('.quiz__option').allTex
   (await page.locator('.quiz__option').allTextContents()).join(' / '));
 check('中→英：作答前沒有發音鍵（會洩題）',
   !(await viewText()).includes('唸這個字') || (await viewText()).indexOf('唸這個字') > (await viewText()).indexOf('下一題'));
+
+// 中→英 答完之後，另外三個英文選項也給意思
+await page.locator('.quiz__option').first().click();
+await page.waitForTimeout(250);
+check('中→英：答完也列出其他選項的意思',
+  (await page.locator('.quiz__other').count()) === 3 &&
+  (await page.locator('.quiz__other-meaning').allTextContents()).every((m) => /[\u4e00-\u9fff]/.test(m)),
+  (await page.locator('.quiz__other-meaning').allTextContents()).join(' / '));
+await shot(page, 'ui-13-其他選項');
 
 // 一種都沒勾就退回翻卡，不是整個不能用
 await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] } });

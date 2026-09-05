@@ -237,6 +237,7 @@ function render() {
             picked.correct
               ? '這張卡進到下一個盒子，間隔會拉長。'
               : '答錯的卡會回到第 1 盒，明天再出現。'),
+          otherOptions(question),
         ),
       );
     }
@@ -291,6 +292,45 @@ function questionCard(card, q) {
         disabled: Boolean(picked),
         onclick: () => submitChoice(card, option),
       }, option.text))),
+  );
+}
+
+/**
+ * 答完之後，另外三個選項是什麼字。
+ *
+ * **為什麼要有這一段**：一題看四個選項，但原本只有答案那個字留得下東西 ——
+ * 另外三個字瞄過就消失了，而它們同樣是這一級的字、遲早會自己輪到。順手把
+ * 字、音標、詞性、簡短釋義跟一顆發音鍵放出來，一題就從「複習一個字」變成
+ * 「認識四個字」。
+ *
+ * 兩個刻意的決定：
+ *   - **只列干擾項**，正確答案不重複列 —— 它的完整釋義、例句就在上面那張背面
+ *   - **這裡才給發音鍵**。作答前給等於洩題（中→英 的選項就是答案本身），
+ *     答完之後沒有這個問題
+ */
+function otherOptions(q) {
+  const others = q.options.filter((o) => !o.correct);
+  if (others.length === 0) return null;
+
+  return h('div', { class: 'quiz__others' },
+    h('p', { class: 'quiz__others-title' }, '其他選項'),
+    others.map((option) => h('div', {
+      class: 'quiz__other' + (option.id === picked?.id ? ' quiz__other--picked' : ''),
+    },
+      h('div', { class: 'quiz__other-head' },
+        h('span', { class: 'quiz__other-word' }, option.word),
+        option.ipa && h('span', { class: 'quiz__other-ipa' }, option.ipa),
+        option.pos && h('span', { class: 'quiz__other-pos' }, option.pos),
+        option.id === picked?.id && h('span', { class: 'chip chip--muted' }, '你選的'),
+        // 只放一個 🔊 而不是「🔊 唸這個字」：一頁有三顆，寫成整句話會比選項本身還吵
+        ttsSupported() && h('button', {
+          class: 'btn btn--ghost btn--small quiz__other-speak',
+          title: `唸「${option.word}」`,
+          onclick: (e) => playWord({ word: option.word }, e.currentTarget),
+        }, '🔊'),
+      ),
+      h('p', { class: 'quiz__other-meaning' }, option.meaning),
+    )),
   );
 }
 

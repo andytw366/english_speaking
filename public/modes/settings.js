@@ -313,24 +313,49 @@ function narrationField(s) {
   const on = s.geminiNarration !== false;
   const azure = health?.azureConfigured === true;
 
+  // 講評走哪一條路是**伺服器的 .env** 決定的（NARRATION_PROVIDER），不是這裡。
+  // 顯示它的唯一理由：改了 .env 卻沒生效時，「畫面上寫的跟實際跑的一樣」
+  // 是使用者自己查得出問題的唯一方式 —— 不然只會覺得「換了還是一樣慢」。
+  const narration = health?.narration ?? null;
+
   return h('div', { class: 'field' },
     h('span', { class: 'field__label' }, '跟讀的中文講評'),
     h('div', { class: 'chips' },
-      [[true, '要（Gemini，慢幾秒）'], [false, '不要（本地摘要，快）']].map(([value, label]) =>
+      [[true, '要（AI 講評）'], [false, '不要（本地摘要，最快）']].map(([value, label]) =>
         toggleChip(label, on === value, () => {
           updateSettings({ geminiNarration: value });
           render();
         }))),
     h('p', { class: 'hint' },
       on
-        ? '送出錄音後會多等 Gemini 幾秒，換來「th 要把舌尖輕觸上齒」這種具體建議。'
+        ? '送出錄音後要多等講評那一段，換來「th 要把舌尖輕觸上齒」這種具體建議。'
         : '送出後直接看分數，講評改用本地摘要（照樣會指出最弱的面向與唸不好的字）。'),
+    on && narration && narrationStatus(narration),
     !azure && h('p', { class: 'hint' },
       health
         ? '⚠️ 目前沒有設定 Azure，跟讀的分數本身就是 Gemini 給的 —— ' +
           '這個開關要等設定了 Azure 金鑰才省得到時間。'
         : '（讀不到伺服器狀態，無法判斷目前的評分來源。）'),
   );
+}
+
+/** 講評實際會走哪一條路。這幾行不能改成 App 的設定 —— 它讀的是伺服器狀態。 */
+function narrationStatus(narration) {
+  if (narration.id === 'local') {
+    return h('p', { class: 'hint' },
+      '目前伺服器設定成只用本地摘要（NARRATION_PROVIDER=local），不會呼叫任何模型。');
+  }
+  if (!narration.ready) {
+    return h('p', { class: 'hint hint--warn' },
+      `⚠️ 講評設定成走 ${narration.label}，但${narration.problem} —— ` +
+      '現在會退回本地摘要。請到伺服器的 .env 補上再重啟。');
+  }
+  if (narration.id === 'openai') {
+    return h('p', { class: 'hint' },
+      `講評由 ${narration.label} 的 ${narration.model} 產生` +
+      '（伺服器 .env 的 NARRATION_* 決定，這裡不能改）。');
+  }
+  return null;
 }
 
 function toggleChip(label, active, onclick) {

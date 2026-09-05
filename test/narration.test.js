@@ -61,9 +61,10 @@ test('每一種缺席原因給不一樣的說明', () => {
   // 「你自己關掉的」要講怎麼開回來，不能讓人以為壞了
   assert.match(disabled, /已關閉/);
   assert.match(disabled, /設定/);
-  assert.doesNotMatch(disabled, /GEMINI_API_KEY/);
+  assert.doesNotMatch(disabled, /伺服器設定好/);
 
-  assert.match(noKey, /GEMINI_API_KEY/);
+  // 「還沒設定」要指向伺服器端的設定，而不是叫使用者去點設定頁的開關
+  assert.match(noKey, /伺服器設定好/);
 
   assert.match(failed, /沒有回來/);
   assert.match(failed, /分數不受影響/);
@@ -75,6 +76,15 @@ test('每一種缺席原因給不一樣的說明', () => {
 test('沒指定原因時退回「沒設金鑰」的說法', () => {
   assert.equal(localSummary(ASSESSMENT), localSummary(ASSESSMENT, { reason: 'no_key' }));
   assert.equal(localSummary(ASSESSMENT, { reason: '亂寫' }), localSummary(ASSESSMENT));
+});
+
+test('缺席說明不寫死廠商名', () => {
+  // 講評走哪一條路由 NARRATION_PROVIDER 決定，可以是 Gemini、也可以是任何
+  // OpenAI 相容端點。寫死的話，換過去之後訊息會叫使用者去看一個沒在用的服務
+  for (const reason of ['disabled', 'no_key', 'failed']) {
+    const text = localSummary(ASSESSMENT, { reason });
+    assert.doesNotMatch(text, /Gemini|GEMINI_API_KEY|Hugging Face|Groq/i, `${reason} 寫死了廠商名`);
+  }
 });
 
 test('都唸得好的時候講的是好消息，不是一片空白', () => {

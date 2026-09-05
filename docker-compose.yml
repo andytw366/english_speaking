@@ -19,6 +19,13 @@ services:
       # Gemini：把分數講成中文的教練建議。沒設會退回本地摘要，Azure 的分數還看得到。
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-}
+      # 講評改走別的模型（Hugging Face 的 Inference Providers、Groq、自己的 Ollama…）。
+      # 留空就是用 Gemini。四個要一起設，缺一個會退回本地摘要 ——
+      # 設定頁的「跟讀的中文講評」會直接寫出缺哪一個。
+      NARRATION_PROVIDER: ${NARRATION_PROVIDER:-}
+      NARRATION_BASE_URL: ${NARRATION_BASE_URL:-}
+      NARRATION_API_KEY: ${NARRATION_API_KEY:-}
+      NARRATION_MODEL: ${NARRATION_MODEL:-}
     # 刻意不用 ports：App 不對外開埠，只有 Caddy 連得到它。
     # 直接開 3000 的話，那條路是 http，麥克風照樣不能用，只會讓人以為壞了。
     expose:

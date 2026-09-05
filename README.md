@@ -106,9 +106,9 @@ Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖�
 被排除的：Pro 系列（免費層直接 429）、`gemini-2.5-flash`（`output_text` 不是 JSON）、
 `gemini-2.5-flash-lite`（404「no longer available to new users」）。
 
-### 覺得慢？中文講評可以整段關掉
+### 覺得慢？兩條路：換一個更快的講評模型，或整段關掉
 
-跟讀送出一次錄音要等兩段：**Azure 給分數**（快）、**Gemini 把分數寫成中文建議**
+跟讀送出一次錄音要等兩段：**Azure 給分數**（快）、**把分數寫成中文建議**
 （慢，看 model 幾秒到十幾秒）。想連著練十句的時候，後面那段就是純粹的等待 ——
 而分數、四個面向、逐字逐音素的標色在沒有講評的情況下已經全都看得到了。
 
@@ -135,6 +135,82 @@ Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖�
 > **沒設定 Azure 的話這個開關省不到時間** —— 那條路上分數本身就是 Gemini 給的。
 > 設定頁會直接把這件事寫在開關下面（它讀 `/api/health` 的 `azureConfigured`），
 > 講評畫面也會標 `narrationReason: "gemini_scores"`。
+
+### 換一個更快的講評模型
+
+關掉講評是「不要那段內容了」。如果內容你還是想要、只是不想等，就換一個快的模型。
+
+**為什麼換得動**：講評這一段做的事其實很小 —— 吃一小段 JSON（幾個分數與幾個字），
+吐四行中文。不碰音訊、不需要多模態。這種工作幾乎所有推論服務都做得很快，
+而它們幾乎都提供 **OpenAI 相容的 `/chat/completions`**。所以這裡不綁任何一家：
+
+```bash
+# .env
+NARRATION_PROVIDER=openai
+NARRATION_BASE_URL=https://router.huggingface.co/v1
+NARRATION_API_KEY=hf_xxxxxxxxxxxx
+NARRATION_MODEL=<到供應商的 model 列表複製一個>
+```
+
+四個一起設才會生效。缺一個會退回本地摘要，而且**設定頁會直接寫出缺哪一個** ——
+「改了 .env 卻沒生效」是這種設定最常見的狀況，而症狀（講評沒出現）跟
+「模型壞了」長得一模一樣。
+
+| `NARRATION_PROVIDER` | 講評走哪裡 |
+|---|---|
+| 不填 | 自動：有 `GEMINI_API_KEY` 就用 Gemini，否則看 `NARRATION_*` 齊了沒 |
+| `gemini` | Gemini（原本的行為） |
+| `openai` | `NARRATION_BASE_URL` 指到的任何 OpenAI 相容端點 |
+| `local` | 完全不呼叫模型，一律本地摘要 |
+
+> ⚠️ **Hugging Face 有兩種端點，選錯會比 Gemini 還慢。**
+> 要用 `router.huggingface.co/v1`（Inference Providers，它把請求轉給
+> Groq／Cerebras／Together 這些供應商，沒有冷啟動）。
+> **不要用 `api-inference.huggingface.co`**（舊的 serverless）—— 模型沒被載入時
+> 會冷啟動，實測要 20 秒以上，換過去等於白換。它回的 503 在伺服器 log 裡
+> 會附上這句提醒。
+
+其他相容端點的 base URL 形狀：Groq 是 `https://api.groq.com/openai/v1`、
+本機的 Ollama 是 `http://localhost:11434/v1`（金鑰欄位隨便填一個非空字串）。
+**model 的 id 請到供應商自己的列表複製**，不要照抄任何文件裡的範例 —— 那些會過期。
+
+幾個刻意的設計決定：
+
+- **prompt 只有一份**（`server/narration.js` 的 `buildNarrationPrompt()`），
+  兩條路共用。各寫一份的話，換過去覺得變好或變差，你分不出是模型的差別
+  還是 prompt 的差別。
+- **不要求 JSON。** Gemini 那條路用 structured output 是因為它同時要回
+  transcript 與分數；講評只有四行字，JSON 除了多一種「回來的不是合法 JSON」
+  的失敗方式之外沒有好處，而且不是每個供應商都支援 JSON mode。
+  回來的純文字交給 `cleanNarration()` 處理 —— 開場白（「好的，以下是講評：」）、
+  ` ```markdown ` 圍欄、`- ` 開頭都會被整理掉。
+- **失敗不自動改打 Gemini。** 那會讓「我明明換成快的了，怎麼還是要等十幾秒」
+  變成無解的問題。設定的那條路失敗就退回本地摘要，畫面上看得出來。
+- **model 不放進設定頁的選單。** 那個選單是 Gemini 專屬的、是使用者每次練習
+  可以挑的東西；`NARRATION_MODEL` 是「這台伺服器接到哪個服務」，屬於部署設定。
+
+**這條路在開發容器裡驗不到真的呼叫**（egress 擋掉 `huggingface.co`、
+`api.groq.com`、`api.openai.com`，跟 Azure 一樣的處境）。已驗過的是：
+請求的形狀、回應的解析、超時、各種錯誤碼（`test/narrator.test.js`，21 條），
+以及**把整條路真的跑一次** —— 用 loader 把 Azure 換成假的、`NARRATION_BASE_URL`
+指到 loopback 上一個假的 OpenAI 端點，走真的 fetch、真的 HTTP：
+
+```bash
+# 假端點（另一個終端機）
+node -e "require('http').createServer((q,s)=>{q.resume();q.on('end',()=>{
+  s.writeHead(200,{'content-type':'application/json'});
+  s.end(JSON.stringify({choices:[{message:{content:'• 測試講評'}}]}));})}).listen(3999)"
+
+NARRATION_PROVIDER=openai NARRATION_BASE_URL=http://127.0.0.1:3999/v1 \
+NARRATION_API_KEY=x NARRATION_MODEL=test npm start
+
+curl -s -X POST http://127.0.0.1:3000/api/pronunciation-feedback \
+  -F "audio=@test/fixtures/speech-16k.wav;type=audio/wav" \
+  -F "sentence=I think this is thoroughly wrong."
+```
+
+回應裡的 `narrationSource`、`narrationLabel` 與 `narrationMs` 就是換模型之後
+唯一能比較快慢的地方 —— 畫面上也會寫「講評由 X 產生，等了 N 秒」。
 
 ### `.env` 的位置
 
@@ -908,6 +984,8 @@ english_speaking/
 ├── server/
 │   ├── index.js               # Express：靜態檔、內容端點、發音評估、設定
 │   ├── azure-pronunciation.js # Azure Speech 發音評估（逐字、逐音素）
+│   ├── narrator.js            # 講評走哪一條路（**選擇邏輯只有這一份**）
+│   ├── openai-narrator.js     # 講評的第二條路：任何 OpenAI 相容的 /chat/completions
 │   ├── gemini.js              # Gemini：講評 + 沒有 Azure 時的主觀評分、model 白名單
 │   ├── audio.js               # WAV 能量分析，判斷有沒有人聲
 │   ├── narration.js           # 講評開關 + 沒用 Gemini 時的本地摘要（純函式）
@@ -1149,7 +1227,7 @@ curl "https://www.duckdns.org/update?domains=my-speaking&token=<你的token>&ip=
 `test/e2e.mjs` 不掛進 CI —— 它有一部分要金鑰、會吃配額，掛上去等於每次 push
 都在燒配額，額度用完那天 CI 會紅得莫名其妙。
 
-### 單元測試（237 項，不需要網路與金鑰）
+### 單元測試（259 項，不需要網路與金鑰）
 
 ```bash
 npm test
@@ -1163,6 +1241,7 @@ npm test
 | `text-diff.test.js` | 目標句與聽到的內容逐字比對。特別測「漏唸中間一個字時只有那個字被標紅」（逐字對位的寫法會讓後面全部偏移、整句標紅） |
 | `phonetics.test.js` | 自動標音。特別測「只有 w 沒有 v 的句子不可以標成 `v_w`」，因為那正是人工標的時候犯過的錯 |
 | `gemini.test.js` | Gemini 回應的整理與防禦。structured output 有 schema，但 schema 是「請模型照這個格式」，不是「保證一定是這個格式」 |
+| `narrator.test.js` | 講評走哪一條路，以及 OpenAI 相容端點。**真正的呼叫在開發容器裡跑不到**（egress 擋掉 HF／Groq／OpenAI），所以用假的 fetch 把能驗的全部驗過：請求形狀（URL、Bearer、model、單一 user 訊息、不串流、不要求 JSON）、回應整理（開場白與 markdown 圍欄要丟掉、只有符號的行不算一行）、每一種失敗都回 `null` 而不是丟例外（分數還是要回給使用者）、超時用 `AbortController` 而不是 `Promise.race`。另外釘住「設定不完整時要講得出缺哪一個」—— 三個變數少一個的症狀都是「講評沒出現」 |
 | `narration.test.js` | 中文講評的開關與本地摘要。釘住「什麼樣的值算關掉」（沒送等於要，舊前端不受影響）與「四種缺席原因各講各的話」—— 把「你自己關掉的」跟「這次沒回來」寫成同一句，使用者會以為壞了 |
 | `backup.test.js` | 備份檔。重點全部在**還原**那一側：匯出寫壞了頂多是檔案沒用，匯入寫壞了是把現有進度覆蓋成半殘的資料、而且沒有第二次機會。所以每一種壞檔案（非 JSON、別的 App、版本太新、`data` 被截斷、空檔案、手改塞進別的鍵）都有一條測試擋著 |
 | `quiz.test.js` | 單字選擇題的出題。核心只有一條：**一題只能有一個正確答案** —— 干擾項跟答案同義的話，使用者選了「也對」的選項卻被判錯，比不做選擇題還糟。所以除了規則本身，還會拿真的字庫掃六個分級各 40 個字 × 兩個方向，逐一比對義項。另外釘住：選項文字不重複、湊不到干擾項要回 `null`（呼叫端退回翻卡）、壞掉的亂數不會卡住或少一個選項、**每個選項都帶著自己那個字的字／音標／詞性／截短過的釋義**（答完之後那一段要用，少一個欄位就是整片空白） |

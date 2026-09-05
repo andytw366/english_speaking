@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
+import { buildNarrationPrompt } from './narration.js';
+
 // §2.1：SDK 已改成 Interactions API，音訊 part 的欄位是 snake_case 的 mime_type。
 // 這裡的形狀有對照 node_modules/@google/genai 的型別定義確認過：
 //   - 音訊 part：{ type: "audio", data, mime_type }
@@ -507,6 +509,10 @@ const NARRATION_SCHEMA = {
 
 /**
  * 把 Azure 的評估結果轉成繁體中文講評。
+ *
+ * prompt 來自 `narration.js`，跟 OpenAI 相容那條路**共用同一份** ——
+ * 兩邊各寫一份的話，換過去覺得變好或變差，你分不出是模型的差別還是 prompt 的差別。
+ *
  * @param {object} assessment assessPronunciation() 的回傳值
  */
 export async function narrateAssessment(assessment, { model } = {}) {
@@ -516,40 +522,7 @@ export async function narrateAssessment(assessment, { model } = {}) {
     return null;
   }
 
-  const problems = (assessment.words ?? [])
-    .filter((w) => w.errorType !== 'None' || (w.accuracy ?? 100) < 80)
-    .map((w) => {
-      const phonemes = (w.phonemes ?? [])
-        .filter((p) => (p.accuracy ?? 100) < 70)
-        .map((p) => `${p.phoneme}(${p.accuracy})`)
-        .join(' ');
-      return `- ${w.word}：準確度 ${w.accuracy}，狀況 ${w.errorType}` +
-        (phonemes ? `，較弱的音素 ${phonemes}` : '');
-    })
-    .join('\n');
-
-  const s = assessment.scores ?? {};
-  const prompt = `你是一位英語發音教練。以下是語音評估系統對一段錄音的客觀分析結果。
-
-目標句：「${assessment.referenceText}」
-系統聽到：「${assessment.recognizedText}」
-
-整體分數（滿分 100）：
-- 發音總分 ${s.pronunciation}
-- 準確度 ${s.accuracy}
-- 流暢度 ${s.fluency}
-- 完整度 ${s.completeness}
-- 語調／重音 ${s.prosody}
-
-需要注意的字：
-${problems || '（沒有明顯問題的字）'}
-
-請用繁體中文寫出簡短的條列講評，最多 4 行，每行以「• 」開頭：
-1. 針對上面分數最低的面向，說明那代表什麼、要怎麼改善
-2. 針對需要注意的字，用具體的口腔動作描述怎麼發音（例如「th 要把舌尖輕觸上齒」）
-3. 最後一行給一句鼓勵
-
-不要重複列出分數數字，使用者已經看到了。直接講怎麼改善。`;
+  const prompt = buildNarrationPrompt(assessment);
 
   try {
     const interaction = await withTimeout(

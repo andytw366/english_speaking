@@ -32,7 +32,7 @@
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
 | ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料 | 完成 |
 
-驗證狀態：`npm test` 237 項全過、`npm run test:ui` 208 項全過、
+驗證狀態：`npm test` 259 項全過、`npm run test:ui` 208 項全過、
 `npm run test:layout` 是尺不是測試（見 README「版面盤點」）、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
@@ -62,7 +62,23 @@ README「覺得慢？中文講評可以整段關掉」。
 而選擇題可以把「義項不重疊」變成出題規則，順便讓間隔重複的訊號變客觀
 （不再是使用者自己按「記得」）。
 
-最新的一件：**中翻英題庫從 279 題擴到 2,159 題**（分支
+最新的一件：**講評可以換成任何 OpenAI 相容的模型**（同一個分支）。
+理由是設定好 Azure 之後唯一有感的等待就是那一段，而它做的事很小
+（吃一小段 JSON、吐四行中文），換個快的模型就會快很多。設計寫在 README
+「換一個更快的講評模型」。
+
+三個接手時要知道的位置：`server/narrator.js`（**選擇邏輯只有這一份** ——
+`/api/health`、真的要呼叫、啟動訊息三個地方都問它，各判斷一次一定會有一天
+對不起來）、`server/openai-narrator.js`（真正的 HTTP）、
+`server/narration.js` 的 `buildNarrationPrompt()` 與 `cleanNarration()`
+（prompt 兩條路共用，回來的純文字在這裡整理）。
+
+**這條路跟 Azure 一樣，在容器裡驗不到真的呼叫**（egress 擋掉 HF／Groq／OpenAI）。
+但整條路有真的跑過一次：用 loader 把 Azure 換成假的、`NARRATION_BASE_URL`
+指到 loopback 上一個假的 OpenAI 端點 —— 走的是真的 fetch、真的 HTTP。
+指令在 README 那一節。這招也抓到一個只有跑起來才看得到的 bug（見下面的雷）。
+
+再前一件：**中翻英題庫從 279 題擴到 2,159 題**（分支
 `claude/expand-question-bank-model-swap-84rc5q`）。用的是**同一批** Tatoeba 語料 ——
 跟讀句庫只吃英文那一半，中文那一半在中翻英才派上用場，所以這件事離線就做得完、
 不用金鑰。設計寫在 README「中翻英題目：同一批語料的另一半」。
@@ -436,6 +452,21 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   `content/vocabulary/`，重跑一次就刪掉它；而且腳本寫的欄位叫 `bands`、
   App 讀的是 `decks`（committed 的 index.json 是後來手改的）。兩個都修了，
   `vocabulary.test.js` 各有一條釘住。**改建置腳本時記得它的輸出要餵得動 App。**
+- **`server/index.js` 裡有一個叫 `narrate` 的區域變數**（「使用者要不要講評」的布林值）。
+  從 `narrator.js` import 進來的函式如果也叫 `narrate`，handler 裡的 `const`
+  會把它遮掉，而錯誤是執行期的 `narrate is not a function` —— 單元測試抓不到
+  （測不進 index.js），只有真的送一次錄音才會出現。所以那個 import 改名成
+  `generateNarration`。**真的踩過**，就是在 loopback 假端點那次跑出來的。
+- **講評的訊息不可以寫死廠商名。** 講評走哪一條路由 `NARRATION_PROVIDER` 決定，
+  可以是 Gemini、也可以是任何 OpenAI 相容端點。寫死的話換過去之後，
+  訊息會叫使用者去看一個根本沒在用的服務（「請設定 GEMINI_API_KEY」）。
+  `narration.test.js` 有一條掃過三種缺席說明擋這件事。實際要顯示的名字由
+  回應的 `narrationLabel` 帶上來，前端不自己猜（它看不到 `.env`）。
+- **`cleanNarration()` 先拿掉符號、確認有字，才補上「• 」。** 順序反過來的話，
+  只有一個符號的那一行會變成一個空的「• 」留在畫面上。測試抓到過。
+- **超時要用 `AbortController`，不要用 `Promise.race`。** race 輸掉的那個請求
+  還是掛在背景跑完才放掉連線，連續超時幾次就會累積一堆沒人要的請求。
+  （Gemini 那條路還是 `Promise.race`，因為它走的是 SDK 不是 fetch。）
 - **`server/gemini.js` 的 model 是白名單 + 陣列，不是單一常數。** 整合時
   `narrateAssessment()` 裡還留著舊的 `MODEL` 常數 —— 一設定 Azure 就會 ReferenceError，
   而那條路在容器裡測不到。動 model 相關的東西時把兩條路徑都掃過。
@@ -497,6 +528,8 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 | 可連 | 不可連 |
 |---|---|
 | `generativelanguage.googleapis.com` | `*.stt.speech.microsoft.com` |
+| （其餘見下） | `huggingface.co` / `router.huggingface.co` |
+| | `api.groq.com` / `api.openai.com` |
 | `github.com` / `raw.githubusercontent.com` | `*.api.cognitive.microsoft.com` |
 | `registry.npmjs.org` | `learn.microsoft.com` / `azure.microsoft.com` |
 | `login.microsoftonline.com` | `example.com` |

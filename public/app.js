@@ -156,6 +156,24 @@ window.addEventListener('switch-mode', (e) => {
 window.addEventListener('practice-recorded', renderToday);
 window.addEventListener('settings-changed', renderToday);
 
+/**
+ * 註冊 service worker：加到主畫面、以及沒有網路也打得開。
+ *
+ * **失敗只 warn 不 error**：service worker 是加分項，裝不起來（不支援、
+ * 使用者關掉、非 secure context）時整個 App 照樣能用 —— 為了它在 console 留下
+ * 一筆紅色錯誤，只會讓真正的錯誤更難被看見。
+ *
+ * secure context 才註冊得起來，而區網 IP 不算 —— 跟麥克風是同一條限制
+ * （見 README「憑證：兩條路」）。
+ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('[sw] 沒有註冊成功，不影響使用：', err.message);
+    });
+  });
+}
+
 let saved = null;
 try { saved = localStorage.getItem('speaking-coach:mode'); } catch { /* 忽略 */ }
 // 沒有上次用的模式就落在首頁 —— 打開 App 的第一個問題是「我今天該做什麼」

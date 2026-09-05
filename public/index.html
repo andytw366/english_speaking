@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>英語學習練習</title>
+
+    <!-- 加到主畫面之後就像一個 App 一樣開（沒有網址列）。圖示是 scripts/build-icons.mjs 產的 -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="英語練習" />
+    <!-- 瀏覽器 UI 的顏色跟著深淺色走，不然淺色的網址列會貼在深色的畫面上 -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14171a" />
+
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>

@@ -45,14 +45,16 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || 
 const context = await browser.newContext({ acceptDownloads: true });
 const page = await context.newPage();
 
-// 這個專案沒有放 favicon，完整版 Chromium 會為此在 console 留一筆 404。
-// headless shell 根本不會去要 favicon，所以濾掉。
-// TTS 的錯誤也濾掉：headless 沒有安裝任何語音包，那不是 App 的問題。
+// TTS 的錯誤濾掉：headless 沒有安裝任何語音包，那不是 App 的問題。
+//
+// **404 不再濾掉了。** 以前這裡要濾掉 404 是因為沒有 favicon，完整版 Chromium
+// 會為此留一筆錯誤；現在 index.html 有 `rel="icon"`（PWA 那批圖示），
+// 所以 404 一律是真的問題 —— 濾掉它等於讓「某個模組路徑打錯」這種 bug 靜悄悄地過。
 const errors = [];
 page.on('console', (m) => {
   const t = m.text();
   if (m.type() !== 'error') return;
-  if (t.includes('404') || t.includes('[tts]')) return;
+  if (t.includes('[tts]')) return;
   errors.push(t);
 });
 page.on('pageerror', (e) => errors.push(String(e)));
@@ -1002,7 +1004,44 @@ check('設定頁沒有快捷鍵就不畫那一區', await page.locator('#railKey
 await shot(page, 'ui-18-鍵盤');
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【19】JS 錯誤');
+console.log('\n【19】PWA：加到主畫面與離線');
+
+const manifest = await page.evaluate(async () => {
+  const href = document.querySelector('link[rel=manifest]')?.href;
+  if (!href) return null;
+  const res = await fetch(href);
+  return res.ok ? res.json() : null;
+});
+check('manifest 載得到而且是合法 JSON', Boolean(manifest?.name), manifest?.name ?? '（沒有）');
+check('display 是 standalone（加到主畫面才不會有網址列）', manifest?.display === 'standalone');
+
+const swState = await page.evaluate(async () => {
+  const reg = await navigator.serviceWorker.getRegistration();
+  return { active: Boolean(reg?.active), controlled: Boolean(navigator.serviceWorker.controller) };
+});
+check('service worker 裝起來了', swState.active);
+check('頁面由 service worker 控制', swState.controlled);
+
+// 真的斷線試一次 —— 這是 PWA 唯一重要的問題：關掉網路還打不打得開
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] } });
+await page.waitForSelector('.vocab__word');
+await page.waitForTimeout(800);   // 讓字庫進到快取
+
+await context.setOffline(true);
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(1500);
+check('離線也打得開', (await page.locator('#view .card').count()) > 0,
+  `${await page.locator('#view .card').count()} 張卡`);
+check('離線也抽得到字（字庫在快取裡）', Boolean(await page.locator('.vocab__word').count()));
+check('離線時沒有錯誤橫幅', (await page.locator('.banner--error').count()) === 0,
+  await page.locator('.banner--error').count() ? await text('.banner--error') : '');
+await context.setOffline(false);
+
+const cacheNames = await page.evaluate(() => caches.keys());
+check('App 與題庫分開兩個快取', cacheNames.length === 2, cacheNames.join(' | '));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【20】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

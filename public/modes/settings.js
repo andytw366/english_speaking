@@ -3,6 +3,7 @@ import { loadVoices, speak } from '../lib/tts.js';
 import { getSettings, updateSettings, resetSettings, DEFAULTS } from '../lib/settings.js';
 import { resetSrs, clearHistory, getHistory, getSrsState } from '../lib/storage.js';
 import { CATEGORY_LABEL, DIFFICULTY_LABEL, DIFFICULTY_ORDER } from '../lib/labels.js';
+import { QUIZ_TYPES } from '../lib/quiz.js';
 
 export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 
@@ -220,6 +221,23 @@ function practiceCard() {
       h('p', { class: 'hint' },
         (models.find((m) => m.id === s.geminiModel)?.note ?? '') +
         '　清單寫死在後端，送上來的值也會再驗一次 —— 選單是 UI，不是權限。'),
+    ),
+
+    h('div', { class: 'field' },
+      h('span', { class: 'field__label' }, '單字卡的題型'),
+      h('div', { class: 'chips' }, QUIZ_TYPES.map((t) =>
+        toggleChip(t.label, s.vocabQuizTypes.includes(t.id), () => {
+          const next = s.vocabQuizTypes.includes(t.id)
+            ? s.vocabQuizTypes.filter((id) => id !== t.id)
+            : [...s.vocabQuizTypes, t.id];
+          updateSettings({ vocabQuizTypes: next });
+          render();
+        }))),
+      h('p', { class: 'hint' },
+        s.vocabQuizTypes.length === 0
+          ? '一種都沒選 —— 會用翻卡（自己判斷記不記得）。'
+          : `勾幾種就混哪幾種出題。選擇題是四選一，干擾項只會從同一級裡挑` +
+            `跟答案完全不同義的字，所以不會出現兩個都對的選項。`),
     ),
 
     h('div', { class: 'field' },

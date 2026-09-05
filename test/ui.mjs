@@ -16,6 +16,10 @@
 
 import { chromium } from '@playwright/test';
 
+// 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
+// 所以直接用 App 用的同一份，而不是在這裡再抄一次切義項的邏輯。
+import { firstSense } from '../public/lib/quiz.js';
+
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const SHOTS = process.env.SHOTS;
 
@@ -83,17 +87,22 @@ const fakeHistory = (specs) =>
 /**
  * 塞紀錄與設定，重新載入，切到指定模式。
  *
- * `srs` 是單字卡的複習進度，預設清空 —— 不清的話上一段測試留下的進度會讓
- * 「還沒開始」這種斷言時好時壞。
+ * `srs`（複習進度）與 `vocabDays`（每天練了幾張）預設清空 —— 不清的話上一段
+ * 測試留下的資料會讓「還沒開始」「今天 0 / 20」這種斷言時好時壞。
+ * 實際踩過：加了選擇題那一段之後，它接在「每日目標」後面跑，
+ * 今天的份已經被上一段用掉 3 張，counter 變成 1 / 17 而不是 1 / 20。
  */
-async function seed({ history = [], settings = {}, mode = 'shadowing', srs = {} } = {}) {
-  await page.evaluate(({ h, s, m, r }) => {
+async function seed({
+  history = [], settings = {}, mode = 'shadowing', srs = {}, vocabDays = {},
+} = {}) {
+  await page.evaluate(({ h, s, m, r, v }) => {
     localStorage.setItem('speaking-coach:history', JSON.stringify(h));
     localStorage.setItem('speaking-coach:settings', JSON.stringify(s));
     localStorage.setItem('speaking-coach:mode', m);
     localStorage.setItem('speaking-coach:srs', JSON.stringify(r));
+    localStorage.setItem('speaking-coach:vocabDays', JSON.stringify(v));
     localStorage.removeItem('speaking-coach:srsVersion');
-  }, { h: history, s: settings, m: mode, r: srs });
+  }, { h: history, s: settings, m: mode, r: srs, v: vocabDays });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#nav .tab');
   await page.waitForTimeout(500);
@@ -468,8 +477,12 @@ check('選的難度記在設定裡', (await page.evaluate(() =>
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【12】單字卡：每日目標');
 
-// 每日目標設 3，把一整天走完
-await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabDailyGoal: 3 } });
+// 每日目標設 3，把一整天走完。
+// 題型固定成翻卡：這一段驗的是「每日目標」，不該因為選擇題抽到什麼而時好時壞。
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabDailyGoal: 3, vocabQuizTypes: [] },
+});
 await page.waitForSelector('.card--today');
 
 for (let i = 0; i < 3; i++) {
@@ -518,7 +531,84 @@ check('改得動而且存得起來', (await page.evaluate(() =>
     JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDailyGoal)));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【13】清除紀錄');
+console.log('\n【13】單字卡：選擇題');
+
+const tier1 = await fetch(`${BASE}/api/vocabulary/tier-1.json`).then((r) => r.json());
+const meaningOf = (word) => firstSense(tier1.find((c) => c.word === word)?.meaning_zh);
+
+// 固定成「看英文選中文」，這樣測試知道正確答案是哪一個字串
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabDailyGoal: 20, vocabQuizTypes: ['en2zh'] } });
+await page.waitForSelector('.quiz__options');
+
+check('出的是選擇題', (await text('.card__meta .chip')).includes('看英文選中文'));
+check('四個選項', (await page.locator('.quiz__option').count()) === 4);
+check('沒作答前不標紅標綠', (await page.locator('.quiz__option--correct').count()) === 0);
+
+// 故意答錯：挑一個不是正確答案的選項
+const prompt1 = (await text('.quiz__prompt')).trim();
+const answer1 = meaningOf(prompt1);
+check('題目是字庫裡的字', Boolean(answer1), `${prompt1} → ${answer1}`);
+const options1 = await page.locator('.quiz__option').allTextContents();
+check('正確答案在選項裡', options1.map((o) => o.trim()).includes(answer1), options1.join(' / '));
+check('選項沒有重複', new Set(options1.map((o) => o.trim())).size === 4, options1.join(' / '));
+
+await page.locator('.quiz__option', { hasText: options1.map((o) => o.trim()).find((o) => o !== answer1) }).first().click();
+await page.waitForTimeout(250);
+check('答錯時說出正確答案', (await text('.card__title')).includes(`正確答案是「${answer1}」`),
+  await text('.card__title'));
+check('答錯時同時標出正確答案與自己選的',
+  (await page.locator('.quiz__option--correct').count()) === 1 &&
+  (await page.locator('.quiz__option--wrong').count()) === 1);
+check('答完之後不能再改答案', await page.locator('.quiz__option').first().isDisabled());
+check('答錯的卡回到第 1 盒', (await page.evaluate(() =>
+  Object.values(JSON.parse(localStorage.getItem('speaking-coach:srs')))[0].box)) === 1);
+await shot(page, 'ui-13-選擇題');
+
+await page.locator('#view button', { hasText: '下一題' }).click();
+await page.waitForTimeout(300);
+check('換下一題', (await text('.counter')).trim() === '2 / 20');
+
+// 答對
+const prompt2 = (await text('.quiz__prompt')).trim();
+await page.locator('.quiz__option', { hasText: meaningOf(prompt2) }).first().click();
+await page.waitForTimeout(250);
+check('答對時說答對了', (await text('.card__title')).includes('答對了'));
+check('答對不標紅', (await page.locator('.quiz__option--wrong').count()) === 0);
+check('答對的卡進到第 2 盒', (await page.evaluate(() =>
+  Object.values(JSON.parse(localStorage.getItem('speaking-coach:srs'))).some((s) => s.box === 2))));
+check('選擇題也算進今天的份', (await text('.card--today')).includes('2 / 20'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+
+// 中→英：題目換成中文、選項是英文，而且不先播發音（會直接洩題）
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: ['zh2en'] } });
+await page.waitForSelector('.quiz__options');
+check('中→英：題目是中文', /[\u4e00-\u9fff]/.test(await text('.quiz__prompt')), await text('.quiz__prompt'));
+check('中→英：選項是英文', (await page.locator('.quiz__option').allTextContents())
+  .every((o) => /^[a-zA-Z' -]+$/.test(o.trim())),
+  (await page.locator('.quiz__option').allTextContents()).join(' / '));
+check('中→英：作答前沒有發音鍵（會洩題）',
+  !(await viewText()).includes('唸這個字') || (await viewText()).indexOf('唸這個字') > (await viewText()).indexOf('下一題'));
+
+// 一種都沒勾就退回翻卡，不是整個不能用
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] } });
+await page.waitForSelector('#view .card');
+check('一種都沒勾就退回翻卡',
+  (await viewText()).includes('顯示答案') && (await page.locator('.quiz__options').count()) === 0);
+
+// 設定頁勾得動
+await seed({ mode: 'settings', settings: { vocabQuizTypes: ['zh2en', 'en2zh'] } });
+const typeChips = page.locator('.field', { hasText: '單字卡的題型' }).locator('button');
+check('設定頁有三種題型', (await typeChips.count()) === 3);
+check('預設兩種選擇題是開的',
+  (await typeChips.nth(0).getAttribute('class')).includes('togglechip--on') &&
+  (await typeChips.nth(1).getAttribute('class')).includes('togglechip--on'));
+await typeChips.nth(0).click();
+await page.waitForTimeout(200);
+check('取消得掉', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabQuizTypes)).join() === 'en2zh');
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【14】清除紀錄');
 
 await seed({ history: fakeHistory([[0, 42, 0], [1, 88, 1]]) });
 page.once('dialog', (d) => d.accept());
@@ -530,7 +620,7 @@ check('成績 chip 收起來', (await page.locator('.chip--past').count()) === 0
 check('今天的進度歸零', (await text('.today__value')).startsWith('0 /'));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【14】JS 錯誤');
+console.log('\n【15】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

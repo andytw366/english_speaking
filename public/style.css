@@ -1381,3 +1381,68 @@ body {
 
 /* .deckitem 是兩欄的 grid（標籤｜字數），進度條要自己占滿一整列 */
 .deckitem .tierbar { grid-column: 1 / -1; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   單字卡的選擇題
+   答完之後三種狀態：正確答案（綠）、自己選錯的那個（紅）、其餘（淡出）。
+   答錯時**同時**標出正確答案與自己選的那一個 —— 只標「你錯了」的話，
+   使用者還得自己去下面找正確答案。
+   ═══════════════════════════════════════════════════════════════════════ */
+.quiz__prompt {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* 中文題目用比較小的字：中文字面積大，跟英文同級數會顯得過重 */
+.quiz__prompt--zh { font-size: 1.7rem; letter-spacing: 0; }
+
+.quiz__hint {
+  margin: 0 0 0.9rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-family: var(--font-ipa);
+}
+
+.quiz__options {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.quiz__option {
+  font: inherit;
+  font-size: 1.05rem;
+  text-align: left;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.quiz__option:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+/* 答完之後按鈕是 disabled 的，但顏色要留著給人看結果 —— 不能用瀏覽器
+   預設的灰掉樣式蓋過去 */
+.quiz__option:disabled { cursor: default; }
+
+.quiz__option--correct {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 10%, var(--surface));
+  font-weight: 600;
+}
+
+.quiz__option--wrong {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  text-decoration: line-through;
+}
+
+.quiz__option--dim { opacity: 0.45; }

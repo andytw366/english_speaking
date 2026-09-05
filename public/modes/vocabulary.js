@@ -7,6 +7,7 @@ import {
   getVocabDays, recordVocabAnswer, vocabDayCount, vocabActiveDays,
 } from '../lib/storage.js';
 import { dayKey, streakFromDays } from '../lib/practice.js';
+import { pickType, buildQuestion } from '../lib/quiz.js';
 import { renderTodayCard } from '../lib/today-card.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
@@ -30,6 +31,9 @@ let revealed = false;
 let picking = false;     // 是否停在選難度的畫面
 let showBands = false;   // 詞頻級距預設收起來 —— 分級才是主要的選法
 let extra = 0;           // 今天目標達成後又自己多要的張數
+let currentType = 'flip';// 這張卡出哪一種題型（設定裡可以複選，一張一抽）
+let question = null;     // 選擇題的題目。翻卡時是 null
+let picked = null;       // 這一題選了哪個選項：{ id, correct }
 let root = null;
 
 export async function mount(container) {
@@ -80,6 +84,7 @@ async function loadDeck(id) {
   deckId = id;
   updateSettings({ vocabDeck: id });
   picking = false;
+  // 干擾項是從目前這一級抽的，所以換級一定要重新出題
   startSession();
 }
 
@@ -127,8 +132,31 @@ function startSession() {
   queue = buildQueue(currentPool());
   if (Number.isFinite(remaining)) queue = queue.slice(0, remaining);
   index = 0;
-  revealed = false;
+  prepareCard();
   render();
+}
+
+/**
+ * 決定這張卡怎麼問。
+ *
+ * **一定要在換卡的時候做一次、存起來** —— 放在 render() 裡的話，每次重畫
+ * （選了選項、按了播放）都會重抽題型與干擾項，選項會在眼前跳掉。
+ */
+function prepareCard() {
+  question = null;
+  picked = null;
+  revealed = false;
+
+  const card = queue[index];
+  if (!card) return;
+
+  currentType = pickType(getSettings().vocabQuizTypes);
+  if (currentType === 'flip') return;
+
+  question = buildQuestion(card, currentPool(), { direction: currentType });
+  // 湊不到足夠的干擾項（例如精選那 40 張裡同義的太多）就退回翻卡，
+  // 不要出一題只有兩個選項的題目
+  if (!question) currentType = 'flip';
 }
 
 function render() {
@@ -195,10 +223,35 @@ function render() {
     return;
   }
 
-  append(root, cardFace(queue[index]));
+  const card = queue[index];
+
+  if (question) {
+    append(root, questionCard(card, question));
+    if (picked) {
+      append(root,
+        h('div', { class: 'card' },
+          h('p', { class: 'card__title' }, picked.correct ? '答對了 ✅' : `答錯了 —— 正確答案是「${answerText(question)}」`),
+          cardBack(card),
+          h('div', { class: 'row' },
+            h('button', { class: 'btn btn--primary', onclick: nextCard }, '下一題'),
+            ttsSupported() && h('button', {
+              class: 'btn btn--ghost',
+              onclick: (e) => playWord(card, e.currentTarget),
+            }, '🔊 唸這個字'),
+          ),
+          h('p', { class: 'hint' },
+            picked.correct
+              ? '這張卡進到下一個盒子，間隔會拉長。'
+              : '答錯的卡會回到第 1 盒，明天再出現。'),
+        ),
+      );
+    }
+    return;
+  }
+
+  append(root, cardFace(card));
 
   if (revealed) {
-    const card = queue[index];
     append(root,
       h('div', { class: 'card' },
         h('p', { class: 'card__title' }, '剛剛記得嗎？'),
@@ -210,6 +263,72 @@ function render() {
       ),
     );
   }
+}
+
+// ─── 選擇題 ──────────────────────────────────────────────────────────────
+const answerText = (q) => q.options.find((o) => o.correct)?.text ?? '';
+
+function questionCard(card, q) {
+  const state = getCardState(card);
+  const zhToEn = q.direction === 'zh2en';
+
+  return h('div', { class: 'card' },
+    h('div', { class: 'card__meta' },
+      h('span', { class: 'chip' }, zhToEn ? '看中文選英文' : '看英文選中文'),
+      h('span', { class: 'chip chip--muted' }, `第 ${state.box} 盒`),
+      h('span', { class: 'counter' }, `${index + 1} / ${queue.length}`),
+    ),
+
+    h('p', { class: zhToEn ? 'quiz__prompt quiz__prompt--zh' : 'quiz__prompt' }, q.prompt),
+    q.promptHint && h('p', { class: 'quiz__hint' }, q.promptHint),
+
+    // 題目就是那個英文字的時候才給發音 —— 中→英 先播就等於直接給答案
+    !zhToEn && ttsSupported() && h('div', { class: 'row' },
+      h('button', {
+        class: 'btn btn--ghost',
+        onclick: (e) => playWord(card, e.currentTarget),
+      }, '🔊 唸這個字'),
+    ),
+
+    h('div', { class: 'quiz__options' },
+      q.options.map((option) => h('button', {
+        class: 'quiz__option' + optionState(option),
+        // 答完之後不讓再點：分數已經記進去了，再點一次只會讓人以為可以改答案
+        disabled: Boolean(picked),
+        onclick: () => submitChoice(card, option),
+      }, option.text))),
+  );
+}
+
+function optionState(option) {
+  if (!picked) return '';
+  // 答錯時**同時**標出正確答案與自己選的那個 —— 只標「你錯了」的話，
+  // 使用者還得自己去下面找正確答案是哪一個
+  if (option.correct) return ' quiz__option--correct';
+  if (option.id === picked.id) return ' quiz__option--wrong';
+  return ' quiz__option--dim';
+}
+
+/**
+ * 選了一個選項。
+ *
+ * 成績在這裡就記進去，不等按「下一題」—— 中途關掉 App 的話，
+ * 那一題本來就答完了，不該因為沒按下一步而不算。
+ */
+function submitChoice(card, option) {
+  if (picked) return;
+  picked = { id: option.id, correct: option.correct };
+  recordAnswer(card, option.correct);
+  recordVocabAnswer(dayKey(new Date()));
+  render();
+}
+
+function nextCard() {
+  index++;
+  // 這一批發完就重算：今天的份可能剛好滿了，該換成「今天練完了」那張卡
+  if (index >= queue.length) return startSession();
+  prepareCard();
+  render();
 }
 
 // ─── 我在第幾級 ──────────────────────────────────────────────────────────
@@ -402,14 +521,19 @@ function cardFace(card) {
       }, '顯示答案'),
     ),
 
-    revealed && h('div', { class: 'vocab__back' },
-      h('p', { class: 'vocab__meaning' }, card.meaning_zh),
-      card.definition_en && h('p', { class: 'vocab__def' }, card.definition_en),
-      card.example_en && h('p', { class: 'vocab__example' }, card.example_en),
-      card.example_zh && h('p', { class: 'vocab__example-zh' }, card.example_zh),
-      card.note_zh && h('p', { class: 'vocab__note' }, `💡 ${card.note_zh}`),
-      card.tags?.length && h('p', { class: 'hint' }, `出現於：${card.tags.join('、')}`),
-    ),
+    revealed && cardBack(card),
+  );
+}
+
+/** 卡片的背面。翻卡按「顯示答案」之後、以及選擇題答完之後都是這一份。 */
+function cardBack(card) {
+  return h('div', { class: 'vocab__back' },
+    h('p', { class: 'vocab__meaning' }, card.meaning_zh),
+    card.definition_en && h('p', { class: 'vocab__def' }, card.definition_en),
+    card.example_en && h('p', { class: 'vocab__example' }, card.example_en),
+    card.example_zh && h('p', { class: 'vocab__example-zh' }, card.example_zh),
+    card.note_zh && h('p', { class: 'vocab__note' }, `💡 ${card.note_zh}`),
+    card.tags?.length && h('p', { class: 'hint' }, `出現於：${card.tags.join('、')}`),
   );
 }
 
@@ -437,14 +561,11 @@ async function playWord(card, button) {
   }
 }
 
+/** 翻卡的作答：使用者自己判斷記不記得。 */
 function answer(card, wasCorrect) {
   recordAnswer(card, wasCorrect);
   // 記進「哪一天練了幾張」的計數表。答對答錯都算 —— 今天的份算的是練習量，
   // 不是正確率（正確率在 srs 的 box 裡）。
   recordVocabAnswer(dayKey(new Date()));
-  index++;
-  revealed = false;
-  // 這一批發完就重算：今天的份可能剛好滿了，該換成「今天練完了」那張卡
-  if (index >= queue.length) return startSession();
-  render();
+  nextCard();
 }

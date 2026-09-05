@@ -7,6 +7,8 @@ export const DEFAULTS = {
   ttsVoice: '',          // 空字串 = 自動挑選
   ttsRate: 0.9,
   vocabDailyGoal: 20,    // 單字卡每天練幾個字，0 = 不限（見下面的搬家）
+  // 單字卡要練哪些題型（可複選，混合出題）。空陣列會退回翻卡，見 lib/quiz.js
+  vocabQuizTypes: ['zh2en', 'en2zh'],
   categories: [],        // 空陣列 = 全部
   difficulties: [],      // 空陣列 = 全部
   translationType: 'all',// all | cloze | sentence

@@ -9,6 +9,13 @@
 
 export const MODES = [
   {
+    id: 'home',
+    label: '今天',
+    icon: '🏠',
+    subtitle: '今天練了多少、還差多少，以及有幾個字該複習了。',
+    // 沒有 unit：首頁自己不累積進度，它只是把別的模式的進度放在一起
+  },
+  {
     id: 'vocabulary',
     label: '單字卡',
     icon: '🗂️',

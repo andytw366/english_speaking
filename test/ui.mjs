@@ -121,10 +121,10 @@ await page.goto(BASE);
 await page.waitForSelector('#nav .tab');
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【1】六個模式都載入得起來');
+console.log('\n【1】七個分頁都載入得起來');
 
 const tabs = await page.locator('#nav .tab').allTextContents();
-check('分頁有六個', tabs.length === 6, tabs.join(' | '));
+check('分頁有七個（首頁 + 五個練習 + 設定）', tabs.length === 7, tabs.join(' | '));
 
 for (const tab of tabs) {
   const name = tab.split(' ').pop();
@@ -779,7 +779,80 @@ await page.waitForTimeout(300);
 check('清得掉每日紀錄', (await viewText()).includes('每日紀錄：0 天'));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【17】JS 錯誤');
+console.log('\n【17】首頁：今天該做什麼');
+
+const todayKey = (offset = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() - offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// 單字達標、聽力一半、跟讀今天還沒練（但昨天有）
+await seed({
+  mode: 'home',
+  activity: {
+    vocabulary: { [todayKey(0)]: 20, [todayKey(1)]: 20 },
+    listening: { [todayKey(0)]: 3 },
+    shadowing: { [todayKey(1)]: 5 },
+  },
+  srs: {
+    'ecdict:1': { box: 2, due: Date.now() - 1000 },
+    'ecdict:2': { box: 3, due: Date.now() - 1000 },
+    'ecdict:3': { box: 1, due: Date.now() + 9e6 },
+  },
+});
+await page.waitForSelector('.homelist');
+
+check('五個練習模式各一列', (await page.locator('.homerow').count()) === 5);
+check('今天的總數是跨模式加起來的', (await text('.today__value')) === '23',
+  await text('.today__value'));
+// 昨天練單字、今天練聽力，沒有斷 —— 連續天數不能只看單一模式
+check('連續天數是「任何一個模式有練就算」',
+  (await text('.today__block--streak .today__value')) === '2',
+  await text('.today__block--streak .today__value'));
+check('達標的那一列打勾', (await page.locator('.homerow--done').count()) === 1);
+check('沒達標的講還差多少', (await viewText()).includes('還差 10 題'));
+check('待複習只數到期的那幾個', (await viewText()).includes('有 2 個字到期了'), await viewText());
+await shot(page, 'ui-17-首頁');
+
+// 點一列會跳到那個模式
+await page.locator('.homerow', { hasText: '聽力' }).click();
+await page.waitForTimeout(600);
+check('點一列會跳過去', (await page.evaluate(() =>
+  localStorage.getItem('speaking-coach:mode'))) === 'listening');
+check('跳過去之後畫的是那個模式', (await viewText()).includes('先聽，再作答'));
+
+// 全部達標的樣子
+await seed({
+  mode: 'home',
+  activity: {
+    vocabulary: { [todayKey(0)]: 20 }, listening: { [todayKey(0)]: 6 },
+    translation: { [todayKey(0)]: 10 }, dialogue: { [todayKey(0)]: 6 },
+    shadowing: { [todayKey(0)]: 5 },
+  },
+});
+await page.waitForSelector('.homelist');
+check('全部達標時說完成了', (await viewText()).includes('今天的目標都完成了'));
+check('全部達標時數字變色', await page.locator('.today__value--done').isVisible());
+check('五列都打勾', (await page.locator('.homerow--done').count()) === 5);
+
+// 什麼都沒練的第一天
+await seed({ mode: 'home' });
+await page.waitForSelector('.homelist');
+check('第一天不會像在罵人', (await viewText()).includes('今天還沒開始'), await text('.card--today .hint'));
+check('沒有到期的字時也講得出話', (await viewText()).includes('目前沒有到期的字'));
+
+// 沒設目標時不要顯示 0 / 0
+await seed({
+  mode: 'home',
+  settings: { dailyGoals: { vocabulary: 0, listening: 0, translation: 0, dialogue: 0, shadowing: 0 } },
+});
+await page.waitForSelector('.homelist');
+check('沒設目標時不寫成 0 / 0', !(await viewText()).includes('0 / 0'), await viewText());
+check('沒設目標時指路到設定', (await viewText()).includes('設定 → 每日目標'));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【18】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

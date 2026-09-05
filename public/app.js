@@ -57,6 +57,13 @@ function renderNav() {
   }
 }
 
+// 首頁（或別的模式）要跳到某個模式時發這個事件。
+// 反過來讓模式模組 import app.js 會變成循環相依 —— 模式是 app.js 動態載入的。
+window.addEventListener('switch-mode', (e) => {
+  if (MODE_IDS.includes(e.detail)) switchTo(e.detail);
+});
+
 let saved = null;
 try { saved = localStorage.getItem('speaking-coach:mode'); } catch { /* 忽略 */ }
-switchTo(MODE_IDS.includes(saved) ? saved : 'vocabulary');
+// 沒有上次用的模式就落在首頁 —— 打開 App 的第一個問題是「我今天該做什麼」
+switchTo(MODE_IDS.includes(saved) ? saved : 'home');

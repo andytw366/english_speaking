@@ -1,4 +1,5 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
 import { PRACTICE_MODES } from '../lib/modes.js';
 import { dailyState, overallToday } from '../lib/daily.js';
 import { getSrsState, getActivity, activityToday } from '../lib/storage.js';
@@ -22,7 +23,9 @@ export async function mount(container) {
 
 function render() {
   if (!root) return;
-  clear(root);
+  // 主欄是「今天要做什麼」的清單，右邊放總數與複習排程 ——
+  // 那兩張是看一眼的資訊，不是要動手的東西
+  const { main, side } = columns(root);
 
   const activity = getActivity();
   const today = activityToday(activity, dayKey(new Date()));
@@ -33,7 +36,7 @@ function render() {
   const withGoal = rows.filter((r) => r.state.goal > 0);
   const done = withGoal.filter((r) => r.state.done >= r.state.goal).length;
 
-  append(root,
+  append(side,
     h('div', { class: 'card card--today' },
       h('div', { class: 'today' },
         h('div', { class: 'today__block' },
@@ -48,14 +51,15 @@ function render() {
       ),
       h('p', { class: 'hint' }, headline(withGoal.length, done, today.total)),
     ),
+    reviewCard(),
+  );
 
+  append(main,
     h('div', { class: 'card' },
       h('p', { class: 'card__title' }, '今天的目標'),
       h('div', { class: 'homelist' }, rows.map(({ mode, state }) => modeRow(mode, state))),
       h('p', { class: 'hint' }, '每個模式練幾個可以在「設定 → 每日目標」調整。'),
     ),
-
-    reviewCard(),
   );
 }
 

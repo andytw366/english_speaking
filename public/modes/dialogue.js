@@ -1,4 +1,5 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { filterBySettings } from '../lib/settings.js';
@@ -96,19 +97,20 @@ function advance() {
 // ─── 畫面 ────────────────────────────────────────────────────────────────
 function render() {
   if (!root || !current) return;
-  clear(root);
+  // 主欄是對話本身，右邊放「我是誰、在哪裡」那張說明卡 ——
+  // 角色與情境在整段對話裡都成立，卻只在最上面看得到一次
+  const { main, side } = columns(root);
 
-  append(root, renderDailyCard('dialogue'));
-  append(root, headerCard());
-  append(root, transcriptCard());
+  append(side, renderDailyCard('dialogue'), headerCard());
+  append(main, transcriptCard());
 
   if (isFinished()) {
-    append(root, summaryCard());
+    append(main, summaryCard());
   } else if (currentTurn().speaker === 'partner') {
-    append(root, partnerCard());
+    append(main, partnerCard());
   } else {
-    append(root, yourTurnCard());
-    if (checked) append(root, resultCard());
+    append(main, yourTurnCard());
+    if (checked) append(main, resultCard());
   }
 }
 

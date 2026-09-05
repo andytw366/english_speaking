@@ -8,7 +8,8 @@
 // 三個維度的規則都在 lib/practice.js（純函式，有 60 多項單元測試釘住）。
 // 這裡只負責把狀態餵進去，以及把結果畫出來。
 
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
@@ -157,20 +158,22 @@ function revokePlayback() {
 
 function render() {
   if (!root) return;
-  clear(root);
+  // 這個模式最需要兩欄：**題目與自己的分數趨勢在單欄版本裡永遠不可能同時看到**
+  // （紀錄永遠在折線下面），而「這句練得比上次好嗎」正是跟讀的重點。
+  const { main, side } = columns(root);
 
-  append(root, renderToday(dailyGoal(), (goal) => {
+  append(side, renderToday(dailyGoal(), (goal) => {
     setGoal('shadowing', goal);
     render();
   }));
 
   if (!current) {
-    append(root, h('div', { class: 'banner banner--error' },
+    append(main, h('div', { class: 'banner banner--error' },
       '句庫是空的，或篩選條件把所有句子都排除了。請到「設定」放寬情境與難度。'));
     return;
   }
 
-  append(root, sentenceCard(), recordCard());
+  append(main, sentenceCard(), recordCard());
 
   if (lastResult) {
     const card = h('div', { class: 'card' }, h('p', { class: 'card__title' }, '發音講評'));
@@ -178,17 +181,17 @@ function render() {
       const target = root.querySelector('#sentence');
       if (target) target.replaceWith(el);
     });
-    append(root, card);
+    append(main, card);
   }
 
   if (lastSetSummary) {
-    append(root, renderSetSummary(lastSetSummary, () => {
+    append(main, renderSetSummary(lastSetSummary, () => {
       lastSetSummary = null;
       nextSentence();
     }));
   }
 
-  append(root, renderHistory(history, {
+  append(side, renderHistory(history, {
     sentences: allSentences,
     onReplay: practiseSentence,
     onClear: onClearHistory,

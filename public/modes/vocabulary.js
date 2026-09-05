@@ -1,4 +1,5 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns, single } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
@@ -68,8 +69,7 @@ async function loadDeck(id) {
   const deck = deckOf(id);
   if (!deck) throw new Error(`找不到牌組 ${id}`);
 
-  clear(root);
-  append(root, h('p', { class: 'hint' }, `載入「${deck.label}」…`));
+  append(single(root), h('p', { class: 'hint' }, `載入「${deck.label}」…`));
 
   const res = await fetch(`/api/vocabulary/${deck.file}`);
   if (!res.ok) throw new Error(`讀取單字失敗（HTTP ${res.status}）`);
@@ -155,19 +155,21 @@ function prepareCard() {
 
 function render() {
   if (!root) return;
-  clear(root);
-
   if (picking) return renderPicker();
+
+  // 主欄只有題目與答完的回饋；這一級的進度與今天的份是「瞄一眼」的東西，
+  // 卻在單欄版本裡永遠擋在題目前面
+  const { main, side } = columns(root);
 
   const deck = deckOf(deckId);
   const summary = srsSummary(currentPool());
   const daily = dailyState();
 
-  append(root, deckCard(deck, summary), renderDailyCard('vocabulary'));
+  append(side, deckCard(deck, summary), renderDailyCard('vocabulary'));
 
   // 今天的份練完了。**不擋著不讓練** —— 目標是拿來知道自己完成了，不是拿來鎖門的。
   if (daily.remaining <= 0) {
-    append(root,
+    append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, `今天的 ${daily.goal} 個字練完了 🎉`),
         h('p', { class: 'hint' },
@@ -187,7 +189,7 @@ function render() {
   }
 
   if (queue.length === 0) {
-    append(root,
+    append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, '這一級目前沒有需要複習的卡片 🎉'),
         h('p', { class: 'hint' },
@@ -204,7 +206,7 @@ function render() {
 
   if (index >= queue.length) {
     // 今天的份還沒滿，但這一級能抽的字抽完了（到期的都複習過、新字也發完）
-    append(root,
+    append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, `這一級今天能練的都練完了（${queue.length} 張）`),
         h('p', { class: 'hint' }, '換一個難度就能繼續累積今天的進度。'),
@@ -220,9 +222,9 @@ function render() {
   const card = queue[index];
 
   if (question) {
-    append(root, questionCard(card, question));
+    append(main, questionCard(card, question));
     if (picked) {
-      append(root,
+      append(main,
         h('div', { class: 'card' },
           h('p', { class: 'card__title' }, picked.correct ? '答對了 ✅' : `答錯了 —— 正確答案是「${answerText(question)}」`),
           cardBack(card),
@@ -244,10 +246,10 @@ function render() {
     return;
   }
 
-  append(root, cardFace(card));
+  append(main, cardFace(card));
 
   if (revealed) {
-    append(root,
+    append(main,
       h('div', { class: 'card' },
         h('p', { class: 'card__title' }, '剛剛記得嗎？'),
         h('div', { class: 'row' },
@@ -424,7 +426,8 @@ function progressBar(mastered, learning, total) {
 
 // ─── 選難度 ──────────────────────────────────────────────────────────────
 function renderPicker() {
-  clear(root);
+  // 選難度自己就是一整頁的清單，不分主輔欄
+  single(root);
 
   // 各級進度只需要 tier-map（20 KB）加 localStorage 就算得出來，
   // 不必把六個分級檔（3 MB）全部載下來。
@@ -502,8 +505,7 @@ function progressText(p) {
 }
 
 function showError(err) {
-  clear(root);
-  append(root, h('div', { class: 'banner banner--error' }, err.message));
+  append(single(root), h('div', { class: 'banner banner--error' }, err.message));
 }
 
 // ─── 卡片 ────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { filterBySettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
@@ -35,11 +36,11 @@ function pick(item) {
 
 function render() {
   if (!root || !current) return;
-  clear(root);
+  const { main, side } = columns(root);
 
-  append(root, renderDailyCard('listening'));
+  append(side, renderDailyCard('listening'));
 
-  append(root, 
+  append(main,
     h('div', { class: 'card' },
       h('div', { class: 'card__meta' },
         h('span', { class: 'chip' }, categoryLabel(current.category)),
@@ -55,16 +56,22 @@ function render() {
         h('button', { class: 'btn btn--ghost', onclick: nextItem }, '🔀 換一題'),
       ),
 
-      (submitted || showTranscript)
-        ? h('div', { class: 'transcript' },
-            h('p', { class: 'card__title' }, '原文'),
-            h('p', {}, current.transcript))
-        : h('button', {
-            class: 'btn btn--link',
-            onclick: () => { showTranscript = true; render(); },
-          }, '聽不出來？顯示原文'),
+      !(submitted || showTranscript) && h('button', {
+        class: 'btn btn--link',
+        onclick: () => { showTranscript = true; render(); },
+      }, '聽不出來？顯示原文'),
     ),
   );
+
+  // 原文放輔助欄：對完答案之後題目與原文可以並排看，不必在兩者之間往回捲
+  if (submitted || showTranscript) {
+    append(side,
+      h('div', { class: 'card' },
+        h('p', { class: 'card__title' }, '原文'),
+        h('p', { class: 'transcript' }, current.transcript),
+      ),
+    );
+  }
 
   const qCard = h('div', { class: 'card' }, h('p', { class: 'card__title' }, '理解測驗'));
 
@@ -130,7 +137,7 @@ function render() {
     );
   }
 
-  append(root, qCard);
+  append(main, qCard);
 }
 
 async function play() {

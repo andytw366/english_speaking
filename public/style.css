@@ -615,14 +615,17 @@ body {
 }
 
 @media (min-width: 1380px) {
-  .view--split {
+  /* 選擇器要跟著 #view 一起寫：id 的優先度比 class 高，寫成 .view--split 的話
+     display:grid 會被上面的 #view{display:flex} 蓋掉，而 align-items:start
+     照樣生效 —— 症狀是兩欄變成一列擠在左邊、寬度縮成內容的大小。 */
+  #view.view--split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--aside-w);
     align-items: start;
   }
 
   /* 輔助欄跟著捲、但捲到底就停住：紀錄比題目長的時候不該把主欄拉高 */
-  .view--split .view__aside {
+  #view.view--split .view__aside {
     position: sticky;
     top: 1.75rem;
     max-height: calc(100vh - 3.5rem);
@@ -716,12 +719,11 @@ body {
 /* ─── 聽力 ─────────────────────────────────────────────────────────────── */
 .listen__title { margin: 0 0 0.3rem; font-size: 1.35rem; letter-spacing: -0.01em; }
 
+/* 原文自己是輔助欄上的一張卡（作答時可以並排看），不再是題目卡下半部的一段 */
 .transcript {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  margin: 0;
+  line-height: 1.8;
 }
-.transcript p:last-child { margin: 0; line-height: 1.75; }
 
 .question { padding: 0.6rem 0 1rem; }
 .question + .question { border-top: 1px solid var(--border); }

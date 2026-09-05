@@ -1,4 +1,5 @@
-import { h, clear, append } from '../lib/dom.js';
+import { h, append } from '../lib/dom.js';
+import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings } from '../lib/settings.js';
@@ -48,9 +49,9 @@ function next() {
 // ─── 畫面 ────────────────────────────────────────────────────────────────
 function render() {
   if (!root || !current) return;
-  clear(root);
+  const { main, side } = columns(root);
 
-  append(root, renderDailyCard('translation'));
+  append(side, renderDailyCard('translation'));
 
   const isCloze = current.type === 'cloze';
 
@@ -112,9 +113,9 @@ function render() {
     );
   }
 
-  append(root, card);
+  append(main, card);
 
-  if (checked) append(root, resultCard());
+  if (checked) append(main, resultCard());
 
   // 讓使用者可以直接打字，不用先點輸入框（對完答案就不搶焦點了）
   if (!checked) requestAnimationFrame(() => root?.querySelector('#answer')?.focus());

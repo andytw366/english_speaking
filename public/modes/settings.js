@@ -1,8 +1,13 @@
 import { h, clear, append } from '../lib/dom.js';
 import { loadVoices, speak } from '../lib/tts.js';
 import { getSettings, updateSettings, resetSettings, DEFAULTS } from '../lib/settings.js';
-import { resetSrs, clearHistory, getHistory, getSrsState } from '../lib/storage.js';
-import { CATEGORY_LABEL, DIFFICULTY_LABEL, DIFFICULTY_ORDER } from '../lib/labels.js';
+import {
+  resetSrs, clearHistory, getHistory, getSrsState, exportState, importState,
+} from '../lib/storage.js';
+import {
+  buildBackup, parseBackup, backupSummary, summaryText, backupFilename,
+} from '../lib/backup.js';
+import { CATEGORY_LABEL, DIFFICULTY_LABEL, DIFFICULTY_ORDER, formatTime } from '../lib/labels.js';
 import { QUIZ_TYPES } from '../lib/quiz.js';
 
 export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
@@ -21,6 +26,7 @@ let health = null;
 let serverSettings = null;
 let serverError = '';
 let saveState = '';
+let backupState = '';
 let root = null;
 
 export async function mount(container) {
@@ -366,6 +372,23 @@ function dataCard() {
     h('p', { class: 'hint' },
       `單字卡進度：${srsCount} 張有紀錄　|　跟讀紀錄：${historyCount} 筆。` +
       '這些都存在這個瀏覽器的 localStorage，換瀏覽器或清除瀏覽資料就會消失。'),
+
+    // 備份放在清除按鈕的**上面**：這一區最危險的三顆按鈕就在下面，
+    // 而唯一救得回來的方法是先有備份
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn--primary', id: 'backup-download', onclick: downloadBackup },
+        '⬇️ 下載備份'),
+      h('label', { class: 'btn', for: 'backup-file' }, '⬆️ 還原備份'),
+      h('input', {
+        id: 'backup-file', type: 'file', accept: 'application/json,.json',
+        class: 'visually-hidden', onchange: restoreBackup,
+      }),
+      backupState && h('span', { class: 'hint' }, backupState),
+    ),
+    h('p', { class: 'hint' },
+      '備份是一個 JSON 檔，包含複習進度、每日紀錄、跟讀紀錄與偏好設定（不含金鑰）。' +
+      '換瀏覽器、換電腦、或清除瀏覽資料之前先下載一份 —— 這些東西重建不出來。'),
+
     h('div', { class: 'row' },
       h('button', {
         class: 'btn btn--danger',
@@ -387,4 +410,58 @@ function dataCard() {
 
 function confirmThen(message, fn) {
   if (window.confirm(message)) fn();
+}
+
+// ─── 備份與還原 ──────────────────────────────────────────────────────────
+
+function downloadBackup() {
+  const backup = buildBackup(exportState());
+  const blob = new Blob([JSON.stringify(backup, null, 1)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const link = h('a', { href: url, download: backupFilename() });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // 不馬上 revoke：Safari 會在點擊真正開始下載之前就把 blob 收掉
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+
+  backupState = `已下載（${summaryText(backupSummary(backup.data))}）`;
+  render();
+}
+
+async function restoreBackup(event) {
+  // currentTarget 在 await 之後會變成 null，要在同步階段先抓下來
+  const input = event.currentTarget;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    const { data, exportedAt } = parseBackup(await file.text());
+    const summary = summaryText(backupSummary(data));
+    const when = exportedAt ? `（${formatTime(exportedAt) || exportedAt}）` : '';
+
+    // 覆蓋前一定要講清楚「用什麼覆蓋」—— 只問「確定嗎」等於沒問
+    if (!window.confirm(
+      `要用這份備份${when}覆蓋現在的學習資料嗎？\n\n${summary}\n\n` +
+      '現在這台瀏覽器上的進度會被取代，而且無法復原。'
+    )) {
+      backupState = '已取消還原。';
+      return render();
+    }
+
+    importState(data);
+    // 重新整理而不是重畫：設定、複習進度都有模組層級的快取，
+    // 重載是唯一能保證每個模組都看到新資料的做法
+    window.location.reload();
+  } catch (err) {
+    // 用 warn 不用 error：選錯檔案是使用者操作，不是 App 出事。
+    // （console.error 留給真正的問題 —— `test/ui.mjs` 最後一條會掃它。）
+    console.warn('[backup] 還原被擋下來：', err.message);
+    backupState = `還原失敗：${err.message}`;
+    render();
+  } finally {
+    // 清掉選擇，不然選同一個檔案第二次不會觸發 change
+    input.value = '';
+  }
 }

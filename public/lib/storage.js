@@ -1,5 +1,7 @@
 // localStorage 包一層：私密瀏覽或停用儲存時不會炸掉，只是不記錄。
 
+import { BACKUP_KEYS } from './backup.js';
+
 const PREFIX = 'speaking-coach:';
 
 function read(key, fallback) {
@@ -243,6 +245,41 @@ export function recordVocabAnswer(key) {
   const next = addVocabDay(getVocabDays(), key);
   write('vocabDays', next);
   return next;
+}
+
+// ─── 備份 ────────────────────────────────────────────────────────────────
+
+/**
+ * 讀出所有要備份的鍵的**原始值**。
+ *
+ * 刻意不套用預設值與 migration：備份要存的是「這台瀏覽器現在真的有什麼」，
+ * 補過預設值之後存出去，還原到另一台會把那些預設值當成使用者的選擇。
+ */
+export function exportState() {
+  const state = {};
+  for (const key of BACKUP_KEYS) {
+    const value = read(key, undefined);
+    if (value !== undefined) state[key] = value;
+  }
+  return state;
+}
+
+/**
+ * 把備份寫回去。**只寫白名單裡的鍵**（parseBackup 已經濾過一次，這裡是第二道）。
+ *
+ * 是覆蓋不是合併：合併兩份複習進度要決定「同一個字兩邊都有時聽誰的」，
+ * 而任何一種選法都會在某些情況下把人往回推。覆蓋至少是可預期的，
+ * 呼叫端負責在覆蓋前問清楚。
+ *
+ * @returns {string[]} 實際寫進去的鍵
+ */
+export function importState(data) {
+  const written = [];
+  for (const key of BACKUP_KEYS) {
+    if (data?.[key] === undefined) continue;
+    if (write(key, data[key])) written.push(key);
+  }
+  return written;
 }
 
 // ─── 跟讀練習紀錄 ────────────────────────────────────────────────────────

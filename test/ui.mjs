@@ -14,6 +14,9 @@
 // 環境變數：BASE（預設 http://localhost:3000）、SHOTS（存截圖的目錄）、
 //           CHROMIUM（Chromium 執行檔路徑，機器上已經有一份時可以指過去）
 
+import fs from 'node:fs';
+import os from 'node:os';
+
 import { chromium } from '@playwright/test';
 
 // 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
@@ -38,7 +41,8 @@ if (!Array.isArray(sentences) || sentences.length < 10) {
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-const context = await browser.newContext();
+// acceptDownloads：備份那一段會真的下載一個檔案再讀回來
+const context = await browser.newContext({ acceptDownloads: true });
 const page = await context.newPage();
 
 // 這個專案沒有放 favicon，完整版 Chromium 會為此在 console 留一筆 404。
@@ -608,7 +612,72 @@ check('取消得掉', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabQuizTypes)).join() === 'en2zh');
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【14】清除紀錄');
+console.log('\n【14】備份與還原');
+
+// 這一段是真的走完一輪：下載 → 把資料清掉 → 用下載的檔案還原回來。
+// 只驗「按鈕在」沒有意義 —— 備份唯一重要的是**還原真的救得回來**。
+await seed({
+  mode: 'settings',
+  settings: { vocabDailyGoal: 30, vocabDeck: 'tier-2' },
+  srs: { 'ecdict:1': { box: 5, due: 1, seen: 6, correct: 6 }, 'ecdict:2': { box: 2, due: 1, seen: 2, correct: 1 } },
+  vocabDays: { '2026-09-04': 20, '2026-09-05': 12 },
+  history: fakeHistory([[0, 88, 0]]),
+});
+await page.waitForSelector('#backup-download');
+
+const [download] = await Promise.all([
+  page.waitForEvent('download'),
+  page.locator('#backup-download').click(),
+]);
+const backupPath = `${os.tmpdir()}/speaking-coach-ui-backup.json`;
+await download.saveAs(backupPath);
+
+check('備份檔名是 ASCII 而且有副檔名',
+  /^speaking-coach-backup-\d{8}\.json$/.test(download.suggestedFilename()),
+  download.suggestedFilename());
+
+const backupJson = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
+// srsVersion 不在必備清單裡：它只在真的搬過鍵之後才寫得出來，
+// 而搬家是冪等的、每次載入都會跑，所以沒有它也還原得回去。
+const backupKeys = Object.keys(backupJson.data);
+check('備份帶走四種進度資料',
+  ['srs', 'vocabDays', 'history', 'settings'].every((k) => backupKeys.includes(k)),
+  backupKeys.join());
+check('備份沒有夾帶白名單以外的鍵',
+  backupKeys.every((k) => ['srs', 'srsVersion', 'vocabDays', 'history', 'settings'].includes(k)),
+  backupKeys.join());
+check('備份裡沒有金鑰', !JSON.stringify(backupJson).includes('AIza'));
+check('下載後畫面說出帶走了什麼', (await viewText()).includes('已下載'));
+
+// 把資料清掉，再用剛剛那個檔案救回來
+await seed({ mode: 'settings', settings: { vocabDailyGoal: 5 } });
+check('清空後真的是空的', (await viewText()).includes('單字卡進度：0 張'));
+
+page.once('dialog', (d) => {
+  check('覆蓋前講清楚用什麼覆蓋', d.message().includes('單字進度 2 個字'), d.message().split('\n')[0]);
+  d.accept();
+});
+await page.locator('#backup-file').setInputFiles(backupPath);
+await page.waitForTimeout(1200);          // 還原之後會重新整理
+
+check('還原救回複習進度', (await viewText()).includes('單字卡進度：2 張'),
+  (await viewText()).match(/單字卡進度：\d+ 張/)?.[0] ?? '找不到那行字');
+check('還原救回偏好設定', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDailyGoal)) === 30);
+check('還原救回每日紀錄', (await page.evaluate(() =>
+  Object.keys(JSON.parse(localStorage.getItem('speaking-coach:vocabDays') ?? '{}')).length)) === 2);
+await shot(page, 'ui-14-備份');
+
+// 壞掉的檔案要擋下來，而且**不能動到現有資料**
+const badPath = `${os.tmpdir()}/speaking-coach-ui-bad.json`;
+fs.writeFileSync(badPath, JSON.stringify({ app: 'anki', version: 1, data: { srs: {} } }));
+await page.locator('#backup-file').setInputFiles(badPath);
+await page.waitForTimeout(500);
+check('別的 App 的檔案被擋下來', (await viewText()).includes('還原失敗'));
+check('被擋下來時現有資料原封不動', (await viewText()).includes('單字卡進度：2 張'));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【15】清除紀錄');
 
 await seed({ history: fakeHistory([[0, 42, 0], [1, 88, 1]]) });
 page.once('dialog', (d) => d.accept());
@@ -620,7 +689,7 @@ check('成績 chip 收起來', (await page.locator('.chip--past').count()) === 0
 check('今天的進度歸零', (await text('.today__value')).startsWith('0 /'));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【15】JS 錯誤');
+console.log('\n【16】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

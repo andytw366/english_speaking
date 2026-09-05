@@ -640,6 +640,42 @@ await page.waitForSelector('#view .card');
 check('一種都沒勾就退回翻卡',
   (await viewText()).includes('顯示答案') && (await page.locator('.quiz__options').count()) === 0);
 
+// ── 釋義截斷 ─────────────────────────────────────────────────────────────
+// 把 go（tier-1 的第 2 個字，20 個義項、69 個字）設成「到期要複習」，
+// buildQueue 就會把它排在最前面 —— 抽到哪張卡是隨機的，這一段需要指定的字。
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] },
+  srs: { 'ecdict:2': { box: 1, due: Date.now() - 1000, seen: 1 } },
+});
+await page.waitForSelector('.vocab__word');
+check('到期的卡排在最前面', (await text('.vocab__word')) === 'go', await text('.vocab__word'));
+
+await page.locator('#view button', { hasText: '顯示答案' }).click();
+await page.waitForTimeout(200);
+const shortMeaning = await text('.vocab__meaning');
+check('釋義先給前 4 個義項', shortMeaning === '去、走、達到、運轉', shortMeaning);
+check('多的收在「看全部」後面',
+  (await page.locator('#view button', { hasText: '看全部 20 個義項' }).count()) === 1);
+
+await page.locator('#view button', { hasText: '看全部' }).click();
+await page.waitForTimeout(200);
+check('看全部攤開的是原本的釋義（保留分行與領域標記）',
+  (await text('.vocab__meaning')).startsWith('去, 走, 達到'), (await text('.vocab__meaning')).slice(0, 20));
+check('攤開之後按鈕就收起來', (await page.locator('#view button', { hasText: '看全部' }).count()) === 0);
+
+// 短的釋義不要多一顆按鈕：say 有 7 個義項但只有 20 個字，本來就一行放得下
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] },
+  srs: { 'ecdict:1': { box: 1, due: Date.now() - 1000, seen: 1 } },
+});
+await page.waitForSelector('.vocab__word');
+await page.locator('#view button', { hasText: '顯示答案' }).click();
+await page.waitForTimeout(200);
+check('短的釋義不截斷', (await page.locator('#view button', { hasText: '看全部' }).count()) === 0 &&
+  (await text('.vocab__meaning')).includes('發言權'), await text('.vocab__meaning'));
+
 // 設定頁勾得動
 await seed({ mode: 'settings', settings: { vocabQuizTypes: ['zh2en', 'en2zh'] } });
 const typeChips = page.locator('.field', { hasText: '單字卡的題型' }).locator('button');

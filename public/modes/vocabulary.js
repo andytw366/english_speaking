@@ -7,7 +7,7 @@ import {
   getSrsState, tierProgress,
 } from '../lib/storage.js';
 import { dailyState as modeDaily, recordPractice, renderDailyCard } from '../lib/daily.js';
-import { pickType, buildQuestion } from '../lib/quiz.js';
+import { pickType, buildQuestion, senses } from '../lib/quiz.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
@@ -19,6 +19,21 @@ const ADVANCE_FRESH_LEFT = 0.1;
 
 /** 今天的份練完之後，「再多練一點」一次加幾張。 */
 const EXTRA_BATCH = 10;
+
+/**
+ * 卡片背面先顯示幾個義項，超過就收在「看全部」後面。
+ *
+ * ECDICT 的釋義是多行多義，答完題後那一坨會蓋掉真正要看的東西
+ * （例句、詞性、這個字在哪些考試出現過）。
+ *
+ * **兩個條件要同時成立才截**：義項超過 4 個**而且**整段超過 40 個字。
+ * 只看義項數的話 57% 的卡都會多一顆按鈕 —— 而 `say` 的七個義項
+ * （「說, 講, 念, 說明, 指明 說,講 意見, 發言權」）只有 20 個字，本來就一行放得下，
+ * 截了只是徒增一次點擊。加上字數這條之後剩 11%，而 `go`（20 個義項、69 個字）
+ * 那種真正的一面牆照樣會被收起來。
+ */
+const BACK_SENSES = 4;
+const BACK_CHARS = 40;
 
 let catalog = null;      // index.json
 let tierMap = null;      // tier-map.json，各級進度用（載不到就不顯示總覽）
@@ -33,6 +48,7 @@ let extra = 0;           // 今天目標達成後又自己多要的張數
 let currentType = 'flip';// 這張卡出哪一種題型（設定裡可以複選，一張一抽）
 let question = null;     // 選擇題的題目。翻卡時是 null
 let picked = null;       // 這一題選了哪個選項：{ id, correct }
+let showAllSenses = false; // 這張卡的背面按過「看全部」了沒
 let root = null;
 
 export async function mount(container) {
@@ -140,6 +156,8 @@ function prepareCard() {
   question = null;
   picked = null;
   revealed = false;
+  // 換一張卡就收回去 —— 上一個字按過「看全部」不代表下一個字也要攤開
+  showAllSenses = false;
 
   const card = queue[index];
   if (!card) return;
@@ -548,12 +566,35 @@ function cardFace(card) {
 /** 卡片的背面。翻卡按「顯示答案」之後、以及選擇題答完之後都是這一份。 */
 function cardBack(card) {
   return h('div', { class: 'vocab__back' },
-    h('p', { class: 'vocab__meaning' }, card.meaning_zh),
+    meaningBlock(card),
     card.definition_en && h('p', { class: 'vocab__def' }, card.definition_en),
     card.example_en && h('p', { class: 'vocab__example' }, card.example_en),
     card.example_zh && h('p', { class: 'vocab__example-zh' }, card.example_zh),
     card.note_zh && h('p', { class: 'vocab__note' }, `💡 ${card.note_zh}`),
     card.tags?.length && h('p', { class: 'hint' }, `出現於：${card.tags.join('、')}`),
+  );
+}
+
+/**
+ * 背面的中文釋義：先給前幾個義項，多的收在「看全部」後面。
+ *
+ * 攤開時印的是**原本的 `meaning_zh`**（保留它自己的分行與領域標記），
+ * 不是把切開的義項再接回去 —— 接回去會把 `[化]` 這種標記與換行洗掉。
+ */
+function meaningBlock(card) {
+  const list = [...senses(card.meaning_zh)];
+  const chars = String(card.meaning_zh ?? '').replace(/\s+/g, '').length;
+
+  if (showAllSenses || list.length <= BACK_SENSES || chars <= BACK_CHARS) {
+    return h('p', { class: 'vocab__meaning' }, card.meaning_zh);
+  }
+
+  return h('div', { class: 'vocab__meaningbox' },
+    h('p', { class: 'vocab__meaning' }, list.slice(0, BACK_SENSES).join('、')),
+    h('button', {
+      class: 'btn btn--link',
+      onclick: () => { showAllSenses = true; render(); },
+    }, `看全部 ${list.length} 個義項`),
   );
 }
 

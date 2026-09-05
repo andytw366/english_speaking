@@ -726,6 +726,10 @@ body {
   border-top: 1px solid var(--border);
 }
 .vocab__meaning { margin: 0 0 0.8rem; font-size: 1.25rem; font-weight: 500; }
+
+/* 「看全部 N 個義項」貼在被截短的釋義下面，不要跟著 1.25rem 的行距浮起來 */
+.vocab__meaningbox { margin-bottom: 0.8rem; }
+.vocab__meaningbox .vocab__meaning { margin-bottom: 0.1rem; }
 .vocab__example { margin: 0 0 0.2rem; font-size: 1.05rem; }
 .vocab__example-zh { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
 .vocab__note {

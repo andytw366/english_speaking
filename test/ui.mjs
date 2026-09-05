@@ -1062,6 +1062,48 @@ await context.setOffline(false);
 const cacheNames = await page.evaluate(() => caches.keys());
 check('App 與題庫分開兩個快取', cacheNames.length === 2, cacheNames.join(' | '));
 
+// ─── Chrome 自己認不認為這個 App 裝得起來 ────────────────────────────────
+//
+// 上面那幾條驗的是「檔案齊不齊、內容對不對」，但**齊全不等於裝得起來** ——
+// manifest 少一個必要欄位、圖示尺寸不合、start_url 掉出 scope、service worker
+// 沒接管，Chrome 都會安靜地不給「安裝應用程式」那個選項，而畫面上完全看不出來。
+// 與其自己重寫一份 Chrome 的判斷規則（一定會跟它的實作分岔），不如直接問它：
+// CDP 的 `Page.getInstallabilityErrors` 回的就是 Chrome 自己列的阻礙清單。
+//
+// **一定要用 persistent context。** 一般的 Playwright context 是無痕模式，
+// Chrome 在無痕下一律回 `in-incognito`，那條會蓋掉所有其他原因 ——
+// 看起來像「有一個阻礙」，其實是測試自己造成的。
+{
+  const dir = fs.mkdtempSync(`${os.tmpdir()}/pwa-profile-`);
+  const persistent = await chromium.launchPersistentContext(dir, {
+    executablePath: process.env.CHROMIUM || undefined,
+  });
+  try {
+    const p2 = await persistent.newPage();
+    await p2.addInitScript(() => {
+      window.__bip = false;
+      window.addEventListener('beforeinstallprompt', () => { window.__bip = true; });
+    });
+    await p2.goto(BASE, { waitUntil: 'networkidle' });
+    await p2.waitForTimeout(2000);
+
+    const cdp = await persistent.newCDPSession(p2);
+    const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
+    check('Chrome 沒有列出任何安裝阻礙', installabilityErrors.length === 0,
+      installabilityErrors.map((e) => e.errorId).join(' | ') || '（0 項）');
+
+    const { errors: manifestErrors } = await cdp.send('Page.getAppManifest');
+    check('manifest 沒有解析錯誤', manifestErrors.length === 0,
+      manifestErrors.map((e) => e.message).join(' | ') || '（0 項）');
+
+    // beforeinstallprompt 有發 = Chrome 真的會給「安裝」那個選項
+    check('Chrome 會給安裝提示', await p2.evaluate(() => window.__bip));
+  } finally {
+    await persistent.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【20】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));

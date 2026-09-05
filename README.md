@@ -912,7 +912,38 @@ service worker 只有三條規則，`strategyFor()` 是唯一決定用哪一條�
 > 最壞情況是「慢一次載入」，不是「永遠不會更新」。
 >
 > **service worker 要 secure context**，區網 IP 不算 —— 跟麥克風是同一條限制
-> （見「憑證：兩條路」）。走 Docker + Caddy 的話 HTTPS 已經有了，手機上直接可以裝。
+> （見「憑證：兩條路」）。走 Docker + Caddy 的話 HTTPS 已經有了。
+
+#### Android 上裝不起來？先換 Chrome 試一次
+
+Android 的「安裝應用程式」不是做一個捷徑，是真的**產生並安裝一個 APK**
+（WebAPK）——而那個 APK 不是這個專案打包的，是**瀏覽器自己的產生伺服器**做的。
+所以 APK 的 `targetSdkVersion` 由那台伺服器決定，manifest 完全影響不到。
+
+這會踩到一個跟 App 無關的坑：
+
+> 已封鎖不安全的應用程式
+> 這個應用程式是專為舊版 Android 打造，因此不含最新的隱私保護服務
+
+看起來像 Play 防護擋掉了來源不明的程式，其實不是 —— 這是 **Android 14 以上對
+`targetSdkVersion < 34` 的封鎖**。Samsung Internet 的 WebAPK 產生伺服器到現在
+（2026-09）還在產 targetSdk 低於 34 的包，所以用它裝任何 PWA 都會中；
+**Chrome 的產生伺服器產的是 ≥ 34，同一個網址用 Chrome 裝就過**。
+回報在 [SamsungInternet/support#123](https://github.com/SamsungInternet/support/issues/123)，
+還開著。
+
+所以順序是：**先用 Chrome 裝**。Chrome 也裝不起來才是這個 App 的問題，
+而那時候 `npm run test:ui`【19】的三條會告訴你是哪裡：
+
+| 測試 | 抓什麼 |
+|---|---|
+| Chrome 沒有列出任何安裝阻礙 | 直接問 Chrome（CDP 的 `Page.getInstallabilityErrors`），它列什麼就是什麼 |
+| manifest 沒有解析錯誤 | 欄位打錯、圖示尺寸對不上 |
+| Chrome 會給安裝提示 | `beforeinstallprompt` 真的有發 |
+
+> 這三條**一定要用 persistent context 跑**。一般的 Playwright context 是無痕模式，
+> Chrome 在無痕下一律回 `in-incognito`，那一條會蓋掉所有其他原因 ——
+> 看起來像「有一個阻礙」，其實是測試自己造成的。
 
 圖示是 `scripts/build-icons.mjs` 產的：品牌藍的圓角方塊 + 白色的「英」，
 用 Playwright 的 Chromium 把一段 SVG 截成 PNG（為了畫四張圖再加一個影像套件不划算，
@@ -1261,7 +1292,7 @@ npm test
 | `translation.test.js` | `content/translation.json` 這份資料（2,159 題，其中 1,880 題是腳本匯入的）。最重要的一條是**每個 `accept` 自己送進 `grade()` 都要判成「完全正確」**—— 使用者看得到「其他說法」，照著寫卻拿到 ❌ 是最傷的一種 bug，而且完全沒有錯誤訊息。其餘：keywords 每種說法都涵蓋得到（匯入的題目才保證，手寫的 118 題是既有資料債）、keyword 是 answer 裡的**完整 token**（`complicate` 不是 `overcomplicate` 的一部分，那一題會永遠判不到「意思對了」）、`answer` 排在 `accept[0]`、簡繁轉換的錯字與殘留簡體字 |
 | `sentences.test.js` | `content/sentences.json` 這份資料，以及匯入時的配額。擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的、簡繁轉換踩到一對多陷阱、每個情境的句數跑出 200～300 之外、重跑匯入把句庫疊成兩倍 |
 
-### 前端 UI 測試（208 項，需要伺服器，不需要金鑰）
+### 前端 UI 測試（213 項，需要伺服器，不需要金鑰）
 
 ```bash
 npm start          # 另一個終端機

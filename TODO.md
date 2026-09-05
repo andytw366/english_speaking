@@ -32,7 +32,7 @@
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
 | ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料 | 完成 |
 
-驗證狀態：`npm test` 269 項全過、`npm run test:ui` 208 項全過、
+驗證狀態：`npm test` 269 項全過、`npm run test:ui` 213 項全過、
 `npm run test:layout` 是尺不是測試（見 README「版面盤點」）、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
@@ -391,6 +391,20 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 
 ### PWA
 
+- **Android 上「已封鎖不安全的應用程式 / 這個應用程式是專為舊版 Android 打造」
+  不是這個 App 的問題，也不是 Play 防護擋來源不明。** 那是 Android 14+ 對
+  `targetSdkVersion < 34` 的封鎖，而 WebAPK 的 targetSdk 是**瀏覽器的產生伺服器**
+  決定的，manifest 影響不到。Samsung Internet 到 2026-09 還在產低於 34 的包
+  （[SamsungInternet/support#123](https://github.com/SamsungInternet/support/issues/123)，
+  還開著），Chrome 產的是 ≥ 34 —— **同一個網址用 Chrome 裝就過**。
+  不要為了這個去改 manifest，改不動。
+- **要判斷「是不是 App 這一側的問題」，直接問 Chrome，不要自己重寫一份判斷規則。**
+  `npm run test:ui`【19】最後三條用 CDP 的 `Page.getInstallabilityErrors` /
+  `Page.getAppManifest` + `beforeinstallprompt`。自己照文件重寫一份的話一定會跟
+  Chrome 的實作分岔，而分岔的方向永遠是「測試說可以、實際裝不起來」。
+- **那三條一定要用 `launchPersistentContext`。** 一般的 Playwright context 是
+  無痕模式，Chrome 在無痕下一律回 `in-incognito`，那一條會蓋掉所有其他原因 ——
+  看起來像「有一個阻礙」，其實是測試自己造成的。
 - **新增 `public/` 底下的 .js / .css 要加進 `sw.js` 的 `SHELL`。** 漏掉的症狀是
   「離線時某個模式打不開」，而有網路的時候完全看不出來。`test/pwa.test.js`
   會掃過目錄比對，所以漏了會紅 —— 那條測試存在的唯一理由就是這個。

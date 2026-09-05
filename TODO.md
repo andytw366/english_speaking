@@ -27,12 +27,12 @@
 | ⌨️ 鍵盤 | 六個模式都能不摸滑鼠練完（提示在左側模式列） | 完成 |
 | 📱 PWA | 加得到主畫面、斷線也打得開 | 完成 |
 | 🎧 聽力 | 81 組 / 226 題＋每日進度 | 完成 |
-| ✍️ 中翻英 | 279 題＋每日進度 | 完成 |
+| ✍️ 中翻英 | **2,159 題**（填空 161 / 整句 1,998）＋每日進度 | 完成 |
 | 💬 情境對話 | 61 段 / 427 句台詞＋每日進度 | 完成 |
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
 | ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料 | 完成 |
 
-驗證狀態：`npm test` 220 項全過、`npm run test:ui` 208 項全過、
+驗證狀態：`npm test` 237 項全過、`npm run test:ui` 208 項全過、
 `npm run test:layout` 是尺不是測試（見 README「版面盤點」）、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
@@ -62,7 +62,21 @@ README「覺得慢？中文講評可以整段關掉」。
 而選擇題可以把「義項不重疊」變成出題規則，順便讓間隔重複的訊號變客觀
 （不再是使用者自己按「記得」）。
 
-最新的一件：**第二階段（日常手感）做完了** —— 鍵盤操作、釋義截斷、PWA。
+最新的一件：**中翻英題庫從 279 題擴到 2,159 題**（分支
+`claude/expand-question-bank-model-swap-84rc5q`）。用的是**同一批** Tatoeba 語料 ——
+跟讀句庫只吃英文那一半，中文那一半在中翻英才派上用場，所以這件事離線就做得完、
+不用金鑰。設計寫在 README「中翻英題目：同一批語料的另一半」。
+
+重點不是題數，是 **`accept[]`**：同一句中文在語料裡常常對到好幾句英文，
+那些是真人寫的對等翻譯，整組收下去，使用者寫出任何一種都算完全正確。
+`keywords` 也改成「每一個 accept 都出現的實詞」的交集 —— 不然畫面上明明把某個說法
+列在「其他說法」裡，照著寫的變化型卻拿到 ❌。
+
+順手做掉的：兩支匯入腳本的語料清洗抽成 `scripts/corpus.js`（唯一一份），
+中翻英答完之後「其他說法」全部列出來（本來只列第一個），
+`explain_zh` 變成選填（匯入的題目沒有，硬湊一句沒內容的說明不如把版面讓給說法）。
+
+再前一件：**第二階段（日常手感）做完了** —— 鍵盤操作、釋義截斷、PWA。
 設計都寫在 README（「鍵盤操作」、「🗂️ 單字卡」的釋義那段、「加到主畫面（PWA）」），
 這裡只記三個接手時會用到的位置：`public/lib/keys.js`（擋掉打字中／組字中／
 按鈕上的鍵是它的重點）、`public/sw.js` 的 `strategyFor()`（哪個網址走哪條規則的
@@ -186,9 +200,19 @@ README「覺得慢？中文講評可以整段關掉」。
 **使用者說在他本機測過可以動，但這裡沒有證據，不要假設它一定沒問題。**
 `npm run test:e2e` 的【3】【5】就是為它寫的，有金鑰時在本機跑。
 
-**3-b. 內容量** —— 聽力 81 組 / 226 題、對話 61 段，照每天練的量兩三週就會開始重複
-（單字 10,040、跟讀 2,041 撐得久）。要補的話一定要跑過
-`scripts/generate-content.mjs` 的驗證，別手寫繞過去。
+**3-b. 內容量** —— 中翻英做完了（279 → 2,159 題），**聽力 81 組 / 226 題、
+對話 61 段還沒動**，照每天練的量兩三週就會開始重複（單字 10,040、跟讀 2,041 撐得久）。
+
+中翻英能離線補是因為 Tatoeba 給的本來就是中英句對，剛好就是這個模式要的東西；
+聽力要逐字稿、對話要整段對白，語料裡沒有，只能用 `scripts/generate-content.mjs`
+生成 —— **那需要 `GEMINI_API_KEY`，而開發容器裡沒有金鑰**，所以這兩個只能在本機跑：
+
+```bash
+node scripts/generate-content.mjs listening --count 20
+node scripts/generate-content.mjs dialogue  --count 10 --category work
+```
+
+一定要跑過那支腳本的驗證，別手寫繞過去（見下面「內容」那一段的雷）。
 
 **3-c. 公開部署的門禁** —— 沒帳號密碼、沒 rate limit。後端拿著兩組金鑰，
 公開網址等於任何人都能一直送錄音上來燒配額；而且 `/api/settings` 會寫伺服器的
@@ -213,6 +237,26 @@ README「覺得慢？中文講評可以整段關掉」。
 - **中文講評的開關只存在瀏覽器**（`geminiNarration`）。走 Docker 給家裡幾台裝置用的話，
   每台都要各自關一次。要的話可以加一個 `.env` 的預設值回在 `/api/health` 裡。
   **刻意沒先做**：一個人自己用設定一次就好，加了反而多一組要對齊的狀態。
+- **手寫的 118 題中翻英，keywords penalise 自己列出來的「其他說法」**。
+  118 題裡有 93 題的 keywords 是照 `answer` 挑的，而 `accept[1]` 常常是很不一樣的
+  講法（「That works for me.」／「That's fine with me.」）。照著 `accept[1]`
+  一字不差地寫沒問題（`grade()` 先比對完全相符），但寫成它的變化型就會被判
+  「再想想」。匯入的 1,880 題沒有這個問題（`keywordsFor()` 用交集算，
+  `test/translation.test.js` 釘住）。要修的話跑：
+  ```bash
+  node --input-type=module -e "
+  import {tokens} from './public/lib/grade.js';
+  import {readFileSync} from 'node:fs';
+  const d=JSON.parse(readFileSync('content/translation.json','utf8'));
+  for(const x of d.filter(y=>!y.source&&y.keywords))
+    for(const a of x.accept){const g=new Set(tokens(a));
+      const m=x.keywords.filter(k=>!tokens(k).every(t=>g.has(t)));
+      if(m.length)console.log(x.id,m.join(','),'|',a);}"
+  ```
+  **刻意沒自動修**：那些 keywords 是照教學意圖挑的（「walk me through」、
+  「round-trip」），用交集重算會把它們換成 try / things 這種沒有教學價值的字。
+  真要修得一題一題看。
+
 - **`focus` 標籤與內容清洗都是啟發式的** —— 擋得掉「不完整」與「不像對話」，
   擋不掉「文法正確但沒人會這樣講」。要再往上就得有人看過，或用 AI 做一次**離線**的
   品質評分（一次性成本，不是執行期的）。
@@ -419,6 +463,18 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 
 ### 內容
 
+- **算 keywords 一定要用 `grade.js` 的 `tokens()`，不能用 `corpus.js` 的 `lower()`。**
+  兩邊對連字號的處理不一樣：`lower()` 把 `ten-minute` 拆成 ten / minute，
+  真正批改的 `tokens()` 留成一個。用 `lower()` 算出來的 keyword「ten」
+  **永遠比對不到**，那一題就再也判不出「意思對了」，而畫面上只會說
+  「少了這些關鍵用字：ten」，看起來像使用者漏字。匯入時中了 19 題，
+  `test/translation.test.js` 的「每一個 keyword 都出現在 answer 裡」會抓。
+- **`accept` 裡的每一種說法都必須自己過得了 `grade()`。** 它們會列在畫面上的
+  「其他說法」裡 —— 使用者照著寫卻拿到 ❌ 是最傷的一種 bug，而且沒有任何錯誤訊息。
+  加題目（手寫或匯入）之後跑 `node --test test/translation.test.js`。
+- **`content/translation.json` 是 854 KB**（gzip 後 155 KB）。Caddy 有
+  `encode zstd gzip` 所以走 Docker 沒問題，但**後端自己沒有壓縮中介層** ——
+  要把它擺在別的反向代理後面時記得確認那一層有開壓縮。
 - **解析不能只是把英文原句抄一遍加中文句號。** 這是這個專案裡反覆犯的錯，三個聽力批次
   分別被驗證擋下 12、0、5 筆，全是同一個問題。`scripts/generate-content.mjs` 的驗證會擋，
   **新增內容一定要跑過那套驗證**（指令見 README「內容驗證」）。

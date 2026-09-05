@@ -915,6 +915,16 @@ body {
   font-weight: 500;
 }
 
+/* 「其他說法」的清單。一題最多會有 8 種，所以縮排要窄、行距要緊，
+   不然一張結果卡會被它撐成整個螢幕。 */
+.trans__alts {
+  margin: 0.2rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
 .result__title { margin: 0 0 0.5rem; font-size: 1.15rem; font-weight: 600; }
 .result--ok .result__title { color: var(--ok); }
 .result--close .result__title { color: var(--warn-text); }

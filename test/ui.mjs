@@ -419,12 +419,16 @@ for (let i = 1; i <= 40; i++) {
 }
 legacySrs['curated:1'] = { box: 3, due: Date.now(), seen: 3, correct: 2 };
 
-await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', sessionLimit: 20 }, srs: legacySrs });
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabDailyGoal: 3 }, srs: legacySrs });
 await page.waitForSelector('.deckbar');
 
 check('顯示我在第幾級', (await text('.deckbar')).includes('第 1 級 / 共 6 級'),
   (await text('.deckbar')).replace(/\s+/g, ' '));
-check('這一輪抽固定張數', (await viewText()).includes('這一輪最多 20 張'));
+check('顯示今天的進度', (await text('.card--today')).includes('0 / 3'),
+  (await text('.card--today')).replace(/\s+/g, ' '));
+check('一次只抽今天的份', (await text('.counter')).trim() === '1 / 3',
+  (await text('.counter')).trim());
+check('說明指向設定', (await viewText()).includes('在「設定」可以改'));
 
 // 舊鍵 band-1:N 要搬成共用的 ecdict:N，不然在 tier-1 練會看不到既有進度
 const srsKeys = await page.evaluate(() =>
@@ -462,7 +466,59 @@ check('選的難度記在設定裡', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDeck)) === 'tier-4');
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【12】清除紀錄');
+console.log('\n【12】單字卡：每日目標');
+
+// 每日目標設 3，把一整天走完
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabDailyGoal: 3 } });
+await page.waitForSelector('.card--today');
+
+for (let i = 0; i < 3; i++) {
+  await page.locator('#view button', { hasText: '顯示答案' }).click();
+  await page.waitForTimeout(120);
+  await page.locator('#view button', { hasText: i % 2 ? '還不熟' : '記得' }).click();
+  await page.waitForTimeout(200);
+}
+
+check('練滿之後今天的進度是滿的', (await text('.card--today')).includes('3 / 3'),
+  (await text('.card--today')).replace(/\s+/g, ' '));
+check('連續天數從 0 變成 1', (await text('.today__block--streak .today__value')) === '1');
+check('告訴使用者今天完成了', (await viewText()).includes('今天的 3 個字練完了'));
+check('答對答錯都算進今天的份', (await page.evaluate(() =>
+  Object.values(JSON.parse(localStorage.getItem('speaking-coach:vocabDays') ?? '{}'))[0])) === 3);
+await shot(page, 'ui-12-每日目標');
+
+// 這是每日目標跟舊的「一輪最多幾張」最重要的差別
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForSelector('.card--today');
+check('關掉重開，今天的份不會重來',
+  (await viewText()).includes('今天的 3 個字練完了') && (await text('.card--today')).includes('3 / 3'));
+
+// 不擋著不讓練 —— 目標是拿來知道自己完成了，不是拿來鎖門的
+await page.locator('#view button', { hasText: '再多練' }).click();
+await page.waitForTimeout(400);
+check('想繼續練還是可以', (await text('.counter')).trim() === '1 / 10',
+  (await text('.counter')).trim());
+
+// 換一級之後今天練過的數字要留著（計數表記的是日期，不是牌組）
+await page.locator('#view button', { hasText: '換難度' }).first().click();
+await page.waitForTimeout(300);
+await page.locator('.deckitem', { hasText: '進階' }).click();
+await page.waitForTimeout(700);
+check('換難度不會把今天的進度歸零', (await text('.card--today')).includes('3 / 3'));
+
+// 設定頁改得到那個數字
+await seed({ mode: 'settings', settings: { vocabDailyGoal: 20 } });
+const goalChips = page.locator('.field', { hasText: '單字卡每天練幾個字' }).locator('button');
+check('設定頁有每日單字數', (await goalChips.count()) === 4);
+await goalChips.nth(2).click();
+await page.waitForTimeout(200);
+check('改得動而且存得起來', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDailyGoal)) === 30,
+  String(await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDailyGoal)));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【13】清除紀錄');
 
 await seed({ history: fakeHistory([[0, 42, 0], [1, 88, 1]]) });
 page.once('dialog', (d) => d.accept());
@@ -474,7 +530,7 @@ check('成績 chip 收起來', (await page.locator('.chip--past').count()) === 0
 check('今天的進度歸零', (await text('.today__value')).startsWith('0 /'));
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【13】JS 錯誤');
+console.log('\n【14】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

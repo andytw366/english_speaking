@@ -6,7 +6,7 @@ const KEY = 'speaking-coach:settings';
 export const DEFAULTS = {
   ttsVoice: '',          // 空字串 = 自動挑選
   ttsRate: 0.9,
-  sessionLimit: 20,      // 單字卡一輪最多幾張，0 = 不限
+  vocabDailyGoal: 20,    // 單字卡每天練幾個字，0 = 不限（見下面的搬家）
   categories: [],        // 空陣列 = 全部
   difficulties: [],      // 空陣列 = 全部
   translationType: 'all',// all | cloze | sentence
@@ -23,11 +23,27 @@ let cache = null;
 export function getSettings() {
   if (cache) return cache;
   try {
-    cache = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
+    cache = migrate({ ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') });
   } catch {
     cache = { ...DEFAULTS };
   }
   return cache;
+}
+
+/**
+ * 舊設定搬到新設定。
+ *
+ * `sessionLimit`（單字卡一輪最多幾張）換成 `vocabDailyGoal`（一天練幾個字）——
+ * 「一輪」關掉重開就再來一輪，數字管不住任何東西；「一天」才是使用者真正在意的量。
+ * 設過自訂值的人要把那個數字帶過來，不然改版之後他調的 50 會無聲變回 20。
+ *
+ * 舊鍵留在 localStorage 裡不刪：萬一要退版，資料還在。
+ */
+function migrate(settings) {
+  if (settings.vocabDailyGoal === undefined && typeof settings.sessionLimit === 'number') {
+    return { ...settings, vocabDailyGoal: settings.sessionLimit };
+  }
+  return settings;
 }
 
 export function updateSettings(patch) {

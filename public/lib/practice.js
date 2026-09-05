@@ -278,8 +278,18 @@ export function todayCount(history, now = Date.now()) {
  * 那正好是最不該讓人放棄的時間點。真的斷了（前天以前才練過）才是 0。
  */
 export function streakDays(history, now = Date.now()) {
-  const days = practiceDays(history);
-  if (days.size === 0) return 0;
+  return streakFromDays(practiceDays(history), now);
+}
+
+/**
+ * 同樣的連續天數，但直接吃一組 dayKey。
+ *
+ * 單字卡記的是「哪一天練了幾個字」的計數表，不是一筆一筆的紀錄，
+ * 所以它組不出 practiceDays() 要的陣列 —— 但「連續幾天」的算法必須只有一份，
+ * 不然兩個模式的連續天數會在跨月、日光節約這些邊界上各錯各的。
+ */
+export function streakFromDays(days, now = Date.now()) {
+  if (!(days instanceof Set) || days.size === 0) return 0;
 
   const today = dayKey(new Date(now));
   // 今天練過就從今天算，沒練過就從昨天算；昨天也沒有才是真的斷了

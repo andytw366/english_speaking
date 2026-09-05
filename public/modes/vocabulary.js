@@ -4,7 +4,10 @@ import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
   buildQueue, recordAnswer, srsSummary, getCardState, resetSrs,
   getSrsState, tierProgress,
+  getVocabDays, recordVocabAnswer, vocabDayCount, vocabActiveDays,
 } from '../lib/storage.js';
+import { dayKey, streakFromDays } from '../lib/practice.js';
+import { renderTodayCard } from '../lib/today-card.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
@@ -13,6 +16,9 @@ export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
 // 不自動跳級 —— 使用者自己選難度，這裡只提醒。
 const ADVANCE_MASTERED = 0.8;
 const ADVANCE_FRESH_LEFT = 0.1;
+
+/** 今天的份練完之後，「再多練一點」一次加幾張。 */
+const EXTRA_BATCH = 10;
 
 let catalog = null;      // index.json
 let tierMap = null;      // tier-map.json，各級進度用（載不到就不顯示總覽）
@@ -23,6 +29,7 @@ let index = 0;
 let revealed = false;
 let picking = false;     // 是否停在選難度的畫面
 let showBands = false;   // 詞頻級距預設收起來 —— 分級才是主要的選法
+let extra = 0;           // 今天目標達成後又自己多要的張數
 let root = null;
 
 export async function mount(container) {
@@ -77,10 +84,10 @@ async function loadDeck(id) {
 }
 
 /**
- * 這一輪要練的卡。
+ * 這一級可以抽的卡。
  *
- * 「從我在的難度抽固定數量」就是這裡：`buildQueue()` 先排到期的、再補沒學過的，
- * 然後用設定裡的 `sessionLimit`（預設 20）切掉尾巴。
+ * 抽多少由 `dailyState()` 的每日目標決定；順序由 `buildQueue()` 決定
+ * （到期要複習的優先，再補沒學過的）。
  */
 function currentPool() {
   const deck = deckOf(deckId);
@@ -94,10 +101,31 @@ function currentPool() {
   return cards;
 }
 
+/**
+ * 今天的份還剩幾張。
+ *
+ * 每日目標（設定裡的「單字卡每天練幾個字」）是**跨牌組、跨開關 App** 算的 ——
+ * 計數表記的是日期而不是場次，所以關掉重開、或者中途換一級，今天練過的數字
+ * 都還在。這正是它跟舊的「一輪最多幾張」的差別：那個數字關掉重開就重來，
+ * 等於沒有限制任何東西。
+ */
+function dailyState(now = Date.now()) {
+  const goal = getSettings().vocabDailyGoal;
+  const days = getVocabDays();
+  const done = vocabDayCount(days, dayKey(new Date(now)));
+  return {
+    goal,
+    done,
+    streak: streakFromDays(vocabActiveDays(days), now),
+    // 目標設 0 = 不限，這一級的字全部排進來
+    remaining: goal > 0 ? Math.max(0, goal + extra - done) : Infinity,
+  };
+}
+
 function startSession() {
-  const { sessionLimit } = getSettings();
+  const { remaining } = dailyState();
   queue = buildQueue(currentPool());
-  if (sessionLimit > 0) queue = queue.slice(0, sessionLimit);
+  if (Number.isFinite(remaining)) queue = queue.slice(0, remaining);
   index = 0;
   revealed = false;
   render();
@@ -111,8 +139,30 @@ function render() {
 
   const deck = deckOf(deckId);
   const summary = srsSummary(currentPool());
+  const daily = dailyState();
 
-  append(root, deckCard(deck, summary));
+  append(root, deckCard(deck, summary), todayCard(daily));
+
+  // 今天的份練完了。**不擋著不讓練** —— 目標是拿來知道自己完成了，不是拿來鎖門的。
+  if (daily.remaining <= 0) {
+    append(root,
+      h('div', { class: 'card empty' },
+        h('p', { class: 'empty__title' }, `今天的 ${daily.goal} 個字練完了 🎉`),
+        h('p', { class: 'hint' },
+          daily.streak > 1
+            ? `連續 ${daily.streak} 天。明天到期要複習的字會自動排在最前面。`
+            : '明天到期要複習的字會自動排在最前面。'),
+        h('div', { class: 'row' },
+          h('button', {
+            class: 'btn btn--primary',
+            onclick: () => { extra += EXTRA_BATCH; startSession(); },
+          }, `再多練 ${EXTRA_BATCH} 個`),
+          h('button', { class: 'btn btn--ghost', onclick: () => { picking = true; render(); } }, '換難度'),
+        ),
+      ),
+    );
+    return;
+  }
 
   if (queue.length === 0) {
     append(root,
@@ -131,12 +181,14 @@ function render() {
   }
 
   if (index >= queue.length) {
+    // 今天的份還沒滿，但這一級能抽的字抽完了（到期的都複習過、新字也發完）
     append(root,
       h('div', { class: 'card empty' },
-        h('p', { class: 'empty__title' }, `這輪完成了！複習了 ${queue.length} 張`),
+        h('p', { class: 'empty__title' }, `這一級今天能練的都練完了（${queue.length} 張）`),
+        h('p', { class: 'hint' }, '換一個難度就能繼續累積今天的進度。'),
         h('div', { class: 'row' },
-          h('button', { class: 'btn btn--primary', onclick: startSession }, '再來一輪'),
-          h('button', { class: 'btn btn--ghost', onclick: () => { picking = true; render(); } }, '換難度'),
+          h('button', { class: 'btn btn--primary', onclick: () => { picking = true; render(); } }, '換難度'),
+          h('button', { class: 'btn btn--ghost', onclick: startSession }, '再看一次'),
         ),
       ),
     );
@@ -189,10 +241,7 @@ function deckCard(deck, summary) {
       stat('已熟練', summary.mastered, 'mastered'),
     ),
 
-    h('p', { class: 'hint' },
-      `這一輪最多 ${getSettings().sessionLimit || '不限'} 張` +
-      (getSettings().sessionLimit ? '（在「設定」可以改）' : '') +
-      '，先排到期要複習的，再補沒學過的。'),
+    h('p', { class: 'hint' }, '抽卡順序：到期要複習的優先，再補沒學過的。'),
 
     // 不自動跳級：難度是使用者自己選的，這裡只在該畢業的時候提醒一次
     next && shouldAdvance(summary) && h('div', { class: 'banner' },
@@ -203,6 +252,22 @@ function deckCard(deck, summary) {
       }, `進到「${next.label}」`),
     ),
   );
+}
+
+/** 今天練了幾個字、連續幾天。跟讀用的是同一張卡（`lib/today-card.js`）。 */
+function todayCard(daily) {
+  return renderTodayCard({
+    done: daily.done,
+    goal: daily.goal,
+    streak: daily.streak,
+    unit: '個字',
+    label: '今天練的字',
+    // 跟讀把每日目標的選單直接放在卡上；單字卡的目標放在「設定」，
+    // 所以這裡只用一句話指路，不再放第二個能改同一個數字的地方。
+    hint: daily.goal > 0 && daily.done < daily.goal
+      ? `再 ${daily.goal - daily.done} 個字就達成今天的目標了。（每天幾個字在「設定」可以改）`
+      : '',
+  });
 }
 
 function shouldAdvance(summary) {
@@ -374,7 +439,12 @@ async function playWord(card, button) {
 
 function answer(card, wasCorrect) {
   recordAnswer(card, wasCorrect);
+  // 記進「哪一天練了幾張」的計數表。答對答錯都算 —— 今天的份算的是練習量，
+  // 不是正確率（正確率在 srs 的 box 裡）。
+  recordVocabAnswer(dayKey(new Date()));
   index++;
   revealed = false;
+  // 這一批發完就重算：今天的份可能剛好滿了，該換成「今天練完了」那張卡
+  if (index >= queue.length) return startSession();
   render();
 }

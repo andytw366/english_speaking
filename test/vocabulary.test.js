@@ -13,7 +13,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { TIERS, TIER_IDS, tierFor } from '../scripts/vocab-levels.js';
-import { migrateSrs, tierProgress } from '../public/lib/storage.js';
+import {
+  migrateSrs, tierProgress, addVocabDay, vocabDayCount, vocabActiveDays, VOCAB_DAY_LIMIT,
+} from '../public/lib/storage.js';
+import { streakFromDays, dayKey } from '../public/lib/practice.js';
+import { todayNote } from '../public/lib/today-card.js';
 
 const DIR = path.join(import.meta.dirname, '..', 'content', 'vocabulary');
 const load = (name) => JSON.parse(fs.readFileSync(path.join(DIR, name), 'utf8'));
@@ -243,4 +247,95 @@ test('拿真實的 tier-map 跑得動，而且每一級的總數都對', () => {
 test('對照表載不到時回空陣列，不是丟例外（總覽只是不畫，練習照常）', () => {
   assert.deepEqual(tierProgress({}, null, NOW), []);
   assert.deepEqual(tierProgress({}, {}, NOW), []);
+});
+
+// ─── 每日進度 ────────────────────────────────────────────────────────────
+//
+// 舊的「一輪最多幾張」關掉重開就再來一輪，等於沒有限制任何東西。
+// 每日目標算的是**日期**，所以下面這幾條釘的都是「跨場次還記得」這件事。
+
+test('同一天累加，不同天各算各的', () => {
+  let days = addVocabDay({}, '2026-09-05');
+  days = addVocabDay(days, '2026-09-05');
+  days = addVocabDay(days, '2026-09-04');
+
+  assert.equal(vocabDayCount(days, '2026-09-05'), 2);
+  assert.equal(vocabDayCount(days, '2026-09-04'), 1);
+  assert.equal(vocabDayCount(days, '2026-09-03'), 0);
+});
+
+test('addVocabDay 不改到原本的計數表（畫面拿著舊的那份在算）', () => {
+  const before = { '2026-09-05': 1 };
+  const after = addVocabDay(before, '2026-09-05');
+  assert.equal(before['2026-09-05'], 1);
+  assert.equal(after['2026-09-05'], 2);
+});
+
+test('壞掉的值當成 0 —— 這是使用者改得到的 localStorage', () => {
+  assert.equal(vocabDayCount({ x: 'abc' }, 'x'), 0);
+  assert.equal(vocabDayCount({ x: -5 }, 'x'), 0);
+  assert.equal(vocabDayCount({ x: 2.7 }, 'x'), 2);
+  assert.equal(vocabDayCount(null, 'x'), 0);
+  assert.equal(vocabDayCount({}, ''), 0);
+});
+
+test('日期壞掉時不會生出一個空字串的鍵', () => {
+  assert.deepEqual(addVocabDay({ a: 1 }, ''), { a: 1 });
+});
+
+test('只留最近幾天，而且留下來的是最新的那幾天', () => {
+  let days = {};
+  // 造 VOCAB_DAY_LIMIT + 5 天的資料（日期字串排序就是時間順序）
+  for (let i = 0; i < VOCAB_DAY_LIMIT + 5; i++) {
+    days = addVocabDay(days, `2020-01-01+${String(i).padStart(4, '0')}`);
+  }
+  const keys = Object.keys(days);
+  assert.equal(keys.length, VOCAB_DAY_LIMIT);
+  assert.ok(keys.includes(`2020-01-01+${String(VOCAB_DAY_LIMIT + 4).padStart(4, '0')}`), '最新的一天被丟掉了');
+  assert.ok(!keys.includes('2020-01-01+0000'), '最舊的一天沒有被丟掉');
+});
+
+test('連續天數用的是跟跟讀同一套算法', () => {
+  // 用真實日期字串（streakFromDays 會拿它去 new Date）
+  const today = dayKey(new Date());
+  const yesterday = dayKey(new Date(Date.now() - 864e5));
+  const twoDaysAgo = dayKey(new Date(Date.now() - 2 * 864e5));
+
+  const days = { [today]: 5, [yesterday]: 20, [twoDaysAgo]: 20 };
+  assert.equal(streakFromDays(vocabActiveDays(days)), 3);
+
+  // 今天還沒練不會馬上歸零 —— 從昨天開始往回算
+  const withoutToday = { [yesterday]: 20, [twoDaysAgo]: 20 };
+  assert.equal(streakFromDays(vocabActiveDays(withoutToday)), 2);
+
+  // 練了 0 個字的那天不算「有練」
+  assert.equal(streakFromDays(vocabActiveDays({ [today]: 0, [yesterday]: 3 })), 1);
+});
+
+test('沒有任何紀錄時連續天數是 0，而不是丟例外', () => {
+  assert.equal(streakFromDays(vocabActiveDays({})), 0);
+  assert.equal(streakFromDays(vocabActiveDays(null)), 0);
+  assert.equal(streakFromDays(undefined), 0);
+});
+
+test('每日進度的那句話：達成、還差幾個、沒設目標各講各的', () => {
+  assert.match(todayNote(20, 20, 5, '個字'), /達成/);
+  assert.match(todayNote(20, 20, 5, '個字'), /連續 5 天/);
+  assert.match(todayNote(7, 20, 0, '個字'), /再 13 個字/);
+  assert.match(todayNote(0, 20, 3, '個字'), /連續 3 天/);
+  assert.match(todayNote(0, 20, 0, '個字'), /今天練 20 個字/);
+
+  // 目標設 0（不限）不能寫成「0 / 0 達成」這種話
+  assert.match(todayNote(12, 0, 2, '個字'), /練了 12 個字/);
+  assert.match(todayNote(0, 0, 0, '個字'), /沒有設每日目標/);
+});
+
+test('鼓勵的話裡不出現威脅 —— 用罰的推人回來只會讓人不想打開', () => {
+  const lines = [
+    todayNote(0, 20, 7, '個字'), todayNote(5, 20, 7, '個字'),
+    todayNote(20, 20, 7, '個字'), todayNote(0, 0, 0, '個字'),
+  ];
+  for (const line of lines) {
+    assert.doesNotMatch(line, /斷|沒了|快要|失去/, line);
+  }
 });

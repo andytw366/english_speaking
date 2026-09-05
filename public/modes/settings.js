@@ -9,6 +9,9 @@ export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 // 情境與難度的清單從 lib/labels.js 長出來，不在這裡再寫死一份 ——
 // 句庫已經有八種情境（原本這裡只列四種，新增的四種就選不到）。
 const CATEGORIES = Object.entries(CATEGORY_LABEL);
+
+/** 每日單字數的快速選項。數字輸入框還在，這幾顆只是省得手打。 */
+const VOCAB_GOALS = [10, 20, 30, 50];
 const DIFFICULTIES = DIFFICULTY_ORDER.map((id) => [id, DIFFICULTY_LABEL[id]]);
 
 let voices = [];
@@ -220,13 +223,22 @@ function practiceCard() {
     ),
 
     h('div', { class: 'field' },
-      h('label', { class: 'field__label', for: 'session-limit' }, '單字卡一輪最多幾張'),
+      h('label', { class: 'field__label', for: 'vocab-daily-goal' }, '單字卡每天練幾個字'),
+      h('div', { class: 'chips' },
+        VOCAB_GOALS.map((n) => toggleChip(`${n} 個`, s.vocabDailyGoal === n, () => {
+          updateSettings({ vocabDailyGoal: n });
+          render();
+        }))),
       h('input', {
-        class: 'field__input', id: 'session-limit', type: 'number', min: '0', max: '200',
-        value: String(s.sessionLimit),
-        onchange: (e) => { updateSettings({ sessionLimit: Math.max(0, Number(e.target.value) || 0) }); render(); },
+        class: 'field__input', id: 'vocab-daily-goal', type: 'number', min: '0', max: '200',
+        value: String(s.vocabDailyGoal),
+        onchange: (e) => { updateSettings({ vocabDailyGoal: Math.max(0, Number(e.target.value) || 0) }); render(); },
       }),
-      h('p', { class: 'hint' }, '0 表示不限制。'),
+      h('p', { class: 'hint' },
+        s.vocabDailyGoal > 0
+          ? `選好難度之後，單字卡每天就從那一級抽 ${s.vocabDailyGoal} 個字（到期要複習的優先）。` +
+            '練完會告訴你今天完成了，想再多練也可以繼續。'
+          : '0 表示不設每日目標 —— 那一級的字會一次全部排進來，練到你自己停。'),
     ),
 
     h('div', { class: 'field' },

@@ -189,6 +189,60 @@ export function tierProgress(srsState, tierMap, now = Date.now()) {
 export function resetSrs() {
   write('srs', {});
   write('srsVersion', SRS_VERSION);
+  write('vocabDays', {});
+}
+
+// ─── 單字卡的每日進度 ────────────────────────────────────────────────────
+//
+// 為什麼要另外記一份、不從 srs 算：srs 每張卡只留**最後一次**的狀態
+// （box / due / seen），答過就被下一次蓋掉 —— 從它算不出「今天練了幾張」，
+// 更算不出連續天數。所以這裡記的是一張「哪一天練了幾張」的計數表：
+//
+//   { '2026-09-05': 23, '2026-09-04': 20, … }
+//
+// 一天一個鍵、值是數字，所以整年的資料也才幾 KB；同一件事用一筆一筆的紀錄
+// 存的話（跟讀那種形狀）一天就 20 筆，還得為了算今天的數字掃過整份。
+
+/** 保留幾天。一年多，足夠算連續天數，也不會讓 localStorage 無限長大。 */
+export const VOCAB_DAY_LIMIT = 400;
+
+export function getVocabDays() {
+  const days = read('vocabDays', {});
+  return days && typeof days === 'object' && !Array.isArray(days) ? days : {};
+}
+
+/**
+ * 某一天的計數加一。純函式，回一份新的計數表。
+ *
+ * @param {Record<string, number>} days 現有的計數表
+ * @param {string} key 本地時間的 YYYY-MM-DD（practice.js 的 dayKey()）
+ */
+export function addVocabDay(days, key, limit = VOCAB_DAY_LIMIT) {
+  if (!key) return { ...days };
+  const next = { ...days, [key]: (Number(days?.[key]) || 0) + 1 };
+
+  // 只留最近的幾天。鍵是 YYYY-MM-DD，字串由大到小排就是由新到舊。
+  const keys = Object.keys(next).sort().reverse();
+  if (keys.length <= limit) return next;
+  return Object.fromEntries(keys.slice(0, limit).map((k) => [k, next[k]]));
+}
+
+/** 某一天練了幾張。壞掉的值當成 0 —— 這是使用者改得到的 localStorage。 */
+export function vocabDayCount(days, key) {
+  const n = Number(days?.[key]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+/** 有練過單字的日子（連續天數用）。 */
+export function vocabActiveDays(days) {
+  return new Set(Object.keys(days ?? {}).filter((key) => vocabDayCount(days, key) > 0));
+}
+
+/** 記一張已回答的卡。回傳更新後的計數表。 */
+export function recordVocabAnswer(key) {
+  const next = addVocabDay(getVocabDays(), key);
+  write('vocabDays', next);
+  return next;
 }
 
 // ─── 跟讀練習紀錄 ────────────────────────────────────────────────────────

@@ -252,34 +252,17 @@ function shiftDay(base, days) {
   return dayKey(date);
 }
 
-/** 有練習紀錄的日子（本地時間，去重）。 */
-export function practiceDays(history) {
-  const days = new Set();
-  if (!Array.isArray(history)) return days;
-  for (const record of history) {
-    const key = dayKey(record?.at);
-    if (key) days.add(key);
-  }
-  return days;
-}
-
-/** 今天練了幾句（含沒有分數的紀錄？不含 —— 沒分數代表沒真的練成一句）。 */
-export function todayCount(history, now = Date.now()) {
-  const today = dayKey(new Date(now));
-  if (!Array.isArray(history)) return 0;
-  return history.filter((r) => typeof r?.score === 'number' && dayKey(r.at) === today).length;
-}
-
 /**
- * 連續練習天數。
+ * 連續練習天數。吃的是一組 dayKey（`lib/storage.js` 的計數表整理出來的）。
  *
  * **今天還沒練不會馬上歸零** —— 從昨天開始往回算。
  * 這是刻意的：早上打開 App 看到「連續 0 天」，會讓人覺得昨天的努力已經沒了，
  * 那正好是最不該讓人放棄的時間點。真的斷了（前天以前才練過）才是 0。
+ *
+ * 六個模式共用這一份 —— 各寫各的話，跨月、日光節約這些邊界會各錯各的。
  */
-export function streakDays(history, now = Date.now()) {
-  const days = practiceDays(history);
-  if (days.size === 0) return 0;
+export function streakFromDays(days, now = Date.now()) {
+  if (!(days instanceof Set) || days.size === 0) return 0;
 
   const today = dayKey(new Date(now));
   // 今天練過就從今天算，沒練過就從昨天算；昨天也沒有才是真的斷了

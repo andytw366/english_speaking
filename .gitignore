@@ -10,3 +10,6 @@ npm-debug.log*
 
 # Caddy 本機 CA 的根憑證（用 docker compose cp 匯出來裝到手機上的那張）
 caddy-root.crt
+
+# ECDICT 的原始 CSV（約 63 MB，npm run build:vocabulary 會自己下載）
+ecdict.csv

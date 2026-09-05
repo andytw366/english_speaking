@@ -11,6 +11,7 @@ import {
   resetClient as resetGeminiClient, MODELS, defaultModel,
 } from './gemini.js';
 import { analyseWavPcm16, isSilentRecording } from './audio.js';
+import { localSummary, wantsNarration } from './narration.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
 import { readSettings, writeSettings, assertLocalRequest, SettingsError } from './settings.js';
 
@@ -66,8 +67,10 @@ const VOCAB_DIR = path.join(ROOT, 'content', 'vocabulary');
 
 app.get('/api/vocabulary/:file', (req, res, next) => {
   const name = req.params.file;
-  // 只允許已知的檔名形態，避免路徑穿越
-  if (!/^(index|curated|band-\d{2})\.json$/.test(name)) {
+  // 只允許已知的檔名形態，避免路徑穿越。
+  // band 是依詞頻的級距、tier 是依難度的分級（同一批字的兩種切法），
+  // tier-map 是「id 是第幾級」的對照表。新增牌組型態時這裡要跟著加。
+  if (!/^(index|curated|band-\d{2}|tier-\d+|tier-map)\.json$/.test(name)) {
     return res.status(404).json({
       error: 'unknown_deck',
       message: `找不到「${name}」這組單字。`,
@@ -76,7 +79,17 @@ app.get('/api/vocabulary/:file', (req, res, next) => {
   fs.promises
     .readFile(path.join(VOCAB_DIR, name), 'utf8')
     .then((raw) => res.type('application/json').send(raw))
-    .catch(next);
+    .catch((err) => {
+      // 檔名形態合法但檔案不存在（tier-99.json、band-99.json）要回 404，
+      // 不要掉進通用錯誤處理變成 500 —— 那個訊息會讓人以為伺服器壞了。
+      if (err.code === 'ENOENT') {
+        return res.status(404).json({
+          error: 'unknown_deck',
+          message: `找不到「${name}」這組單字。`,
+        });
+      }
+      next(err);
+    });
 });
 
 app.get('/api/content/:name', (req, res, next) => {
@@ -153,9 +166,15 @@ app.post(
     // 白名單檢查在 gemini.js 裡做（那是唯一擋得住任意字串的地方）。
     const model = (req.body?.model || '').trim() || undefined;
 
+    // 使用者可以在「設定」關掉中文講評。關掉之後 Azure 的分數照樣回傳，
+    // 只是講評改用本地摘要 —— 省下的就是等 Gemini 那幾秒。
+    // 沒送這個欄位視為「要」，舊前端的行為不變。
+    const narrate = wantsNarration(req.body?.narrate);
+
     console.log(
       `[feedback] 收到錄音：${req.file.mimetype}，` +
         `${(req.file.size / 1024).toFixed(1)} KB，model：${model ?? defaultModel()}，` +
+        `中文講評：${narrate ? '要' : '關閉'}，` +
         `目標句：「${sentence}」`
     );
 
@@ -205,19 +224,38 @@ app.post(
           referenceText: sentence,
         });
 
-        // 講評失敗不讓整個請求失敗 —— 分數本身已經有價值
-        const narration = await narrateAssessment(assessment, { model });
+        // 講評失敗不讓整個請求失敗 —— 分數本身已經有價值。
+        // 使用者關掉講評時連呼叫都不做，這是這個開關唯一的意義：省掉那段等待。
+        let narration = null;
+        let narrationMs = null;
+        let narrationReason = null;
+
+        if (!narrate) {
+          narrationReason = 'disabled';
+        } else {
+          const narrationStartedAt = Date.now();
+          narration = await narrateAssessment(assessment, { model });
+          narrationMs = Date.now() - narrationStartedAt;
+          // narrateAssessment() 對「沒金鑰」與「呼叫失敗」都回 null，
+          // 但這兩件事該給使用者看的說明不一樣，所以在這裡分開。
+          if (!narration) narrationReason = hasApiKey() ? 'failed' : 'no_key';
+        }
 
         console.log(
           `[feedback] Azure 評估完成，耗時 ${elapsed()}，` +
             `總分 ${assessment.scores.pronunciation}，` +
-            `講評來源 ${narration ? 'Gemini' : '本地摘要'}`
+            `講評來源 ${narration ? `Gemini（${(narrationMs / 1000).toFixed(1)} 秒）` : '本地摘要'}` +
+            (narrationReason ? `（${narrationReason}）` : '')
         );
 
         return res.json({
           ...assessment,
-          feedback_zh: narration ?? localSummary(assessment),
+          feedback_zh: narration ?? localSummary(assessment, { reason: narrationReason }),
           narrationSource: narration ? 'gemini' : 'local',
+          narrationReason,
+          // 回傳實際等了多久，讓「值不值得等」這件事在畫面上看得到，
+          // 而不是只有「感覺很慢」。
+          narrationMs,
         });
       }
 
@@ -229,7 +267,14 @@ app.post(
         model,
       });
       console.log(`[feedback] Gemini 回覆完成，耗時 ${elapsed()}，分數 ${result.score}`);
-      return res.json({ provider: 'gemini', ...result });
+      // 這條路上分數本身就是 Gemini 給的，關掉講評沒有東西可以省 ——
+      // 明講出來，不然使用者會以為開關壞了。
+      return res.json({
+        provider: 'gemini',
+        ...result,
+        narrationSource: 'gemini',
+        narrationReason: narrate ? null : 'gemini_scores',
+      });
     } catch (err) {
       if (err instanceof AzureError || err instanceof GeminiError) {
         // 完整錯誤已在各自模組裡 log 過，這裡只回安全的中文訊息
@@ -241,54 +286,6 @@ app.post(
     }
   }
 );
-
-/**
- * 沒有 Gemini 金鑰時，直接用 Azure 的數字組一段中文摘要。
- * 這樣只設定 Azure 也能得到可讀的回饋。
- */
-function localSummary(assessment) {
-  const s = assessment.scores ?? {};
-  const lines = [];
-
-  const dimensions = [
-    ['準確度', s.accuracy, '個別音發得準不準'],
-    ['流暢度', s.fluency, '字與字之間的停頓是否自然'],
-    ['完整度', s.completeness, '有沒有漏字'],
-    ['語調', s.prosody, '重音、語調與節奏'],
-  ].filter(([, v]) => typeof v === 'number');
-
-  const weakest = dimensions.slice().sort((a, b) => a[1] - b[1])[0];
-  if (weakest) {
-    lines.push(`• 最需要加強的是「${weakest[0]}」（${Math.round(weakest[1])} 分）—— ${weakest[2]}。`);
-  }
-
-  const problems = (assessment.words ?? []).filter(
-    (w) => w.errorType !== 'None' || (w.accuracy ?? 100) < 60
-  );
-  for (const w of problems.slice(0, 3)) {
-    const label = {
-      Mispronunciation: '發音不準',
-      Omission: '沒有唸到',
-      Insertion: '多唸了',
-      UnexpectedBreak: '中間多了停頓',
-      MissingBreak: '少了該有的停頓',
-      Monotone: '語調太平',
-    }[w.errorType] ?? `準確度偏低（${w.accuracy}）`;
-
-    const weakPhonemes = (w.phonemes ?? [])
-      .filter((p) => (p.accuracy ?? 100) < 60)
-      .map((p) => p.phoneme);
-    lines.push(
-      `• 「${w.word}」：${label}` +
-        (weakPhonemes.length ? `，特別是 ${weakPhonemes.join('、')} 這幾個音` : '')
-    );
-  }
-
-  if (problems.length === 0) lines.push('• 每個字都唸得不錯，繼續保持！');
-  lines.push('•（設定 GEMINI_API_KEY 之後，這裡會換成更具體的中文教練建議）');
-
-  return lines.join('\n');
-}
 
 // multer 與其他錯誤的統一處理。訊息一律用繁體中文講清楚使用者該做什麼。
 // 回給前端的訊息不含金鑰或完整 stack。

@@ -9,7 +9,8 @@ import { statTile } from '../lib/stat-tile.js';
 import { buildTrendChart } from '../lib/trend-chart.js';
 import { summarise } from '../lib/storage.js';
 import { categoryLabel, formatTime, issueLabel, scoreClass } from '../lib/labels.js';
-import { trendPoints, TREND_LIMIT, streakDays, todayCount, SET_SIZE } from '../lib/practice.js';
+import { trendPoints, TREND_LIMIT, SET_SIZE } from '../lib/practice.js';
+import { renderDailyCard } from '../lib/daily.js';
 
 /** 紀錄清單最多列這麼多筆。再多就變成一整頁捲不完的東西，趨勢圖才是看長期的地方。 */
 const LIST_LIMIT = 20;
@@ -20,54 +21,20 @@ export const GOAL_CHOICES = [3, 5, 10, 20];
 // ─── 今天的進度與連續天數 ────────────────────────────────────────────────
 
 /**
- * 練習紀錄回答的是「我練得怎麼樣」，但沒有回答「我今天練了嗎」。
- * 各大英語學習 App 都有的 streak／每日目標解的就是這件事 ——
- * 它不是遊戲化的裝飾，而是把「每天回來」這個行為本身變成看得見的東西。
+ * 卡片與數字都是六個模式共用的（`lib/today-card.js` 與 `lib/daily.js`）。
+ * 這裡只負責跟讀專屬的部分：把每日目標的下拉選單放進卡片裡 ——
+ * 跟讀是唯一把目標放在畫面上的模式，因為一次練幾句很看當下有多少時間。
  */
-export function renderToday(history, goal, onGoalChange) {
-  const done = todayCount(history);
-  const streak = streakDays(history);
-  const percent = Math.min(100, Math.round((done / goal) * 100));
-
-  return h('div', { class: 'card card--today' },
-    h('div', { class: 'today' },
-      h('div', { class: 'today__block' },
-        // 達成目標時數字才變色。平常就是彩色的話，達標與否就看不出差別了
-        h('span', { class: 'today__value' + (done >= goal ? ' today__value--done' : '') },
-          `${done} / ${goal}`),
-        h('span', { class: 'today__label' }, '今天練的句子'),
-        h('span', { class: 'today__bar' },
-          h('span', { class: 'today__fill', style: `width: ${percent}%` })),
-      ),
-      h('div', { class: 'today__block today__block--streak' },
-        h('span', { class: 'today__value' }, String(streak)),
-        h('span', { class: 'today__label' }, '連續天數'),
-      ),
-      h('label', { class: 'field field--inline today__goal' },
-        h('span', { class: 'field__label' }, '每日目標'),
-        h('select', {
-          class: 'select',
-          onchange: (e) => onGoalChange(Number(e.target.value)),
-        }, GOAL_CHOICES.map((n) => h('option', { value: String(n), selected: n === goal }, `${n} 句`))),
-      ),
+export function renderToday(goal, onGoalChange) {
+  return renderDailyCard('shadowing', {
+    control: h('label', { class: 'field field--inline today__goal' },
+      h('span', { class: 'field__label' }, '每日目標'),
+      h('select', {
+        class: 'select',
+        onchange: (e) => onGoalChange(Number(e.target.value)),
+      }, GOAL_CHOICES.map((n) => h('option', { value: String(n), selected: n === goal }, `${n} 句`))),
     ),
-    h('p', { class: 'hint' }, todayNote(done, goal, streak)),
-  );
-}
-
-/**
- * 刻意不寫「你今天還沒練，連續天數要斷了」這種話 —— 用罰的去推人回來，
- * 短期有效，長期只會讓人不想打開。這裡只講事實跟還差幾句。
- */
-function todayNote(done, goal, streak) {
-  if (done >= goal) {
-    return streak > 1
-      ? `今天的目標達成了，連續 ${streak} 天。`
-      : '今天的目標達成了。要再多練幾句也沒問題。';
-  }
-  if (done > 0) return `再 ${goal - done} 句就達成今天的目標了。`;
-  if (streak > 0) return `已經連續 ${streak} 天，今天練 ${goal} 句就接得下去。`;
-  return `今天練 ${goal} 句就算達成目標。`;
+  });
 }
 
 // ─── 一組練完的總結 ──────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { h, clear, append } from '../lib/dom.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { filterBySettings } from '../lib/settings.js';
+import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
 import { Recorder, isSupported as recSupported, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
 
@@ -81,6 +82,9 @@ async function maybeSpeakPartner() {
 }
 
 function advance() {
+  // 只有「自己說完一句」才算今天的進度 —— 對方的台詞是語音在唸，
+  // 一路按「換我說」不該累積出練習量
+  if (currentTurn()?.speaker === 'you') recordPractice('dialogue');
   step++;
   checked = null;
   revealed = false;
@@ -94,6 +98,7 @@ function render() {
   if (!root || !current) return;
   clear(root);
 
+  append(root, renderDailyCard('dialogue'));
   append(root, headerCard());
   append(root, transcriptCard());
 

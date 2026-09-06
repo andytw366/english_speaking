@@ -89,10 +89,13 @@ function strategyFor(url, mode = '') {
   if (url.origin !== self.location.origin) return 'network';
   if (mode === 'navigate') return 'navigate';
   if (DATA_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) return 'data';
-  // App 一啟動就問「現在是誰」。離線時這個請求一定失敗，而**失敗的資源請求會在
-  // console 留下一筆紅色錯誤** —— 那會淹掉真正的錯誤（`test/ui.mjs`【20】在抓）。
-  // 所以離線時把它換成一個真正的 503 回應：瀏覽器就當成正常的 HTTP 結果，
-  // 不會記成網路失敗，而前端看到非 401 的失敗就知道「問不到，照常開啟」。
+  // App 一啟動就問「現在是誰」。離線時這個請求一定失敗，而 console 會因此
+  // 留下一筆紅色錯誤 —— 那會淹掉真正的錯誤（`test/ui.mjs`【20】在抓）。
+  // 所以離線時由 service worker 直接回一個 **200** 的「問不到」。
+  //
+  // 為什麼一定要 200：瀏覽器對**網路失敗**與 **4xx/5xx** 都會記一筆
+  // 「Failed to load resource」。先改成 503 還是紅（CI 上實測過），
+  // 只有 2xx 才真的安靜。
   //
   // **不要改用 `navigator.onLine` 判斷。** 那個值在某些 Chromium 版本下
   // 不會跟著離線變成 false（CI 的版本就是），防護會安靜地失效。
@@ -161,19 +164,24 @@ async function networkFirst(request) {
 }
 
 /**
- * 「現在是誰」：**完全不快取**，只是把連不上的情況換成一個 503 回應。
+ * 「現在是誰」：**完全不快取**，只是把連不上的情況換成一個「問不到」的回應。
  *
  * 為什麼不直接放給瀏覽器處理：失敗的請求會在 console 留下紅色錯誤，
- * 而離線本來就是預期中的狀態，不該長得像出事了。回 503 之後
- * `lib/session.js` 的 `whoAmI()` 會把它當成「問不到」而不是「沒登入」，
- * App 照常開啟（題庫在快取裡、進度在 localStorage 裡）。
+ * 而離線本來就是預期中的狀態，不該長得像出事了。
+ *
+ * ⚠️ **狀態碼一定要是 200。** 瀏覽器對網路失敗與 4xx/5xx 都會記一筆
+ * 「Failed to load resource」—— 先寫成 503，CI 上照樣紅。真正安靜的只有 2xx，
+ * 所以「問不到」是寫在 body 裡的旗標而不是狀態碼。
+ *
+ * `lib/session.js` 的 `whoAmI()` 看到 `offline: true` 就知道這不是
+ * 「沒登入」而是「問不到」，App 照常開啟（題庫在快取裡、進度在 localStorage 裡）。
  */
 async function authProbe(request) {
   try {
     return await fetch(request);
   } catch {
-    return new Response(JSON.stringify({ error: 'offline' }), {
-      status: 503,
+    return new Response(JSON.stringify({ offline: true }), {
+      status: 200,
       headers: { 'content-type': 'application/json' },
     });
   }

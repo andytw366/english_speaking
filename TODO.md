@@ -515,6 +515,10 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   `auth-probe` 把連不上換成 503）。
   重現方式：`p.addInitScript(() => Object.defineProperty(navigator, 'onLine',
   { get: () => true }))` 再 `ctx.setOffline(true)`，就跟 CI 的行為一樣。
+- **想讓 console 安靜，回應一定要 2xx。** 瀏覽器對**網路失敗**與 **4xx/5xx**
+  都會記一筆「Failed to load resource」。`auth-probe` 第一版回 503，
+  CI 照樣紅（而 chromium-1194 不會記 service worker 合成的錯誤回應，
+  所以本機看不出來）。「問不到」要寫成 200 + body 裡的旗標。
 - **不要驗 `beforeinstallprompt` 有沒有發。** 那個事件除了「符合安裝條件」之外
   還要看 Chrome 的使用者互動熱度與版本，CI 上不會發 —— 本機全過、CI 紅，
   而 App 本身完全沒問題。`Page.getInstallabilityErrors` 給的是同一件事而且是確定的。

@@ -86,10 +86,16 @@ export async function whoAmI() {
 
   // **401 與「問不到」是兩件事，一定要分開。**
   //   401  伺服器明確說你沒登入 → 顯示登入畫面
-  //   其他 連不到／伺服器出問題（離線時 service worker 會給 503）
-  //        → 丟出去，呼叫端照常開啟 App
+  //   其他 連不到／伺服器出問題 → 丟出去，呼叫端照常開啟 App
   // 混在一起的話，離線打開 App 會被推到登入畫面 —— 而那時候根本登入不了，
-  // 等於離線就不能練，PWA 的重點就沒了
+  // 等於離線就不能練，PWA 的重點就沒了。
+  //
+  // 離線時 service worker 會給一個 **200** 的 `{ offline: true }`
+  // （狀態碼不能用 4xx/5xx，那樣 console 照樣會紅，見 sw.js 的 authProbe）
+  if (payload?.offline) {
+    throw new ApiError(0, '現在連不到伺服器，先用這台裝置上的資料繼續。', payload);
+  }
+
   if (res.status !== 401) {
     throw new ApiError(res.status, payload?.message ?? `問不到登入狀態（HTTP ${res.status}）`, payload);
   }

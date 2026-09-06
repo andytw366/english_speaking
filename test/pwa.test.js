@@ -108,14 +108,18 @@ test('「現在是誰」離線時要換成 503，不能讓請求失敗', () => {
   assert.equal(strategyFor(new URL('http://localhost:3000/api/auth/me')), 'auth-probe');
 });
 
-test('auth-probe 只把連不上換成 503，不快取任何東西', () => {
+test('auth-probe 回的是 200 而不是錯誤碼，而且不快取任何東西', () => {
   // 這一條釘住「它沒有偷偷把回應存起來」—— 存起來的話登出之後還會拿到舊身分。
   // service worker 沒辦法在 node 裡真的跑起來，所以直接讀原始碼看那一段
   const source = fs.readFileSync(path.join(PUBLIC, 'sw.js'), 'utf8');
   const start = source.indexOf('async function authProbe');
   assert.ok(start > 0, '找不到 authProbe');
   const body = source.slice(start, source.indexOf('\n}', start));
-  assert.match(body, /status: 503/);
+  // 狀態碼一定要 2xx：瀏覽器對網路失敗與 4xx/5xx 都會記一筆
+  // 「Failed to load resource」，先寫成 503 時 CI 照樣紅
+  assert.match(body, /status: 200/);
+  assert.doesNotMatch(body, /status: [45]\d\d/, '不能回 4xx/5xx，console 會紅');
+  assert.match(body, /offline: true/, '「問不到」要寫在 body 的旗標裡');
   assert.doesNotMatch(body, /cache/i, 'authProbe 裡不該碰快取');
 });
 

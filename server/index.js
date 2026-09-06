@@ -18,6 +18,10 @@ import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { localSummary, wantsNarration } from './narration.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
 import { readSettings, writeSettings, assertLocalRequest, SettingsError } from './settings.js';
+import { createStore, StoreError } from './store.js';
+import {
+  createAuthGate, createAuthRoutes, createSyncRoutes,
+} from './routes-auth.js';
 
 // 專案根目錄（server/ 的上一層）。
 // .env 放在專案根目錄。這裡明確指定路徑而不是靠 dotenv 的預設值，
@@ -37,10 +41,29 @@ const upload = multer({
   limits: { fileSize: MAX_AUDIO_BYTES, files: 1 },
 });
 
+// 使用者資料放哪。**Docker 裡一定要掛 volume** —— 沒掛的話容器一重建
+// 進度就全部消失，而且沒有任何錯誤訊息（見 docker-compose.yml 的 userdata）。
+//
+// 目錄名刻意不用 `data/`：那個名字已經被手寫的面試練習句佔用
+// （`data/interview.txt`，`scripts/import-sentences.mjs` 會讀）。
+const DATA_DIR = process.env.DATA_DIR?.trim() || path.join(ROOT, 'userdata');
+const store = createStore(DATA_DIR);
+
 const app = express();
 
-app.use(express.json({ limit: '1mb' }));
+// 進度整包上傳會比預設的 1mb 大（srs 全練過約 0.57 MB，加上其餘的鍵）。
+// 真正的上限在 store.js 的 MAX_DATA_BYTES，這裡只是別讓 body parser 先擋掉
+app.use(express.json({ limit: '12mb' }));
+
+// 靜態檔（HTML / CSS / JS / 圖示）**不擋** —— 擋了的話連登入畫面都載不出來。
+// 要擋的是 /api，那才是花錢與存資料的地方
 app.use(express.static(path.join(ROOT, 'public')));
+
+app.use('/api/auth', createAuthRoutes(store, { inviteCode: process.env.INVITE_CODE?.trim() ?? '' }));
+
+// 這一行以下的 /api 端點全部要登入（除了 isPublicPath 列的那兩種）
+app.use('/api', createAuthGate(store));
+app.use('/api/sync', createSyncRoutes(store));
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -302,6 +325,11 @@ app.post(
 // multer 與其他錯誤的統一處理。訊息一律用繁體中文講清楚使用者該做什麼。
 // 回給前端的訊息不含金鑰或完整 stack。
 app.use((err, req, res, next) => {
+  if (err instanceof StoreError) {
+    console.error('[store]', err);
+    return res.status(err.httpStatus).json({ error: 'store', message: err.userMessage });
+  }
+
   console.error('[error]', err);
 
   if (err instanceof multer.MulterError) {
@@ -323,7 +351,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+await store.init();
+
+app.listen(PORT, async () => {
   console.log(`口說練習 App 已啟動： http://localhost:${PORT}`);
   console.log('提示：麥克風需要 secure context，請務必用 localhost 開啟，不要用區網 IP。');
 
@@ -346,6 +376,18 @@ app.listen(PORT, () => {
     console.warn(
       '\n⚠️  沒有設定 Azure（AZURE_SPEECH_KEY / AZURE_SPEECH_REGION）。\n' +
         '   目前用 Gemini 給主觀分數；設定 Azure 後才有逐音素的客觀評估。\n'
+    );
+  }
+
+  const users = await store.userCount();
+  console.log(`帳號：${users} 個（資料放在 ${DATA_DIR}）`);
+  if (users === 0) {
+    console.log('   還沒有任何帳號 —— 打開網頁會直接請你建立第一個（那個就是擁有者）。');
+  }
+  if (!DATA_DIR.startsWith('/data') && process.env.NODE_ENV === 'production') {
+    console.warn(
+      `\n⚠️  DATA_DIR 是 ${DATA_DIR}。在容器裡跑的話請確認它掛了 volume ——\n` +
+        '   沒掛的話重建映像時使用者的全部學習進度會消失，而且不會有錯誤訊息。\n'
     );
   }
 });

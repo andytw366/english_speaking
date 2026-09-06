@@ -2,6 +2,8 @@ import { h, append } from '../lib/dom.js';
 import { grid } from '../lib/layout.js';
 import { loadVoices, speak } from '../lib/tts.js';
 import { getSettings, updateSettings, resetSettings, setGoal, DEFAULTS } from '../lib/settings.js';
+import { getUser, logout } from '../lib/session.js';
+import { ConflictError, applyRemote, describe, describeLocal, fetchRemote, push } from '../lib/sync.js';
 import {
   resetSrs, clearHistory, getHistory, getSrsState, exportState, importState,
   clearActivity, getActivity, activityDays,
@@ -36,6 +38,7 @@ let serverSettings = null;
 let serverError = '';
 let saveState = '';
 let backupState = '';
+let syncState = '';
 let root = null;
 
 export async function mount(container) {
@@ -77,7 +80,7 @@ function render() {
   if (!root) return;
   // 五張卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
   // 單欄排下來 1440×900 要捲三個螢幕才看得完
-  append(grid(root), apiCard(), goalCard(), practiceCard(), voiceCard(), dataCard());
+  append(grid(root), apiCard(), goalCard(), practiceCard(), voiceCard(), syncCard(), dataCard());
 }
 
 // ─── API 金鑰 ────────────────────────────────────────────────────────────
@@ -411,6 +414,115 @@ function voiceCard() {
       },
     }, '🔊 試聽'),
   );
+}
+
+// ─── 跨裝置同步 ──────────────────────────────────────────────────────────
+//
+// **階段 A 是手動的整包上傳／下載**，不是自動合併（設計與階段 B 寫在
+// `docs/accounts-and-sync.md`）。所以這裡的語意跟匯出／匯入一樣是「覆蓋」，
+// 而每一個覆蓋動作都先講清楚用什麼覆蓋什麼 —— 只問「確定嗎」等於沒問。
+function syncCard() {
+  const user = getUser();
+
+  return h('div', { class: 'card' },
+    h('p', { class: 'card__title' }, '跨裝置同步'),
+    user
+      ? h('p', { class: 'who' }, `目前登入：${user.username}`)
+      : h('p', { class: 'hint hint--warn' },
+        '沒有登入，所以同步不了 —— 進度只留在這個瀏覽器裡。'),
+
+    h('p', { class: 'hint' },
+      '進度存在你自己的伺服器上。現在是手動的：在一台裝置按「上傳」，' +
+      '到另一台按「下載」。兩邊都會先告訴你要用什麼覆蓋什麼。'),
+
+    user && h('div', { class: 'row' },
+      h('button', { class: 'btn btn--primary', onclick: uploadProgress }, '⬆️ 上傳到伺服器'),
+      h('button', { class: 'btn', onclick: downloadProgress }, '⬇️ 從伺服器下載'),
+      h('button', { class: 'btn btn--ghost', onclick: signOut }, '登出'),
+    ),
+
+    syncState && h('p', { class: 'hint' }, syncState),
+
+    h('p', { class: 'hint' },
+      '自動合併（兩台各練各的、數字加起來）還沒做 —— 現在上傳與下載都是整包覆蓋，' +
+      '所以練完的那一台先上傳，另一台再下載。'),
+  );
+}
+
+async function uploadProgress() {
+  syncState = '上傳中…';
+  render();
+  try {
+    const res = await push();
+    syncState = `已上傳（${describeLocal()}），伺服器版本 ${res.rev}。`;
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      // 伺服器上有這台裝置沒看過的東西 —— 覆蓋前一定要把兩邊都列出來
+      const ok = window.confirm(
+        '伺服器上的進度比這台裝置知道的新（可能是另一台裝置上傳過）。\n\n' +
+        `伺服器上：${describe(err.current?.data)}\n` +
+        `這台裝置：${describeLocal()}\n\n` +
+        '要用這台裝置的進度覆蓋伺服器上的嗎？覆蓋之後無法復原。'
+      );
+      if (!ok) {
+        syncState = '已取消上傳。要改成拿伺服器的版本請按「從伺服器下載」。';
+        return render();
+      }
+      try {
+        const res = await push({ force: true });
+        syncState = `已覆蓋伺服器上的進度，版本 ${res.rev}。`;
+      } catch (err2) {
+        syncState = `上傳失敗：${err2.message}`;
+      }
+    } else {
+      syncState = `上傳失敗：${err.message}`;
+    }
+  }
+  render();
+}
+
+async function downloadProgress() {
+  syncState = '讀取中…';
+  render();
+  try {
+    const remote = await fetchRemote();
+    if (!remote.rev) {
+      syncState = '伺服器上還沒有任何進度 —— 請先在某一台裝置按「上傳」。';
+      return render();
+    }
+
+    if (!window.confirm(
+      '要用伺服器上的進度覆蓋這台裝置嗎？\n\n' +
+      `伺服器上：${describe(remote.data)}\n` +
+      `這台裝置：${describeLocal()}\n\n` +
+      '這台裝置現在的進度會被取代，而且無法復原。'
+    )) {
+      syncState = '已取消下載。';
+      return render();
+    }
+
+    applyRemote(remote);
+    // 重新整理而不是重畫：設定與複習進度都有模組層級的快取，
+    // 重載是唯一能保證每個模組都看到新資料的做法（還原備份也是同一個理由）
+    window.location.reload();
+  } catch (err) {
+    syncState = `下載失敗：${err.message}`;
+    render();
+  }
+}
+
+async function signOut() {
+  if (!window.confirm(
+    '登出之後要重新輸入帳號密碼才能繼續練。\n\n' +
+    '這台裝置上的學習進度不會被清掉，但還沒上傳的部分也不會自動保留到伺服器 —— ' +
+    '要的話請先按「上傳到伺服器」。'
+  )) return;
+
+  try {
+    await logout();
+  } finally {
+    window.location.reload();
+  }
 }
 
 // ─── 學習資料 ────────────────────────────────────────────────────────────

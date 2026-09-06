@@ -30,9 +30,10 @@
 | ✍️ 中翻英 | **2,159 題**（填空 161 / 整句 1,998）＋每日進度 | 完成 |
 | 💬 情境對話 | 61 段 / 427 句台詞＋每日進度 | 完成 |
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
-| ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料 | 完成 |
+| ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料、**跨裝置同步** | 完成 |
+| 🔐 帳號 | 全部 `/api` 都要登入；進度存在伺服器上（**手動**上傳／下載，自動合併是階段 B） | 階段 A 完成 |
 
-驗證狀態：`npm test` 269 項全過、`npm run test:ui` 213 項全過、
+驗證狀態：`npm test` 293 項全過、`npm run test:ui` 219 項全過、
 `npm run test:layout` 是尺不是測試（見 README「版面盤點」）、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
@@ -62,7 +63,23 @@ README「覺得慢？中文講評可以整段關掉」。
 而選擇題可以把「義項不重疊」變成出題規則，順便讓間隔重複的訊號變客觀
 （不再是使用者自己按「記得」）。
 
-最新的一件：**講評可以換成任何 OpenAI 相容的模型**（同一個分支）。
+最新的一件：**帳號與跨裝置同步的階段 A 做完了**（設計在
+`docs/accounts-and-sync.md`，那份文件仍然是階段 B 的規格）。
+
+做完的是：Docker volume、帳號（scrypt + cookie session + CSRF + 登入退避）、
+**全部 `/api` 端點都要登入**（只有 `/api/health` 與 `/api/auth/*` 例外）、
+伺服器存檔（`GET`／`PUT /api/sync`，rev 樂觀鎖，保留最近 10 版）、
+登入畫面、設定頁的「跨裝置同步」卡。**同步目前是手動的整包覆蓋**，
+自動合併是階段 B。
+
+順手做掉的兩件（為階段 B 鋪路，早加早有資料）：`srs` 每一筆多寫一個 `at`
+（最後一次作答的時間 —— `due` 判斷不了新舊），`settings` 多一個 `updatedAt`。
+
+三個實作時踩到、值得記住的（詳見下面的雷）：掛在 `/api` 的中介層裡
+`req.path` 是相對路徑、`body.locked` 藏掉側欄之後 `.page` 會掉進 grid 的第一欄、
+離線時不要去問 `/api/auth/me`。
+
+再前一件：**講評可以換成任何 OpenAI 相容的模型**（同一個分支）。
 理由是設定好 Azure 之後唯一有感的等待就是那一段，而它做的事很小
 （吃一小段 JSON、吐四行中文），換個快的模型就會快很多。設計寫在 README
 「換一個更快的講評模型」。
@@ -400,6 +417,41 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 - **要能用鍵盤呼叫的動作，函式不能非有按鈕不可。** `playWord()` 與 `playDemo()`
   原本都是 `e.currentTarget` 拿按鈕來改字，鍵盤按 S / P 時沒有按鈕，
   兩支都改成按鈕可以是 null。
+
+### 帳號與同步
+
+- **掛在 `/api` 上的中介層裡，`req.path` 是相對路徑。** express 會把掛載路徑
+  剝掉，所以 `/api/health` 進到關卡時 `req.path` 是 `/health` ——
+  拿它去比對免登入清單就會把 healthcheck 也擋掉。症狀是容器一直 unhealthy、
+  或啟動腳本的「等 `/api/health`」永遠等不到（**真的踩過**，而且第一眼看起來
+  像伺服器沒起來）。要用 `req.baseUrl + req.path`。
+- **`Secure` cookie 要看請求決定，不能寫死。** 本機開發是 `http://localhost`，
+  帶了 `Secure` 的 cookie 在 http 上根本不會被存起來，而症狀是
+  「按了登入沒反應」，console 也不會有東西。
+- **離線時不要去問 `/api/auth/me`。** 那個請求一定失敗，而失敗的資源請求會在
+  console 留下一筆紅色錯誤 —— `test/ui.mjs`【20】會抓到。離線本來就該直接進 App
+  （題庫在快取裡、進度在 localStorage 裡）。用 `navigator.onLine === false` 判斷。
+- **`body.locked` 把側欄藏起來之後，shell 的分欄也要關掉。** 桌機上 `.shell` 是
+  `grid-template-columns: var(--rail-w) minmax(0,1fr)`，而 `display:none` 的 `.rail`
+  會被移出 grid 流 —— `.page` 於是掉進**第一欄**（側欄那格），登入卡被擠成
+  230px 寬的一條。實測踩到，`test/ui.mjs`【21】有一條釘住。
+- **切到登入畫面要走 `single(view)`，不是 `clear(view)`。** 跟版面那一段是同一條雷：
+  `#view` 上留著上一個畫面的分欄類別的話，登入卡只會用到左邊那一欄。
+- **登入表單重畫時欄位的值要自己留著。** 每次 `draw()` 都是整個重建 DOM ——
+  不留的話密碼打錯一次就得連帳號一起重打。
+- **`test/ui.mjs` 需要一個乾淨的 `DATA_DIR`**（`DATA_DIR=$(mktemp -d) npm start`）。
+  測試會建一個 `uitest` 帳號，而「第一個帳號」才建得起來。
+  裡面打 API 一律走 `apiGet()` —— 漏帶 cookie 的話拿到的是 401 的 JSON 物件而不是
+  陣列，症狀是「`.find` is not a function」，完全看不出原因（踩過）。
+- **`sessions.json` 裡不可以出現明文 token。** 只存 SHA-256，
+  `auth.test.js` 有一條真的去搜檔案內容。
+- **壞掉的資料檔不可以被當成「空的」往下走** —— 那等於把使用者的進度靜靜清空。
+  寧可整個請求失敗，至少人看得到、也知道去翻 `u/<id>.rev-N.json`。
+- **`DATA_DIR` 沒掛 volume ＝ 進度全沒**，而且症狀是「重新部署之後從頭開始」，
+  沒有任何錯誤訊息。`chown` 漏了則是容器起得來、healthcheck 也過，
+  只有第一次寫進度時才 EACCES。
+  **這兩個在這個容器裡驗不到**（有 docker CLI 但沒有 daemon）——
+  驗過的是「同一個 `DATA_DIR` 重啟之後帳號、session 與進度都還在」。
 
 ### PWA
 

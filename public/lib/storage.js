@@ -112,6 +112,12 @@ export function recordAnswer(card, wasCorrect) {
     due: Date.now() + BOX_INTERVAL_DAYS[box - 1] * DAY_MS,
     seen: prev.seen + 1,
     correct: prev.correct + (wasCorrect ? 1 : 0),
+    // 最後一次作答的時間。**跨裝置合併時要靠它判斷哪一筆比較新**，
+    // 而 `due` 做不到這件事 —— box 4 一週前答的卡，due 比 box 1 今天剛答的還晚。
+    //
+    // 現在（階段 A）還沒有合併，這個欄位只是先寫著：等到做自動同步時才加的話，
+    // 在那之前練的每一張卡都沒有依據可以比。設計見 docs/accounts-and-sync.md
+    at: Date.now(),
   };
   write('srs', all);
   return all[key];

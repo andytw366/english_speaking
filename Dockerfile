@@ -15,7 +15,17 @@ COPY content ./content
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV DATA_DIR=/data
 EXPOSE 3000
+
+# 使用者資料（帳號、session、學習進度）的落點。
+#
+# **一定要在 `USER node` 之前建好並改擁有者。** 容器裡跑的是 node（uid 1000），
+# 而 Docker 掛 named volume 時，如果映像檔裡沒有這個路徑，掛上去的目錄是 root 的
+# —— 症狀是容器起得來、healthcheck 也過（/api/health 不碰資料），
+# 只有第一次要寫進度時才 EACCES，而那時使用者已經練完一輪了。
+RUN mkdir -p /data && chown node:node /data
+VOLUME ["/data"]
 
 # 容器裡沒有 .env（dotenv 找不到檔案不會報錯），金鑰用環境變數傳進來
 USER node

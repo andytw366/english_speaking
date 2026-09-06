@@ -34,7 +34,50 @@ const check = (name, ok, extra = '') => {
 const shot = (page, name) =>
   SHOTS ? page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true }) : null;
 
-const sentences = await fetch(`${BASE}/api/content/sentences`).then((r) => r.json());
+// ─── 先登入 ──────────────────────────────────────────────────────────────
+//
+// 所有 /api 端點都要登入（見 server/routes-auth.js），所以測試自己要有帳號。
+//
+// 「先註冊，403 就改成登入」是為了兩種情境都能跑：
+//   CI     每次都是全新的容器 → 沒有帳號 → 註冊成功
+//   本機   重跑第二次時帳號已經在了 → 註冊回 403 → 用同一組密碼登入
+// 需要伺服器指向一個乾淨的 DATA_DIR 才會是「第一個帳號」，所以這組帳密
+// 只會出現在開發／CI 的伺服器上。
+const TEST_USER = { username: 'uitest', password: 'ui-test-password' };
+
+async function authenticate() {
+  const post = (path, body) => fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  let res = await post('/api/auth/register', TEST_USER);
+  if (!res.ok) res = await post('/api/auth/login', TEST_USER);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error(
+      `測試帳號登入不了（HTTP ${res.status}）：${body.message ?? ''}\n` +
+      '這台伺服器上已經有別的帳號了。請用一個乾淨的 DATA_DIR 重新啟動伺服器：\n' +
+      '  DATA_DIR=$(mktemp -d) npm start'
+    );
+    process.exit(1);
+  }
+  // 同一個 cookie 要同時給 fetch（下面的預檢）與瀏覽器用
+  return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+}
+
+const cookieHeader = await authenticate();
+
+/**
+ * 打 API 一律走這裡 —— 每一個端點都要登入，漏帶 cookie 的話拿到的是 401 的
+ * JSON 物件而不是預期的陣列，症狀會是「`.find` is not a function」這種
+ * 完全看不出原因的錯（真的踩過）。
+ */
+const apiGet = (path) =>
+  fetch(`${BASE}${path}`, { headers: { cookie: cookieHeader } }).then((r) => r.json());
+
+const sentences = await apiGet('/api/content/sentences');
 if (!Array.isArray(sentences) || sentences.length < 10) {
   console.error(`讀不到練習句，${BASE} 上的伺服器有在跑嗎？`);
   process.exit(1);
@@ -43,6 +86,17 @@ if (!Array.isArray(sentences) || sentences.length < 10) {
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 // acceptDownloads：備份那一段會真的下載一個檔案再讀回來
 const context = await browser.newContext({ acceptDownloads: true });
+
+// 把登入的 cookie 塞進瀏覽器，其餘的測試就跟以前一樣不必管登入。
+// 登入畫面本身另外有一段測（【21】）
+{
+  const url = new URL(BASE);
+  const [name, value] = cookieHeader.split('=');
+  await context.addCookies([{
+    name, value, domain: url.hostname, path: '/', httpOnly: true, secure: false,
+  }]);
+}
+
 const page = await context.newPage();
 
 // TTS 的錯誤濾掉：headless 沒有安裝任何語音包，那不是 App 的問題。
@@ -549,7 +603,7 @@ check('五個模式都設得到目標',
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【13】單字卡：選擇題');
 
-const tier1 = await fetch(`${BASE}/api/vocabulary/tier-1.json`).then((r) => r.json());
+const tier1 = await apiGet('/api/vocabulary/tier-1.json');
 const meaningOf = (word) => firstSense(tier1.find((c) => c.word === word)?.meaning_zh);
 
 // 固定成「看英文選中文」，這樣測試知道正確答案是哪一個字串
@@ -1107,6 +1161,44 @@ check('App 與題庫分開兩個快取', cacheNames.length === 2, cacheNames.joi
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【20】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【21】登入');
+
+// 用**自己的 context**（等於另一台裝置，沒有 cookie）——
+// 上面那個 context 已經帶著登入的 cookie，看不到登入畫面。
+// 而且這一段預期會有 401／400 的網路錯誤（登入畫面本來就是這樣），
+// 分開之後才不會污染【20】那條「沒有 console error」
+{
+  const fresh = await browser.newContext();
+  const p2 = await fresh.newPage();
+  await p2.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await p2.waitForSelector('.login', { timeout: 15000 });
+
+  check('沒登入時看到的是登入畫面', await p2.locator('.login').isVisible());
+  // 側欄留著的話，點下去只會拿到一連串 401，畫面看起來像壞了
+  check('沒登入時側欄收起來', !(await p2.locator('.rail').isVisible()));
+  const width = (await p2.locator('.login').boundingBox()).width;
+  // .rail 被藏起來之後 .page 會掉進 grid 的第一欄（側欄那格）——
+  // 沒有 `body.locked .shell { display: block }` 的話這裡會是 230 左右
+  check('登入卡沒有被擠成一條', width > 300, `${Math.round(width)}px`);
+
+  await p2.fill('#login-username', TEST_USER.username);
+  await p2.fill('#login-password', 'definitely-the-wrong-password');
+  await p2.locator('.login button[type=submit]').click();
+  await p2.waitForSelector('.hint--warn', { timeout: 10000 });
+  check('密碼錯了會講', (await p2.locator('.hint--warn').innerText()).includes('不對'),
+    await p2.locator('.hint--warn').innerText());
+  // 密碼打錯就得連帳號一起重打的話，很快就會讓人不想登入
+  check('失敗之後帳號欄還留著', (await p2.inputValue('#login-username')) === TEST_USER.username);
+
+  await p2.fill('#login-password', TEST_USER.password);
+  await p2.locator('.login button[type=submit]').click();
+  await p2.waitForSelector('.homelist', { timeout: 15000 });
+  check('密碼對了就進 App', await p2.locator('.rail').isVisible());
+  await shot(p2, 'ui-21-登入');
+  await fresh.close();
+}
 
 await browser.close();
 console.log(`\n${failed === 0 ? '全部通過' : `*** ${failed} 項失敗 ***`}`);

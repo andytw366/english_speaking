@@ -98,7 +98,10 @@ export function setGoal(mode, value) {
 }
 
 export function updateSettings(patch) {
-  const next = { ...getSettings(), ...patch };
+  // updatedAt：跨裝置合併時，設定是「整包取比較新的那一邊」——
+  // 逐欄位合併會產生一個一半舊一半新、而使用者從來沒有選過的組合。
+  // 跟 srs 的 `at` 一樣，階段 A 就先寫著（見 docs/accounts-and-sync.md）
+  const next = { ...getSettings(), ...patch, updatedAt: Date.now() };
   cache = next;
   try {
     localStorage.setItem(KEY, JSON.stringify(next));

@@ -83,6 +83,17 @@ export async function whoAmI() {
     currentUser = payload.user;
     return { user: payload.user, firstRun: false, canRegister: false };
   }
+
+  // **401 與「問不到」是兩件事，一定要分開。**
+  //   401  伺服器明確說你沒登入 → 顯示登入畫面
+  //   其他 連不到／伺服器出問題（離線時 service worker 會給 503）
+  //        → 丟出去，呼叫端照常開啟 App
+  // 混在一起的話，離線打開 App 會被推到登入畫面 —— 而那時候根本登入不了，
+  // 等於離線就不能練，PWA 的重點就沒了
+  if (res.status !== 401) {
+    throw new ApiError(res.status, payload?.message ?? `問不到登入狀態（HTTP ${res.status}）`, payload);
+  }
+
   currentUser = null;
   return {
     user: null,

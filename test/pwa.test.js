@@ -91,9 +91,32 @@ test('金鑰與發音評估絕對不進快取', () => {
   const { __strategyFor: strategyFor } = loadServiceWorker();
   // /api/settings 存進快取等於把金鑰多寫一份到硬碟上；
   // 發音評估每次的結果都不一樣，拿到上一次的比沒有還糟
-  for (const p of ['/api/settings', '/api/pronunciation-feedback', '/api/health', '/api/models']) {
+  for (const p of [
+    '/api/settings', '/api/pronunciation-feedback', '/api/health', '/api/models',
+    // 登入與登出也不能進快取 —— 快取一個成功的登入回應等於把身分留在裝置上
+    '/api/auth/login', '/api/auth/logout', '/api/sync',
+  ]) {
     assert.equal(strategyFor(new URL(`http://localhost:3000${p}`)), 'network', p);
   }
+});
+
+test('「現在是誰」離線時要換成 503，不能讓請求失敗', () => {
+  // 失敗的資源請求會在 console 留下紅色錯誤，而離線是預期中的狀態，
+  // 不該長得像出事了 —— 那會淹掉真正的錯誤（test/ui.mjs【20】在抓）。
+  // 用 navigator.onLine 擋不住：那個值在某些 Chromium 版本下不會跟著離線變 false
+  const { __strategyFor: strategyFor } = loadServiceWorker();
+  assert.equal(strategyFor(new URL('http://localhost:3000/api/auth/me')), 'auth-probe');
+});
+
+test('auth-probe 只把連不上換成 503，不快取任何東西', () => {
+  // 這一條釘住「它沒有偷偷把回應存起來」—— 存起來的話登出之後還會拿到舊身分。
+  // service worker 沒辦法在 node 裡真的跑起來，所以直接讀原始碼看那一段
+  const source = fs.readFileSync(path.join(PUBLIC, 'sw.js'), 'utf8');
+  const start = source.indexOf('async function authProbe');
+  assert.ok(start > 0, '找不到 authProbe');
+  const body = source.slice(start, source.indexOf('\n}', start));
+  assert.match(body, /status: 503/);
+  assert.doesNotMatch(body, /cache/i, 'authProbe 裡不該碰快取');
 });
 
 test('換頁先連網路（不然改版之後會一直開到舊的 HTML）', () => {

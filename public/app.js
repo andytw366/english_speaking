@@ -185,9 +185,12 @@ if ('serviceWorker' in navigator) {
  * 沒有人猜得到那其實是「要登入」。
  */
 async function boot() {
-  // 離線時**不要問** —— 那個請求一定失敗，而失敗的資源請求會在 console 留下
-  // 一筆紅色錯誤（`test/ui.mjs`【20】會抓）。離線本來就該直接進 App：
-  // 題庫在快取裡、進度在 localStorage 裡，照樣練得起來。
+  // 明確知道離線時就省下這一次請求。
+  //
+  // ⚠️ **這只是省事，不是防線** —— `navigator.onLine` 在某些 Chromium 版本下
+  // 不會跟著離線變成 false（CI 的版本就是這樣，所以本機全過、CI 紅）。
+  // 真正擋掉「離線時 console 出現紅色錯誤」的是 `sw.js` 的 `auth-probe`：
+  // 它把連不上換成一個 503 回應。
   if (navigator.onLine === false) return enterApp();
 
   let state;

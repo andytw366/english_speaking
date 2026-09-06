@@ -1362,7 +1362,7 @@ curl "https://www.duckdns.org/update?domains=my-speaking&token=<你的token>&ip=
 `test/e2e.mjs` 不掛進 CI —— 它有一部分要金鑰、會吃配額，掛上去等於每次 push
 都在燒配額，額度用完那天 CI 會紅得莫名其妙。
 
-### 單元測試（293 項，不需要網路與金鑰）
+### 單元測試（295 項，不需要網路與金鑰）
 
 ```bash
 npm test
@@ -1387,7 +1387,7 @@ npm test
 | `translation.test.js` | `content/translation.json` 這份資料（2,159 題，其中 1,880 題是腳本匯入的）。最重要的一條是**每個 `accept` 自己送進 `grade()` 都要判成「完全正確」**—— 使用者看得到「其他說法」，照著寫卻拿到 ❌ 是最傷的一種 bug，而且完全沒有錯誤訊息。其餘：keywords 每種說法都涵蓋得到（匯入的題目才保證，手寫的 118 題是既有資料債）、keyword 是 answer 裡的**完整 token**（`complicate` 不是 `overcomplicate` 的一部分，那一題會永遠判不到「意思對了」）、`answer` 排在 `accept[0]`、簡繁轉換的錯字與殘留簡體字 |
 | `sentences.test.js` | `content/sentences.json` 這份資料，以及匯入時的配額。擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的、簡繁轉換踩到一對多陷阱、每個情境的句數跑出 200～300 之外、重跑匯入把句庫疊成兩倍 |
 
-### 前端 UI 測試（219 項，需要伺服器，不需要金鑰）
+### 前端 UI 測試（218 項，需要伺服器，不需要金鑰）
 
 ```bash
 DATA_DIR=$(mktemp -d) npm start   # 另一個終端機

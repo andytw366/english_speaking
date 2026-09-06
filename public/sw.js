@@ -83,13 +83,21 @@ const DATA_PREFIXES = ['/api/content/', '/api/vocabulary/'];
  *
  * @param {URL} url
  * @param {string} mode `request.mode`，換頁是 `'navigate'`
- * @returns {'navigate'|'shell'|'data'|'network'}
+ * @returns {'navigate'|'shell'|'data'|'auth-probe'|'network'}
  */
 function strategyFor(url, mode = '') {
   if (url.origin !== self.location.origin) return 'network';
   if (mode === 'navigate') return 'navigate';
   if (DATA_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) return 'data';
-  // 其餘的 /api/* 一律不碰快取（金鑰、發音評估、health）
+  // App 一啟動就問「現在是誰」。離線時這個請求一定失敗，而**失敗的資源請求會在
+  // console 留下一筆紅色錯誤** —— 那會淹掉真正的錯誤（`test/ui.mjs`【20】在抓）。
+  // 所以離線時把它換成一個真正的 503 回應：瀏覽器就當成正常的 HTTP 結果，
+  // 不會記成網路失敗，而前端看到非 401 的失敗就知道「問不到，照常開啟」。
+  //
+  // **不要改用 `navigator.onLine` 判斷。** 那個值在某些 Chromium 版本下
+  // 不會跟著離線變成 false（CI 的版本就是），防護會安靜地失效。
+  if (url.pathname === '/api/auth/me') return 'auth-probe';
+  // 其餘的 /api/* 一律不碰快取（金鑰、發音評估、health、登入登出）
   if (url.pathname.startsWith('/api/')) return 'network';
   return 'shell';
 }
@@ -128,6 +136,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(request));
     return;
   }
+  if (strategy === 'auth-probe') {
+    event.respondWith(authProbe(request));
+    return;
+  }
   event.respondWith(staleWhileRevalidate(
     request,
     strategy === 'data' ? DATA_CACHE : SHELL_CACHE,
@@ -145,6 +157,25 @@ async function networkFirst(request) {
     const cached = await cache.match('/index.html') ?? await cache.match('/');
     if (cached) return cached;
     throw err;
+  }
+}
+
+/**
+ * 「現在是誰」：**完全不快取**，只是把連不上的情況換成一個 503 回應。
+ *
+ * 為什麼不直接放給瀏覽器處理：失敗的請求會在 console 留下紅色錯誤，
+ * 而離線本來就是預期中的狀態，不該長得像出事了。回 503 之後
+ * `lib/session.js` 的 `whoAmI()` 會把它當成「問不到」而不是「沒登入」，
+ * App 照常開啟（題庫在快取裡、進度在 localStorage 裡）。
+ */
+async function authProbe(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    return new Response(JSON.stringify({ error: 'offline' }), {
+      status: 503,
+      headers: { 'content-type': 'application/json' },
+    });
   }
 }
 

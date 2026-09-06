@@ -33,7 +33,7 @@
 | ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料、**跨裝置同步** | 完成 |
 | 🔐 帳號 | 全部 `/api` 都要登入；進度存在伺服器上（**手動**上傳／下載，自動合併是階段 B） | 階段 A 完成 |
 
-驗證狀態：`npm test` 293 項全過、`npm run test:ui` 219 項全過、
+驗證狀態：`npm test` 295 項全過、`npm run test:ui` 218 項全過、
 `npm run test:layout` 是尺不是測試（見 README「版面盤點」）、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
@@ -501,6 +501,23 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 - **`test/ui.mjs` 的 `seed()` 要把 `vocabDays` 也清掉。** 選擇題那一段接在
   「每日目標」後面跑，今天的份已經被上一段用掉 3 張，counter 就變成 1 / 17
   而不是 1 / 20 —— 症狀看起來像選擇題的 bug，其實是測試之間互相汙染。
+
+### 本機全過 ≠ CI 會過
+
+- **本機的 Chromium 跟 CI 不是同一版。** 這個容器裡預裝的是 `chromium-1194`，
+  而 `@playwright/test` 1.62 要的是 `chromium-1234`（`npx playwright install`
+  在這裡下載不到，egress 擋掉 CDN）。CI 用的是對的那一版，所以
+  **「本機 npm run test:ui 全過」不代表 CI 會綠** —— 已經因此連紅兩次而沒發現。
+  **push 之後一定要回頭看 CI**，不要只看本機。
+- **`navigator.onLine` 不可靠。** 它在某些 Chromium 版本下不會跟著離線變成
+  `false`（CI 的版本就是），所以拿它當「要不要發請求」的**唯一防線**會安靜地失效。
+  它只能拿來省事，真正的防護要放在別的地方（`/api/auth/me` 是靠 `sw.js` 的
+  `auth-probe` 把連不上換成 503）。
+  重現方式：`p.addInitScript(() => Object.defineProperty(navigator, 'onLine',
+  { get: () => true }))` 再 `ctx.setOffline(true)`，就跟 CI 的行為一樣。
+- **不要驗 `beforeinstallprompt` 有沒有發。** 那個事件除了「符合安裝條件」之外
+  還要看 Chrome 的使用者互動熱度與版本，CI 上不會發 —— 本機全過、CI 紅，
+  而 App 本身完全沒問題。`Page.getInstallabilityErrors` 給的是同一件事而且是確定的。
 
 ### 前端測試的選擇器很脆
 

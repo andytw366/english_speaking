@@ -1134,10 +1134,6 @@ check('App 與題庫分開兩個快取', cacheNames.length === 2, cacheNames.joi
   });
   try {
     const p2 = await persistent.newPage();
-    await p2.addInitScript(() => {
-      window.__bip = false;
-      window.addEventListener('beforeinstallprompt', () => { window.__bip = true; });
-    });
     await p2.goto(BASE, { waitUntil: 'networkidle' });
     await p2.waitForTimeout(2000);
 
@@ -1150,8 +1146,12 @@ check('App 與題庫分開兩個快取', cacheNames.length === 2, cacheNames.joi
     check('manifest 沒有解析錯誤', manifestErrors.length === 0,
       manifestErrors.map((e) => e.message).join(' | ') || '（0 項）');
 
-    // beforeinstallprompt 有發 = Chrome 真的會給「安裝」那個選項
-    check('Chrome 會給安裝提示', await p2.evaluate(() => window.__bip));
+    // ⚠️ **刻意不驗 `beforeinstallprompt` 有沒有發。**
+    //
+    // 那個事件除了「符合安裝條件」之外還要看 Chrome 的使用者互動熱度
+    // （engagement heuristics）與版本，所以在 CI 上不會發 —— 本機全過、
+    // CI 紅，而 App 本身完全沒問題。`getInstallabilityErrors` 給的是同一件事
+    // 而且是確定的（上面那條），這裡再驗一次只是換來一條會無故變紅的測試。
   } finally {
     await persistent.close();
     fs.rmSync(dir, { recursive: true, force: true });

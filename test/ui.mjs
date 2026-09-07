@@ -22,6 +22,9 @@ import { chromium } from '@playwright/test';
 // 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
 // 所以直接用 App 用的同一份，而不是在這裡再抄一次切義項的邏輯。
 import { firstSense } from '../public/lib/quiz.js';
+import {
+  TEST_USER, addCookieToContext, apiGetter, authenticate, resetServerProgress,
+} from './login.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const SHOTS = process.env.SHOTS;
@@ -37,72 +40,15 @@ const shot = (page, name) =>
 // ─── 先登入 ──────────────────────────────────────────────────────────────
 //
 // 所有 /api 端點都要登入（見 server/routes-auth.js），所以測試自己要有帳號。
-//
-// 「先註冊，403 就改成登入」是為了兩種情境都能跑：
-//   CI     每次都是全新的容器 → 沒有帳號 → 註冊成功
-//   本機   重跑第二次時帳號已經在了 → 註冊回 403 → 用同一組密碼登入
-// 需要伺服器指向一個乾淨的 DATA_DIR 才會是「第一個帳號」，所以這組帳密
-// 只會出現在開發／CI 的伺服器上。
-const TEST_USER = { username: 'uitest', password: 'ui-test-password' };
-
-async function authenticate() {
-  const post = (path, body) => fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  let res = await post('/api/auth/register', TEST_USER);
-  if (!res.ok) res = await post('/api/auth/login', TEST_USER);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    console.error(
-      `測試帳號登入不了（HTTP ${res.status}）：${body.message ?? ''}\n` +
-      '這台伺服器上已經有別的帳號了。請用一個乾淨的 DATA_DIR 重新啟動伺服器：\n' +
-      '  DATA_DIR=$(mktemp -d) npm start'
-    );
-    process.exit(1);
-  }
-  // 同一個 cookie 要同時給 fetch（下面的預檢）與瀏覽器用
-  return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
-}
-
-const cookieHeader = await authenticate();
+// 登入本身在 test/login.mjs（三支瀏覽器測試共用，見那裡的說明）。
+const cookieHeader = await authenticate(BASE);
 
 /**
  * 打 API 一律走這裡 —— 每一個端點都要登入，漏帶 cookie 的話拿到的是 401 的
  * JSON 物件而不是預期的陣列，症狀會是「`.find` is not a function」這種
  * 完全看不出原因的錯（真的踩過）。
  */
-const apiGet = (path) =>
-  fetch(`${BASE}${path}`, { headers: { cookie: cookieHeader } }).then((r) => r.json());
-
-/**
- * 把伺服器上的進度清成「什麼都沒練過」。【22】用。
- *
- * 【22】驗的是絕對數字（兩台各練 N → 總和是 N+M），所以伺服器上不可以留著
- * **上一次跑測試**留下的今日計數 —— 同一個 `DATA_DIR` 重跑第二次時，
- * 上一輪那兩台裝置的格子會被合併進來，症狀是四條測試同時說數字變成兩倍，
- * 看起來像合併寫錯了（真的踩過，而且第一眼完全不像測試自己的問題）。
- *
- * 走的是「整包覆蓋」那個端點 —— 它就是為了覆蓋而存在的，
- * 而 `POST /merge` 的語意是合併，清不掉東西。
- */
-async function resetServerProgress() {
-  const current = await apiGet('/api/sync');
-  const res = await fetch(`${BASE}/api/sync`, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json', cookie: cookieHeader },
-    body: JSON.stringify({
-      rev: current.rev ?? 0,
-      data: { srs: {}, activity: {}, history: [] },
-    }),
-  });
-  if (!res.ok) {
-    console.error(`清不掉伺服器上的進度（HTTP ${res.status}）—— 【22】的數字會不準。`);
-    process.exit(1);
-  }
-}
+const apiGet = apiGetter(BASE, cookieHeader);
 
 const sentences = await apiGet('/api/content/sentences');
 if (!Array.isArray(sentences) || sentences.length < 10) {
@@ -116,13 +62,7 @@ const context = await browser.newContext({ acceptDownloads: true });
 
 // 把登入的 cookie 塞進瀏覽器，其餘的測試就跟以前一樣不必管登入。
 // 登入畫面本身另外有一段測（【21】）
-{
-  const url = new URL(BASE);
-  const [name, value] = cookieHeader.split('=');
-  await context.addCookies([{
-    name, value, domain: url.hostname, path: '/', httpOnly: true, secure: false,
-  }]);
-}
+await addCookieToContext(context, BASE, cookieHeader);
 
 const page = await context.newPage();
 
@@ -1299,7 +1239,7 @@ console.log('\n【22】跨裝置自動合併');
 // 而且走真的伺服器 —— 合併是在伺服器上做的，mock 掉就等於沒測到。
 {
   // 伺服器上不能留著上一次跑測試的今日計數（見 `resetServerProgress()`）
-  await resetServerProgress();
+  await resetServerProgress(BASE, cookieHeader);
 
   const devices = [];
   const openDevice = async () => {

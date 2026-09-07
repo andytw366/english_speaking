@@ -133,7 +133,7 @@ Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖�
   要看得到數字才判斷得出來，不然只會累積成「Gemini 很慢」這種模糊印象。
 
 > **沒設定 Azure 的話這個開關省不到時間** —— 那條路上分數本身就是 Gemini 給的。
-> 設定頁會直接把這件事寫在開關下面（它讀 `/api/health` 的 `azureConfigured`），
+> 設定頁會直接把這件事寫在開關下面（它讀 `/api/capabilities` 的 `azureConfigured`），
 > 講評畫面也會標 `narrationReason: "gemini_scores"`。
 
 ### 換一個更快的講評模型
@@ -1199,7 +1199,7 @@ english_speaking/
 ├── docker-compose.yml         # App + Caddy（補 HTTPS，手機才能用麥克風）
 ├── docker-compose.duckdns.yml # 憑證改用 Let's Encrypt + DuckDNS 的疊加設定
 ├── Caddyfile / Caddyfile.duckdns
-├── .github/workflows/ci.yml   # 每次 push 跑 npm test 與 npm run test:ui（都不需要金鑰）
+├── .github/workflows/ci.yml   # 每次 push 跑 npm test、test:ui、test:e2e（一律不帶金鑰）
 ├── content/
 │   ├── sentences.json         # 2,041 句練習句：id / text / category / difficulty / focus / zh
 │   ├── listening.json         # 81 組 / 226 題
@@ -1278,7 +1278,8 @@ english_speaking/
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/api/health` | `{ ok, azureConfigured, geminiConfigured }` |
+| GET | `/api/health` | `{ ok: true }`，**只有這個**。不用登入（Docker 的 healthcheck 沒有 cookie），所以回的東西等於公開的 |
+| GET | `/api/capabilities` | `{ azureConfigured, geminiConfigured, narration }` —— 要登入。設定頁「目前」那一行讀它 |
 | GET | `/api/models` | Gemini model 白名單與預設值 |
 | GET | `/api/content/:name` | `sentences` / `listening` / `translation` / `dialogues` |
 | GET | `/api/vocabulary/:file` | `index.json` / `tier-map.json` / `curated.json` / `tier-N.json` / `band-NN.json`。檔名形態是白名單（避免路徑穿越），形態合法但檔案不存在回 404 |
@@ -1510,6 +1511,11 @@ npm run test:ui
 > `uitest` 帳號 —— 而「第一個帳號」才建得起來。伺服器上已經有你自己的帳號時，
 > 測試會直接告訴你要換 `DATA_DIR`，不會莫名其妙紅一片。
 > CI 每次都是全新的容器，所以不用特別處理。
+>
+> 登入這一段（以及「把伺服器上的進度清成什麼都沒練過」）在 `test/login.mjs`，
+> 三支瀏覽器測試（`ui` / `e2e` / `layout`）共用。`e2e` 與 `layout` 曾經漏掉它 ——
+> 那時候帳號剛上線，兩支就這樣**一直跑不動**：`layout` 印的是「伺服器有在跑嗎？」
+> （其實在跑，是 401），`e2e` 則是停在登入畫面、每一條檢查都紅。
 
 把假的練習紀錄塞進 `localStorage`，驗七個分頁都載入得起來、**首頁的今天總覽**
 （跨模式的總數與連續天數、達標的樣子、第一天的樣子、沒設目標的樣子）、今天的進度與連續天數、
@@ -1559,6 +1565,14 @@ Azure／Gemini → 顯示講評 → 寫進 `localStorage` → 影響下一次抽
 
 **【1】【2】【4】不需要任何金鑰**（無人聲把關在後端呼叫 API 之前就擋掉了），
 所以手上沒有金鑰也驗得到那幾段。【3】【5】沒金鑰時會自動跳過。
+
+開跑前會先把**伺服器上**這個測試帳號的進度清掉。清 `localStorage` 不夠 ——
+自動同步會在 App 一打開時把伺服器那份合併回來，而「今天的進度是 0」
+「不寫進練習紀錄」這些斷言的前提是「這台裝置什麼都還沒練」。
+
+**CI 會跑這一支，但不帶任何金鑰**，所以【3】【5】在那裡是跳過的。
+掛上 CI 的理由是【1】【2】【4】沒有別的測試涵蓋得到，而且**沒掛 CI 的測試會腐爛**：
+帳號上線之後這支漏了登入、一直跑不動，期間「分頁有六個」早就變成七個，沒人發現。
 
 環境變數：`BASE`、`MODEL`（預設 `gemini-3.1-flash-lite`，最省配額）、`SHOTS`、`CHROMIUM`。
 

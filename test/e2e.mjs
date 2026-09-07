@@ -26,6 +26,10 @@ import { chromium } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
 
+import {
+  addCookieToContext, apiGetter, authenticate, resetServerProgress,
+} from './login.mjs';
+
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const MODEL = process.env.MODEL ?? 'gemini-3.1-flash-lite';
 const SHOTS = process.env.SHOTS;
@@ -58,17 +62,36 @@ function writeSilence(file, seconds = 2) {
   fs.writeFileSync(file, buf);
 }
 
-const health = await fetch(`${BASE}/api/health`).then((r) => r.json()).catch(() => null);
-if (!health?.ok) {
+const alive = await fetch(`${BASE}/api/health`).then((r) => r.json()).catch(() => null);
+if (!alive?.ok) {
   console.error(`連不上 ${BASE} —— 伺服器有在跑嗎？（npm start）`);
+  process.exit(1);
+}
+
+// 要先登入：/api/pronunciation-feedback 與題庫都要（見 server/routes-auth.js），
+// 而瀏覽器沒有 cookie 的話會停在登入畫面 —— 每一條檢查都紅，
+// 但看起來像是「App 壞了」。登入本身在 test/login.mjs（三支測試共用）。
+const cookieHeader = await authenticate(BASE);
+const apiGet = apiGetter(BASE, cookieHeader);
+
+// 伺服器上不能留著上一次跑測試的紀錄。**清 localStorage 不夠** ——
+// 自動同步會在 App 一打開時把伺服器那份合併回來，而下面好幾條斷言的前提是
+// 「這台裝置什麼都還沒練」（「今天的進度是 0」、「不寫進練習紀錄」）。
+await resetServerProgress(BASE, cookieHeader);
+
+// 「有沒有設定金鑰」在要登入的 /api/capabilities（/api/health 是公開端點，
+// 只回活著沒有 —— 那些是這台機器的部署細節，不給不認識的人看）
+const caps = await apiGet('/api/capabilities').catch(() => null);
+if (!caps) {
+  console.error('讀不到 /api/capabilities —— 登入成功了但這個端點打不到？');
   process.exit(1);
 }
 console.log(
   `\n受測網址 ${BASE}\n` +
-  `發音評估：${health.azureConfigured ? 'Azure（客觀分數）' : 'Gemini（未設定 Azure）'}　` +
-  `中文講評：${health.geminiConfigured ? `Gemini（${MODEL}）` : '本地摘要（未設定 Gemini）'}`
+  `發音評估：${caps.azureConfigured ? 'Azure（客觀分數）' : 'Gemini（未設定 Azure）'}　` +
+  `中文講評：${caps.geminiConfigured ? `Gemini（${MODEL}）` : '本地摘要（未設定 Gemini）'}`
 );
-if (!health.azureConfigured && !health.geminiConfigured) {
+if (!caps.azureConfigured && !caps.geminiConfigured) {
   console.log('⚠️  兩組金鑰都沒設定 —— 只有【1】【2】【4】跑得過，【3】【5】會停在錯誤。');
 }
 
@@ -84,6 +107,8 @@ async function openWith(audioFile) {
     ],
   });
   const context = await browser.newContext({ permissions: ['microphone'] });
+  // 不塞 cookie 的話瀏覽器會停在登入畫面，而症狀是每一條檢查都紅
+  await addCookieToContext(context, BASE, cookieHeader);
   const page = await context.newPage();
   const errors = [];
   page.on('console', (m) => {
@@ -127,7 +152,10 @@ console.log('\n【1】六個模式與跟讀的初始狀態');
   const { browser, page, errors } = await openWith(SPEECH);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#nav .tab');
-  check('分頁有六個', (await page.locator('#nav .tab').count()) === 6);
+  // 六個練習模式 + 「今天」+「設定」= 七個。這個數字在「今天」那一頁做出來之後
+  // 就變了，而這支測試從帳號上線之後一直跑不動，所以沒人發現它還寫著六
+  check('分頁有七個', (await page.locator('#nav .tab').count()) === 7,
+    (await page.locator('#nav .tab').allTextContents()).join(' | '));
 
   await gotoShadowing(page);
   check('例句載入', (await text(page, '#sentence')).length > 5, (await text(page, '#sentence')).slice(0, 40));
@@ -177,7 +205,7 @@ let recordedInfo = '';
 
 // ═════════════════════════════════════════════════════════════════════════
 console.log('\n【3】送出 → 發音評估 → 寫進紀錄（需要金鑰）');
-if (!health.azureConfigured && !health.geminiConfigured) {
+if (!caps.azureConfigured && !caps.geminiConfigured) {
   console.log('  （跳過：兩組金鑰都沒設定）');
 } else {
   const { browser, page, errors } = await openWith(SPEECH);
@@ -189,7 +217,7 @@ if (!health.azureConfigured && !health.geminiConfigured) {
   await page.waitForSelector('.card:has-text("發音講評")', { timeout: 90000 });
   await page.waitForTimeout(500);
 
-  const provider = health.azureConfigured ? 'azure' : 'gemini';
+  const provider = caps.azureConfigured ? 'azure' : 'gemini';
   check(`回應來自 ${provider}`, true);
   check('有顯示總分', /^\d+$/.test(await text(page, '.overall__value')), await text(page, '.overall__value'));
 
@@ -253,7 +281,7 @@ console.log('\n【4】無人聲把關（不需要金鑰 —— 後端在呼叫 A
 
 // ═════════════════════════════════════════════════════════════════════════
 console.log('\n【5】評分結果會回頭影響抽句（需要金鑰）');
-if (!health.azureConfigured && !health.geminiConfigured) {
+if (!caps.azureConfigured && !caps.geminiConfigured) {
   console.log('  （跳過：兩組金鑰都沒設定）');
 } else {
   const { browser, page } = await openWith(SPEECH);

@@ -107,7 +107,7 @@ merge 拒收、`importState()` 要把寫入通知關掉不然同步會餵自己�
 「換一個更快的講評模型」。
 
 三個接手時要知道的位置：`server/narrator.js`（**選擇邏輯只有這一份** ——
-`/api/health`、真的要呼叫、啟動訊息三個地方都問它，各判斷一次一定會有一天
+`/api/capabilities`、真的要呼叫、啟動訊息三個地方都問它，各判斷一次一定會有一天
 對不起來）、`server/openai-narrator.js`（真正的 HTTP）、
 `server/narration.js` 的 `buildNarrationPrompt()` 與 `cleanNarration()`
 （prompt 兩條路共用，回來的純文字在這裡整理）。
@@ -313,7 +313,7 @@ node scripts/generate-content.mjs dialogue  --count 10 --category work
 - **單字卡缺「哪些卡在哪個盒子」的完整清單**（`srsSummary()` 只給數量）。
   跟讀的紀錄檢視可以照抄形狀，見 `public/modes/shadowing-views.js`。
 - **中文講評的開關只存在瀏覽器**（`geminiNarration`）。走 Docker 給家裡幾台裝置用的話，
-  每台都要各自關一次。要的話可以加一個 `.env` 的預設值回在 `/api/health` 裡。
+  每台都要各自關一次。要的話可以加一個預設值回在 `/api/capabilities` 裡。
   **刻意沒先做**：一個人自己用設定一次就好，加了反而多一組要對齊的狀態。
 - **手寫的 118 題中翻英，keywords penalise 自己列出來的「其他說法」**。
   118 題裡有 93 題的 keywords 是照 `answer` 挑的，而 `accept[1]` 常常是很不一樣的
@@ -524,6 +524,20 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   只有第一次寫進度時才 EACCES。
   **這兩個在這個容器裡驗不到**（有 docker CLI 但沒有 daemon）——
   驗過的是「同一個 `DATA_DIR` 重啟之後帳號、session 與進度都還在」。
+
+### 瀏覽器測試與門禁
+
+- **三支瀏覽器測試（`ui` / `e2e` / `layout`）都要自己登入**，共用 `test/login.mjs`。
+  漏帶 cookie 的症狀**完全不像沒登入**：`fetch` 拿到的是 401 的 JSON 物件而不是
+  陣列（`.find is not a function`），瀏覽器則停在登入畫面、每一條檢查都紅。
+  `e2e` 與 `layout` 就是這樣在帳號上線之後**一直跑不動**，而且沒人發現 ——
+  `layout` 印的是「伺服器有在跑嗎？」，把人往完全錯的方向帶。
+- **清 `localStorage` 不等於「這台裝置什麼都還沒練」。** 自動同步會在 App 一打開時
+  把伺服器上那份合併回來，所以斷言絕對數字之前要先清**伺服器**
+  （`resetServerProgress()`，走「整包覆蓋」那個端點；`merge` 的語意是合併，清不掉東西）。
+- **跑不動的測試會安靜地腐爛。** `e2e` 那段時間裡「分頁有六個」變成了七個
+  （「今天」那一頁做出來之後），沒人發現 —— 因為它在那之前就已經紅到底了。
+  改門禁這種橫向的東西時，把**沒掛進 CI 的那幾支**也跑一次。
 
 ### PWA
 

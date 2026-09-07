@@ -36,7 +36,7 @@ const DIFFICULTIES = DIFFICULTY_ORDER.map((id) => [id, DIFFICULTY_LABEL[id]]);
 
 let voices = [];
 let models = [];
-let health = null;
+let caps = null;   // /api/capabilities：伺服器現在有沒有金鑰、講評走哪條路
 let serverSettings = null;
 let serverError = '';
 // 金鑰只有擁有者（第一個註冊的帳號）改得動 —— 伺服器端會擋（見 server/settings.js），
@@ -83,13 +83,15 @@ export async function mount(container) {
     models = [];
   }
 
-  // 有沒有設定 Azure 決定「關掉中文講評」到底省不省得到時間 ——
-  // 沒有 Azure 的話分數本身就是 Gemini 給的，關掉講評不會變快。
-  // 這個端點不需要 loopback，反向代理後面也拿得到。
+  // 伺服器現在有什麼能力（有沒有金鑰、講評走哪一條路）。
+  //
+  // 為什麼每個帳號都拿得到而不是只有擁有者：有沒有設定 Azure 決定「關掉中文講評」
+  // 到底省不省得到時間，而跟讀拿不到分數時，這一行是唯一能判斷
+  // 「是伺服器沒設定還是我操作錯了」的地方。
   try {
-    health = await (await fetch('/api/health')).json();
+    caps = await (await fetch('/api/capabilities')).json();
   } catch {
-    health = null;
+    caps = null;
   }
 
   render();
@@ -182,24 +184,24 @@ function apiCard() {
 }
 
 /**
- * 現在伺服器實際上有沒有評分能力（讀的是 /api/health，不是這台裝置的設定）。
+ * 現在伺服器實際上有沒有評分能力（讀的是 /api/capabilities，不是這台裝置的設定）。
  *
  * 為什麼一定要有這一行：填完金鑰之後「到底生效了沒」是唯一真正想知道的事，
  * 而「已儲存」只證明檔案寫好了。存完之後 postSettings() 會就地更新它。
  */
 function serverStatusLine() {
-  if (!health) {
+  if (!caps) {
     return h('p', { class: 'hint' }, '（讀不到伺服器狀態。）');
   }
-  const narration = health.narration;
+  const narration = caps.narration;
   const parts = [
-    `發音評分：${health.azureConfigured ? 'Azure（客觀分數）' : 'Gemini（主觀分數）'}`,
+    `發音評分：${caps.azureConfigured ? 'Azure（客觀分數）' : 'Gemini（主觀分數）'}`,
     `講評：${narration
       ? (narration.ready ? `${narration.label}${narration.model ? `（${narration.model}）` : ''}`
         : `本地摘要（${narration.label} ${narration.problem}）`)
       : '未知'}`,
   ];
-  const bad = !health.azureConfigured && !health.geminiConfigured;
+  const bad = !caps.azureConfigured && !caps.geminiConfigured;
   return h('p', { class: `hint ${bad ? 'hint--warn' : ''}` },
     (bad ? '⚠️ 兩組金鑰都沒設定，送出錄音一定會失敗。目前 —— ' : '目前 ') + parts.join('，'));
 }
@@ -352,10 +354,10 @@ async function postSettings(payload) {
     if (!res.ok) return `⚠️ ${body?.message ?? `HTTP ${res.status}`}`;
 
     serverSettings = body.settings;
-    // 後端連同「現在有什麼能力」一起回來（跟 /api/health 同一份）——
+    // 後端連同「現在有什麼能力」一起回來（跟 /api/capabilities 同一份）——
     // 存完之後「目前」那一行要馬上對，不然使用者會以為沒生效而重複儲存。
     // 前端自己推的話就會有第二份規則（Azure 要 key 和 region 都有才算）
-    if (body.health) health = body.health;
+    if (body.capabilities) caps = body.capabilities;
     return '✅ 已儲存，立即生效（不用重啟）';
   } catch (err) {
     return '⚠️ 連不上伺服器';
@@ -483,12 +485,12 @@ function practiceCard() {
  */
 function narrationField(s) {
   const on = s.geminiNarration !== false;
-  const azure = health?.azureConfigured === true;
+  const azure = caps?.azureConfigured === true;
 
-  // 講評走哪一條路是**伺服器的 .env** 決定的（NARRATION_PROVIDER），不是這裡。
-  // 顯示它的唯一理由：改了 .env 卻沒生效時，「畫面上寫的跟實際跑的一樣」
+  // 講評走哪一條路是**伺服器**決定的（NARRATION_PROVIDER），不是這裡。
+  // 顯示它的唯一理由：改了設定卻沒生效時，「畫面上寫的跟實際跑的一樣」
   // 是使用者自己查得出問題的唯一方式 —— 不然只會覺得「換了還是一樣慢」。
-  const narration = health?.narration ?? null;
+  const narration = caps?.narration ?? null;
 
   return h('div', { class: 'field' },
     h('span', { class: 'field__label' }, '跟讀的中文講評'),
@@ -504,7 +506,7 @@ function narrationField(s) {
         : '送出後直接看分數，講評改用本地摘要（照樣會指出最弱的面向與唸不好的字）。'),
     on && narration && narrationStatus(narration),
     !azure && h('p', { class: 'hint' },
-      health
+      caps
         ? '⚠️ 目前沒有設定 Azure，跟讀的分數本身就是 Gemini 給的 —— ' +
           '這個開關要等設定了 Azure 金鑰才省得到時間。'
         : '（讀不到伺服器狀態，無法判斷目前的評分來源。）'),

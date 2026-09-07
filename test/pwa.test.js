@@ -93,6 +93,9 @@ test('金鑰與發音評估絕對不進快取', () => {
   // 發音評估每次的結果都不一樣，拿到上一次的比沒有還糟
   for (const p of [
     '/api/settings', '/api/pronunciation-feedback', '/api/health', '/api/models',
+    // capabilities 說的是「伺服器現在有沒有金鑰」—— 快取到的話，設定完金鑰
+    // 之後畫面會一直說「還沒設定」
+    '/api/capabilities',
     // 登入與登出也不能進快取 —— 快取一個成功的登入回應等於把身分留在裝置上
     '/api/auth/login', '/api/auth/logout', '/api/sync',
   ]) {

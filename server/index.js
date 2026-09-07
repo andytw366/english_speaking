@@ -76,24 +76,39 @@ app.use('/api', createAuthGate(store));
 app.use('/api/sync', createSyncRoutes(store));
 
 /**
+ * 「這台伺服器活著嗎」。**只回這一件事。**
+ *
+ * 這是唯一不需要登入的非 auth 端點（Docker 的 healthcheck 沒有 cookie），
+ * 所以它回的東西等於是公開的 —— 以前它還一起回「有沒有設定金鑰」與講評端點的
+ * 主機名和 model 名稱，那些是這台機器的部署細節，沒有理由給不認識的人看。
+ * 那份資料搬到下面要登入的 /api/capabilities。
+ */
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true });
+});
+
+/**
  * 「這台伺服器現在有什麼能力」。設定頁靠它顯示「目前」那一行 ——
  * 換了金鑰卻沒生效時，「畫面上寫的跟實際跑的一樣」是唯一能自己查出問題的方式。
+ *
+ * 每個帳號看到的都一樣（金鑰是整台機器共用的），所以不必是擁有者才能看：
+ * 家人也需要知道「現在到底有沒有評分」，不然跟讀拿不到分數時他無從判斷
+ * 是伺服器沒設定還是自己操作錯了。
  *
  * 抽成函式是因為存完金鑰的回應也要帶同一份（見 POST /api/settings）：
  * 前端自己從金鑰有沒有設定去推「Azure 通了沒」的話，那個規則就有兩份
  * （Azure 要 key **和** region 都有才算），而分岔的症狀是畫面說得跟實際不一樣。
  */
-function healthPayload() {
+function capabilities() {
   return {
-    ok: true,
     azureConfigured: hasAzureConfig(),
     geminiConfigured: hasApiKey(),
     narration: narrationProvider(),
   };
 }
 
-app.get('/api/health', (req, res) => {
-  res.json(healthPayload());
+app.get('/api/capabilities', (req, res) => {
+  res.json(capabilities());
 });
 
 // 可選的 Gemini model。前端的選單從這裡拿，送上來的值也會在 gemini.js 用
@@ -184,7 +199,7 @@ app.post('/api/settings', async (req, res) => {
     console.log(`[settings] ${req.user.username} 已更新：${updated.join(', ')}`);
     // 一起回「現在有什麼能力」——存完之後設定頁那一行要馬上對，
     // 不然使用者會以為沒生效而重複儲存
-    res.json({ ok: true, updated, settings: readSettings(), health: healthPayload() });
+    res.json({ ok: true, updated, settings: readSettings(), capabilities: capabilities() });
   } catch (err) {
     handleSettingsError(err, res);
   }

@@ -12,13 +12,23 @@
 // 2026-09 改版前的基準（1440×900）：七個模式一律 680px 寬（47%），
 // 跟讀要捲 2.0 個螢幕、設定 3.3 個。
 import { chromium } from '@playwright/test';
+import { addCookieToContext, apiGetter, authenticate } from './login.mjs';
+
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const OUT = process.env.SHOTS;
 
-const sentences = await fetch(`${BASE}/api/content/sentences`).catch(() => null)
-  .then((r) => (r?.ok ? r.json() : null));
+// 要先登入 —— 題庫端點也要（見 server/routes-auth.js）。
+// 少了這一段，`/api/content/sentences` 回的是 401 的 JSON 物件，
+// 而下面那句會印「伺服器有在跑嗎」，把人往完全錯的方向帶（真的發生過）。
+const cookieHeader = await authenticate(BASE);
+const apiGet = apiGetter(BASE, cookieHeader);
+
+const sentences = await apiGet('/api/content/sentences').catch(() => null);
 if (!Array.isArray(sentences)) {
-  console.error(`讀不到練習句，${BASE} 上的伺服器有在跑嗎？`);
+  console.error(
+    `讀不到練習句（拿到的是 ${JSON.stringify(sentences)?.slice(0, 120)}）。\n` +
+    `${BASE} 上的伺服器有在跑嗎？`
+  );
   process.exit(1);
 }
 const noonDaysAgo = (d) => { const x = new Date(); x.setDate(x.getDate() - d); x.setHours(12, 0, 0, 0); return x.toISOString(); };
@@ -35,6 +45,7 @@ const srs = Object.fromEntries([...Array(30)].map((_, i) => [`ecdict:${i + 1}`, 
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const ctx = await browser.newContext();
+await addCookieToContext(ctx, BASE, cookieHeader);   // 不塞的話量到的是登入畫面的版面
 const page = await ctx.newPage();
 await page.goto(BASE);
 await page.evaluate(({ h, r, a }) => {

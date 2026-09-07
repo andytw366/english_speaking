@@ -1187,7 +1187,6 @@ english_speaking/
 │   ├── index.js               # Express：靜態檔、內容端點、發音評估、設定
 │   ├── azure-pronunciation.js # Azure Speech 發音評估（逐字、逐音素）
 │   ├── auth.js                # 密碼雜湊、session、cookie、CSRF、登入退避（純函式）
-│                               #（合併規則在 public/lib/merge.js，伺服器 import 同一份）
 │   ├── store.js               # 帳號 / session / 進度的落地（原子寫入 + 保留舊版）
 │   ├── routes-auth.js         # 登入關卡與 /api/auth、/api/sync 的端點
 │   ├── narrator.js            # 講評走哪一條路（**選擇邏輯只有這一份**）
@@ -1223,6 +1222,11 @@ english_speaking/
 │   │   ├── backup.js          # 學習資料的備份檔：組出來、讀回去、以及還原前的把關
 │   │   ├── storage.js         # localStorage：單字 SRS、每日計數表、跟讀紀錄、備份
 │   │   ├── settings.js        # 前端偏好設定
+│   │   ├── session.js         # 打 /api 的薄層與「現在是誰」（401 與連不上要分開）
+│   │   ├── sync.js            # 什麼時候同步、失敗了怎麼辦
+│   │   ├── merge.js           # 兩份進度怎麼合成一份（純函式，**伺服器 import 同一份**）
+│   │   ├── device.js          # 這台裝置的 id（計數表的格子，**不進備份檔**）
+│   │   ├── login-view.js      # 登入／註冊畫面
 │   │   ├── stat-tile.js / trend-chart.js
 │   └── modes/
 │       ├── home.js           # 今天：各模式的進度、連續天數、待複習

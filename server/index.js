@@ -17,7 +17,9 @@ import { narrate as generateNarration, narrationProvider } from './narrator.js';
 import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { localSummary, wantsNarration } from './narration.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
-import { readSettings, writeSettings, assertLocalRequest, SettingsError } from './settings.js';
+import {
+  readSettings, writeSettings, assertOwner, settingsPath, SettingsError,
+} from './settings.js';
 import { createStore, StoreError } from './store.js';
 import {
   createAuthGate, createAuthRoutes, createSyncRoutes,
@@ -49,6 +51,14 @@ const upload = multer({
 const DATA_DIR = process.env.DATA_DIR?.trim() || path.join(ROOT, 'userdata');
 const store = createStore(DATA_DIR);
 
+// 從設定頁存的金鑰放在 DATA_DIR，不是 .env（理由見 server/settings.js 開頭）。
+//
+// `override: true` 是刻意的：**這個檔案要蓋掉 .env 與環境變數**。
+// 不 override 的話，compose 的 `AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}` 會把
+// 一個**空字串**放進 process.env，而 dotenv 看到「已經有這個鍵」就跳過 ——
+// 症狀是在網頁上存了金鑰、伺服器也回「已儲存」，但功能還是說沒設定。
+dotenv.config({ path: settingsPath(DATA_DIR), override: true, quiet: true });
+
 const app = express();
 
 // 進度整包上傳會比預設的 1mb 大（srs 全練過約 0.57 MB，加上其餘的鍵）。
@@ -65,15 +75,25 @@ app.use('/api/auth', createAuthRoutes(store, { inviteCode: process.env.INVITE_CO
 app.use('/api', createAuthGate(store));
 app.use('/api/sync', createSyncRoutes(store));
 
-app.get('/api/health', (req, res) => {
-  res.json({
+/**
+ * 「這台伺服器現在有什麼能力」。設定頁靠它顯示「目前」那一行 ——
+ * 換了金鑰卻沒生效時，「畫面上寫的跟實際跑的一樣」是唯一能自己查出問題的方式。
+ *
+ * 抽成函式是因為存完金鑰的回應也要帶同一份（見 POST /api/settings）：
+ * 前端自己從金鑰有沒有設定去推「Azure 通了沒」的話，那個規則就有兩份
+ * （Azure 要 key **和** region 都有才算），而分岔的症狀是畫面說得跟實際不一樣。
+ */
+function healthPayload() {
+  return {
     ok: true,
     azureConfigured: hasAzureConfig(),
     geminiConfigured: hasApiKey(),
-    // 講評走哪一條路。設定頁要顯示這個 —— 換了 .env 卻沒生效時，
-    // 「畫面上寫的跟實際跑的一樣」是唯一能自己查出問題的方式
     narration: narrationProvider(),
-  });
+  };
+}
+
+app.get('/api/health', (req, res) => {
+  res.json(healthPayload());
 });
 
 // 可選的 Gemini model。前端的選單從這裡拿，送上來的值也會在 gemini.js 用
@@ -140,23 +160,31 @@ app.get('/api/content/:name', (req, res, next) => {
 app.get('/api/sentences', (req, res) => res.redirect(307, '/api/content/sentences'));
 
 // ─── 設定 ────────────────────────────────────────────────────────────────
-// 只允許本機請求：這個端點會寫入伺服器的 .env。詳見 server/settings.js。
-app.get('/api/settings', (req, res) => {
+//
+// 只有**擁有者**（第一個註冊的帳號）能讀寫金鑰。登入與 Origin 檢查是上面的
+// authGate 做的，這裡再加一道「是不是擁有者」。詳見 server/settings.js 開頭
+// —— 那裡也寫了為什麼這一關以前是「只放行 loopback」、現在換掉了。
+app.get('/api/settings', async (req, res) => {
   try {
-    assertLocalRequest(req);
+    assertOwner(req.user, await store.owner());
     res.json(readSettings());
   } catch (err) {
     handleSettingsError(err, res);
   }
 });
 
-app.post('/api/settings', (req, res) => {
+app.post('/api/settings', async (req, res) => {
   try {
-    assertLocalRequest(req);
-    const updated = writeSettings(ROOT, req.body ?? {});
+    assertOwner(req.user, await store.owner());
+    const updated = writeSettings(DATA_DIR, req.body ?? {});
+    // Gemini 的 client 會把金鑰記在自己身上，換了金鑰要把它丟掉重建 ——
+    // 不然新金鑰要等重啟才生效。其他幾個（Azure、講評端點）每次呼叫都重讀
+    // process.env，不需要處理
     if (updated.includes('GEMINI_API_KEY')) resetGeminiClient();
-    console.log(`[settings] 已更新：${updated.join(', ')}`);
-    res.json({ ok: true, updated, settings: readSettings() });
+    console.log(`[settings] ${req.user.username} 已更新：${updated.join(', ')}`);
+    // 一起回「現在有什麼能力」——存完之後設定頁那一行要馬上對，
+    // 不然使用者會以為沒生效而重複儲存
+    res.json({ ok: true, updated, settings: readSettings(), health: healthPayload() });
   } catch (err) {
     handleSettingsError(err, res);
   }
@@ -169,7 +197,8 @@ function handleSettingsError(err, res) {
   console.error('[settings]', err);
   res.status(500).json({
     error: 'settings_failed',
-    message: '寫入設定失敗。請確認專案根目錄可寫入，詳細原因請看伺服器 console。',
+    message: `寫入設定失敗。請確認 ${settingsPath(DATA_DIR)} 所在的目錄可寫入，` +
+      '詳細原因請看伺服器 console。',
   });
 }
 
@@ -367,10 +396,17 @@ app.listen(PORT, async () => {
         : `本地摘要（${narration.label} ${narration.problem}）`}`
   );
 
+  if (fs.existsSync(settingsPath(DATA_DIR))) {
+    // 值可能來自兩個檔案，而「我改了 .env 卻沒生效」只有在知道這件事
+    // 之後才查得出來 —— 所以有這個檔案時就講出來
+    console.log(`金鑰設定：${settingsPath(DATA_DIR)} 也讀了（設定頁存的會蓋掉 .env）`);
+  }
+
   if (!azure && !gemini) {
     console.warn(
       '\n⚠️  Azure 與 Gemini 都沒有設定 —— 送出錄音一定會失敗。\n' +
-        `   請編輯 ${path.join(ROOT, '.env')}，至少設定其中一組，然後重新啟動。\n`
+        '   用擁有者的帳號登入後到「設定 → API 金鑰」填就好（存了立刻生效，不用重啟），\n' +
+        `   或者編輯 ${path.join(ROOT, '.env')} 再重新啟動。\n`
     );
   } else if (!azure) {
     console.warn(

@@ -513,6 +513,41 @@ await narrationChips.first().click();
 await page.waitForTimeout(200);
 check('開回來也存得回去', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings') ?? '{}').geminiNarration)) === true);
+
+// ─── 從網頁設金鑰 ────────────────────────────────────────────────────────
+//
+// 以前這張卡只有「從 localhost 打進來」的請求看得到（`assertLocalRequest`），
+// 現在是「要登入 + 要是擁有者」。測試帳號是這台伺服器上第一個帳號，
+// 所以它就是擁有者 —— 這幾條會失敗的話，第一個要懷疑的是伺服器的 DATA_DIR
+// 不乾淨（uitest 變成第二個帳號，那它就不是擁有者了）。
+check('擁有者看得到金鑰欄位', (await page.locator('#azure-key').count()) === 1);
+check('看得到講評端點那張卡', (await page.locator('#narration-base-url').count()) === 1);
+check('講評來源四個選項都在', (await page.locator('#narration-provider option').count()) === 4);
+check('金鑰卡寫出「現在」用的是哪一條路',
+  (await page.locator('.card', { hasText: 'API 金鑰' }).textContent()).includes('目前'));
+
+// 真的存一次 —— 這是這一版唯一重要的事，「按鈕在」不算。
+// 存完再清掉，不要把值留在開發／CI 的伺服器上
+// 用「裡面有那個欄位的卡」來抓，不要用 hasText —— 練習偏好那張卡的說明文字
+// 裡也寫著「講評端點」，hasText 會同時抓到兩張（踩過）
+const narrationCard = page.locator('.card', { has: page.locator('#narration-base-url') });
+
+/** 按「儲存講評端點」，等畫面真的說存好了。等訊息而不是睡 600 毫秒 —— 睡會 flaky。 */
+async function saveNarrationModel(value) {
+  await page.locator('#narration-model').fill(value);
+  await page.locator('button', { hasText: '儲存講評端點' }).click();
+  return narrationCard.getByText('已儲存').first()
+    .waitFor({ timeout: 5000 }).then(() => true, () => false);
+}
+
+check('存了會說立即生效', await saveNarrationModel('ui-test-model'));
+check('伺服器真的收到了',
+  (await apiGet('/api/settings')).NARRATION_MODEL?.value === 'ui-test-model',
+  (await apiGet('/api/settings')).NARRATION_MODEL?.value);
+
+check('清掉也清得回去', (await saveNarrationModel('')) &&
+  (await apiGet('/api/settings')).NARRATION_MODEL?.value === '');
+
 await shot(page, 'ui-09-設定');
 
 // ─────────────────────────────────────────────────────────────────────────

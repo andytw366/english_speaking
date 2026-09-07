@@ -12,6 +12,11 @@ services:
     environment:
       # 兩組金鑰都是選填的，缺了不會讓容器起不來，只是對應的功能會退化。
       #
+      # 這裡不填也行：擁有者登入後在「設定 → API 金鑰」填就好（存了立刻生效）。
+      # 那條路寫的是 /data/settings.env（在下面的 userdata volume 裡，所以重建
+      # 容器也還在），而且**會蓋掉這裡傳進去的值** —— 之後要改回用這裡的設定，
+      # 記得把 settings.env 裡那一行清掉，不然改了這裡看起來會沒反應。
+      #
       # Azure Speech：發音評估的客觀逐音素分數。沒設的話「跟讀」拿不到分數，
       # 其他五種模式照樣可以用。REGION 要跟建立資源時選的區域一致。
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}

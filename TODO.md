@@ -285,9 +285,11 @@ node scripts/generate-content.mjs dialogue  --count 10 --category work
 還沒做的只有 rate limit：登入有退避，但 `/api/pronunciation-feedback`
 沒有次數上限 —— 已登入的使用者（就是自己）可以一直送。自己用不急。
 
-一個對下面那條雷的更正：`/api/settings` **已經是安全的**。`assertLocalRequest()`
-只放行 127.0.0.1，而在 Caddy 後面所有請求的來源都是代理的容器 IP，
-包含攻擊者的。真正沒有把關的是 `/api/pronunciation-feedback`。
+一個對下面那條雷的更正：`/api/settings` **已經是安全的**，而且**門禁已經換過一次**。
+原本是 `assertLocalRequest()`（只放行 127.0.0.1）—— 安全，但在 Caddy 後面
+所有請求都是容器 IP，所以**手機上根本設不了金鑰**。有帳號之後那道換成
+「要登入 + 要是擁有者 + Origin 要對」，金鑰與講評端點都能從網頁設，
+值存在 `<DATA_DIR>/settings.env`（會蓋掉 `.env`）。
 
 ### 現在不建議做
 
@@ -302,7 +304,8 @@ node scripts/generate-content.mjs dialogue  --count 10 --category work
 
 ### 順手可以還的技術債
 
-- **設定頁 10 個欄位擠在一起**，該分成「金鑰 / 單字卡 / 跟讀 / 語音 / 資料」幾張卡。
+- ~~**設定頁 10 個欄位擠在一起**~~ 已經分成卡片了（金鑰 / 講評端點 / 每日目標 /
+  練習偏好 / 語音 / 同步 / 學習資料，寬螢幕上是網格）。
 - **`filterBySettings` 的「情境＋難度」同時套在四個模式上**，但單字卡已經改用難度分級
   （`currentPool()` 對 ECDICT 的牌組刻意不套難度篩選）。設定頁應該講清楚它影響誰。
 - **每日目標是一個數字，複習與新字共用**。到期的字超過每日目標時，那一天會全部
@@ -654,9 +657,16 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   這四種在畫面上寫成同一句話的話，「你自己關的」會被當成「壞了」。
 - **Gemini 對無效金鑰回的是 HTTP 400，不是 401/403**，SDK 訊息裡也看不到
   `API_KEY_INVALID`。所以 400 的錯誤訊息要同時提示金鑰與音檔兩種可能。
-- **`/api/settings` 只接受 loopback 請求，而 loopback 檢查擋不住反向代理。**
-  Caddy 的 `reverse_proxy localhost:3000` 在後端看起來就是本機請求。
-  **公開部署前必須移除這兩個端點或加真正的認證。**
+- ~~**`/api/settings` 只接受 loopback 請求，而 loopback 檢查擋不住反向代理。**~~
+  **已經換掉了**：那道關卡現在是「要登入 + 要是擁有者（第一個註冊的帳號）+
+  Origin 要對」，所以走 Docker／網域時金鑰也設得了（以前一律 403，只能 ssh 進去
+  編輯 `.env`）。細節在 `server/settings.js` 開頭與 README「從設定頁填金鑰」。
+  **這裡留下兩個新的雷**：
+  1. **值寫在 `<DATA_DIR>/settings.env`，不是 `.env`** —— Docker 裡 `/app` 寫不進去
+     （root 的），而且 `--build` 一次就沒了；
+  2. **那個檔案用 `override: true` 讀，會蓋掉 `.env` 與 compose 的環境變數。**
+     反過來的話「網頁上改了金鑰卻沒反應」；照這樣做的代價是「改了 compose
+     卻沒反應」，而後者啟動時有一行 log 寫著 settings.env 也讀了。
 - **compose 的 `environment:` 要跟著程式碼一起加。** 容器裡沒有 `.env`，金鑰是
   compose 從主機的 `.env` 轉進去的。階段 11 接上 Azure 之後，`docker-compose.yml`
   只列了 Gemini 那兩個變數 —— 走 Docker 部署時 Azure 金鑰進不到容器裡，

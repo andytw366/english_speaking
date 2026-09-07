@@ -186,8 +186,10 @@ NARRATION_MODEL=<到供應商的 model 列表複製一個>
   ` ```markdown ` 圍欄、`- ` 開頭都會被整理掉。
 - **失敗不自動改打 Gemini。** 那會讓「我明明換成快的了，怎麼還是要等十幾秒」
   變成無解的問題。設定的那條路失敗就退回本地摘要，畫面上看得出來。
-- **model 不放進設定頁的選單。** 那個選單是 Gemini 專屬的、是使用者每次練習
+- **model 不放進練習時的那個選單。** 那個選單是 Gemini 專屬的、是使用者每次練習
   可以挑的東西；`NARRATION_MODEL` 是「這台伺服器接到哪個服務」，屬於部署設定。
+  它在設定頁有自己的一張卡（「講評端點」，只有擁有者看得到），跟金鑰同一條路
+  —— 手機上換模型不必 ssh 進伺服器。
 
 **這條路在開發容器裡驗不到真的呼叫**（egress 擋掉 `huggingface.co`、
 `api.groq.com`、`api.openai.com`，跟 Azure 一樣的處境）。已驗過的是：
@@ -222,17 +224,42 @@ curl -s -X POST http://127.0.0.1:3000/api/pronunciation-feedback \
 
 ### 從設定頁填金鑰 —— 安全邊界
 
-設定頁可以直接填金鑰，伺服器會寫進 `.env`（權限 `600`）並立即套用，不用重啟。
-前端永遠拿不到完整金鑰：`GET /api/settings` 只回「是否已設定」與末四碼。
+設定頁的「API 金鑰」與「講評端點」兩張卡可以直接填，存了**立刻生效，不用重啟**。
+可以改的是這七個變數：`AZURE_SPEECH_KEY`、`AZURE_SPEECH_REGION`、`GEMINI_API_KEY`、
+以及講評端點那四個 `NARRATION_*`。前端永遠拿不到完整金鑰：
+`GET /api/settings` 只回「是否已設定」與末四碼（區域、端點、model 不是機密，回完整值）。
 
-**`/api/settings` 只接受來自 loopback（`127.0.0.1` / `::1`）的請求**，其他一律 403。
+門禁有三道，全部都要過：
 
-> ⚠️ 這一關在**反向代理後面的行為要看代理怎麼接**：
-> - 用本專案的 Docker 部署（Caddy 在另一個容器，走 `app:3000`）→ 來源是容器 IP，
->   **會被正確擋掉**，那種情況金鑰請直接寫在 `.env` 裡。
-> - 如果代理跟 App 跑在同一台、而且是 `reverse_proxy localhost:3000` →
->   來源會變成 `127.0.0.1`，**檢查就失效了**，任何連得到代理的人都能寫你的 `.env`。
->   那種部署一定要先移除這兩個端點或加上真正的身分驗證。
+| 關卡 | 擋什麼 | 在哪 |
+|---|---|---|
+| 要登入 | 沒帳號的人 | `authGate`（所有 `/api` 都有） |
+| 要是**擁有者** | 有帳號但不是第一個註冊的那個（邀請碼開放時會有） | `assertOwner()` |
+| `Origin` 要對 | 跨站偽造請求（CSRF） | `authGate`，非 GET 才檢查 |
+
+> **這一關以前是「只放行 loopback」**（`127.0.0.1` / `::1`）。那時候後端零認證，
+> 那是唯一擋得住「路過的人改你的金鑰」的做法，代價是**走 Docker／網域時一律 403**
+> —— 請求從 Caddy 的容器 IP 進來 —— 所以手機上設不了，只能 ssh 進伺服器編輯
+> `.env` 再重啟。有帳號之後那道換成「要登入 + 要是擁有者」，手機上也設得了。
+>
+> 為什麼不能只靠「要登入」：`INVITE_CODE` 開著時家裡其他人也有帳號，
+> 而金鑰是會花錢的東西（Azure 與講評的配額）。
+
+**值存在 `<DATA_DIR>/settings.env`（權限 `600`），不是專案根目錄的 `.env`。** 三個理由：
+
+1. Docker 裡 `/app` 是 root 的，容器跑的是 `node` 使用者 —— 寫 `.env` 會 `EACCES`，
+   而 Docker 正是最需要「從網頁設定」的那種部署；
+2. 就算寫得進去，`docker compose up --build` 一次就沒了。`DATA_DIR` 有掛 volume；
+3. `.env` 是人手寫的（一堆註解），程式不去動它比較不會搞爛。
+
+啟動時先讀 `.env`、再讀 `settings.env`（`override: true`），所以
+**從網頁存的值會蓋掉 `.env` 與 compose 傳進來的環境變數** ——
+反過來的話「在網頁上改了金鑰卻沒有任何反應」，而且畫面上看不出原因。
+伺服器啟動時會把「也讀了 settings.env」印出來，方便對照。
+
+非擁有者的帳號在設定頁看不到金鑰欄位（伺服器端照樣會擋），
+但看得到「現在的發音評分與講評走哪一條路」—— 不然跟讀拿不到分數時，
+他無從判斷是伺服器沒設定還是自己操作錯了。
 
 ---
 
@@ -264,6 +291,14 @@ curl -s -X POST http://127.0.0.1:3000/api/pronunciation-feedback \
 之後預設不再開放註冊（公開網域上開放註冊 = 誰都能來燒你的配額）。
 要再開一個就在 `.env` 設 `INVITE_CODE`，註冊時要填對才放行。
 
+**擁有者跟別人差在哪：只差「能不能改金鑰」**（設定頁的「API 金鑰」與「講評端點」
+兩張卡，見上面「從設定頁填金鑰 —— 安全邊界」）。學習進度、同步、六個模式，
+每個帳號都是各自獨立且完整的。
+
+擁有者是註冊時寫進 `users.json` 的 `role: "owner"`。**這個功能之前建的帳號
+沒有那個欄位**，所以找不到 `role` 時退回「清單裡的第一個」—— 也就是最早註冊的
+那一個。少了這條退路的話，既有的部署升級之後會變成「沒有人是擁有者」，誰都改不了金鑰。
+
 > **沒有密碼重設，也沒有 email。** 自己架的、使用者是自己，
 > 忘記密碼就去改伺服器上的 `users.json`。加 email 等於多一組要顧的憑證
 > 與一條寄信的失敗路徑。
@@ -289,8 +324,9 @@ curl -s -X POST http://127.0.0.1:3000/api/pronunciation-feedback \
 `DATA_DIR`（Docker 裡是 `/data`，本機預設 `./userdata`）：
 
 ```
-users.json              帳號與密碼雜湊
+users.json              帳號與密碼雜湊（第一個帳號帶 role: "owner"）
 sessions.json           session（只存雜湊）
+settings.env            從設定頁存的金鑰（權限 600，會蓋掉 .env）
 u/<userId>.json         學習進度（就是備份檔的那五個鍵）
 u/<userId>.rev-<n>.json 最近 10 個舊版本
 ```
@@ -1194,7 +1230,7 @@ english_speaking/
 │   ├── gemini.js              # Gemini：講評 + 沒有 Azure 時的主觀評分、model 白名單
 │   ├── audio.js               # WAV 能量分析，判斷有沒有人聲
 │   ├── narration.js           # 講評開關 + 沒用 Gemini 時的本地摘要（純函式）
-│   └── settings.js            # 從設定頁寫 .env（只接受 loopback）
+│   └── settings.js            # 從設定頁改金鑰（**只有擁有者**，寫 DATA_DIR/settings.env）
 ├── public/
 │   ├── index.html
 │   ├── app.js                 # 應用外殼：模式切換、左側／下方兩份模式列、註冊 sw
@@ -1247,7 +1283,7 @@ english_speaking/
 | GET | `/api/content/:name` | `sentences` / `listening` / `translation` / `dialogues` |
 | GET | `/api/vocabulary/:file` | `index.json` / `tier-map.json` / `curated.json` / `tier-N.json` / `band-NN.json`。檔名形態是白名單（避免路徑穿越），形態合法但檔案不存在回 404 |
 | GET | `/api/sentences` | 307 轉到 `/api/content/sentences`（舊路徑，口說分支用過） |
-| GET / POST | `/api/settings` | 讀寫金鑰設定（**只接受 loopback**） |
+| GET / POST | `/api/settings` | 讀寫金鑰與講評端點設定（**只有擁有者**，也就是第一個註冊的帳號） |
 | POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV）+ `sentence` + `model`（選填）+ `narrate`（選填，`off` 表示不要 Gemini 講評） |
 
 `/api/pronunciation-feedback` 有 Azure 時回：

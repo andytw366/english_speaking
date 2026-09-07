@@ -1,15 +1,58 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { PROVIDERS } from './narrator.js';
+
 // 從瀏覽器設定 API 金鑰。
 //
-// 安全邊界：這個 App 是設計成在本機執行的，金鑰寫進伺服器端的 .env，
-// 瀏覽器只是把值送過來一次，不會存在前端、也不會回傳完整金鑰。
-// 但「讓網頁寫入伺服器的 .env」在公開網路上是很危險的，
-// 所以下面的 assertLocalRequest() 會擋掉所有非 loopback 的請求。
-// 如果之後要部署到雲端，必須把這整個模組拿掉或加上真正的認證。
+// ─── 安全邊界（有帳號之後換過一次）─────────────────────────────────────────
+//
+// 以前：**只放行 loopback**（127.0.0.1 / ::1）。那時候後端零認證，這是唯一
+//   擋得住「路過的人改你的金鑰」的方法。代價是走 Docker／網域的部署一律 403
+//   —— 請求從 Caddy 的容器 IP 進來，不是 127.0.0.1 —— 所以手機上根本設不了，
+//   只能 ssh 進去編輯 .env 再重啟。
+//
+// 現在：**要登入 + 要是擁有者 + POST 要過 Origin 檢查**。
+//   登入與 Origin 是 `server/routes-auth.js` 的 authGate 做的（所有 /api 都有），
+//   擁有者這一關是下面的 `assertOwner()`。
+//
+// 為什麼可以放寬：loopback 擋的是「任何連得到的人都能寫 .env」，而現在
+// 走得到這個端點的前提是有帳號、有 session cookie。
+// 為什麼**不能只靠 authGate**：`INVITE_CODE` 開著的時候家裡其他人也有帳號，
+// 而金鑰是會花錢的東西 —— 只有擁有者（第一個註冊的帳號）能碰。
+//
+// ─── 寫到哪 ──────────────────────────────────────────────────────────────
+//
+// `<DATA_DIR>/settings.env`，**不是**專案根目錄的 `.env`。三個理由：
+//   1. Docker 裡 `/app` 是 root 的，容器跑的是 node 使用者 —— 寫 `.env` 會
+//      EACCES。而 Docker 正是最需要「從網頁設定」的部署方式；
+//   2. 就算寫得進去，`docker compose up --build` 一次就沒了。`DATA_DIR` 有掛
+//      volume，跟帳號與學習進度一起留著；
+//   3. `.env` 是人手寫的（一堆註解與 Docker 那幾段），程式不去動它比較不會搞爛。
+//
+// 讀的順序在 `server/index.js`：先 `.env`，再 `settings.env`（override）。
+// 從網頁存的值是後來的、也是刻意的，所以它蓋掉 `.env` 與 compose 傳進來的環境變數
+// —— 反過來的話「在網頁上改了金鑰卻沒有任何反應」，而且畫面上看不出原因。
 
-const MANAGED_KEYS = ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION', 'GEMINI_API_KEY'];
+/** 可以從設定頁改的變數。**不在這份清單裡的一律忽略**，不是回錯誤。 */
+const MANAGED_KEYS = [
+  'AZURE_SPEECH_KEY',
+  'AZURE_SPEECH_REGION',
+  'GEMINI_API_KEY',
+  'NARRATION_PROVIDER',
+  'NARRATION_BASE_URL',
+  'NARRATION_API_KEY',
+  'NARRATION_MODEL',
+];
+
+/** 值的長度上限。正常的金鑰不到 200 字元，這只是別讓人塞一整個檔案進來。 */
+const MAX_VALUE_LENGTH = 500;
+
+export const SETTINGS_FILENAME = 'settings.env';
+
+export function settingsPath(dataDir) {
+  return path.join(dataDir, SETTINGS_FILENAME);
+}
 
 export class SettingsError extends Error {
   constructor(httpStatus, userMessage) {
@@ -20,24 +63,29 @@ export class SettingsError extends Error {
 }
 
 /**
- * 只允許本機請求 —— 這個端點會寫入 .env，不能讓區網或外部碰到。
+ * 只有擁有者可以讀寫金鑰設定。
  *
- * 注意這一關在**反向代理後面會一律擋掉**（Docker 部署就是這種情形：
- * 請求從 Caddy 的容器 IP 進來，不是 127.0.0.1）。那是刻意的、也是對的 ——
- * 代理會把所有人的請求都變成「內部來源」，放行等於門戶大開。
- * 那種部署下金鑰請直接寫在 .env 裡。
+ * 純函式（吃兩個使用者物件，不碰 req）—— 這一層寫錯的代價是「別人可以改你的
+ * 金鑰」，而錯了不會有徵兆，所以刻意做成測得到的形狀（test/settings-server.test.js）。
+ *
+ * @param {{id: string}|null|undefined} user   這個請求是誰（authGate 放進 req.user）
+ * @param {{id: string, username?: string}|null|undefined} owner 第一個註冊的帳號
  */
-export function assertLocalRequest(req) {
-  const raw = req.socket?.remoteAddress ?? req.ip ?? '';
-  const ip = raw.replace(/^::ffff:/, '');
-  if (ip !== '127.0.0.1' && ip !== '::1') {
+export function assertOwner(user, owner) {
+  // 正常情況下 authGate 已經擋掉沒登入的了，這裡是第二道 ——
+  // 端點掛錯位置（掛在 authGate 之前）時，這一行是唯一擋得住的東西
+  if (!user) {
+    throw new SettingsError(401, '請先登入。');
+  }
+  if (!owner) {
+    throw new SettingsError(403, '這台伺服器還沒有擁有者，無法修改金鑰設定。');
+  }
+  if (user.id !== owner.id) {
     throw new SettingsError(
       403,
-      '基於安全考量，這個頁面不能修改金鑰設定 —— 只有直接連到伺服器本機' +
-        '（http://localhost:3000）的請求才可以。\n' +
-        '如果你是透過 Docker 的 Caddy 或其他反向代理連進來的，' +
-        '請改成直接編輯專案根目錄的 .env 再重啟容器：這個端點會寫入 .env，' +
-        '而代理背後的請求無法分辨是誰送的。'
+      `只有擁有者可以修改金鑰設定 —— 也就是這台伺服器上第一個註冊的帳號` +
+        `${owner.username ? `（${owner.username}）` : ''}。\n` +
+        '金鑰是會花錢的東西（Azure 與講評的配額），所以不跟著邀請碼一起開放。'
     );
   }
 }
@@ -52,32 +100,93 @@ function mask(value) {
   };
 }
 
+/** 不是機密的值（區域、端點、model 名稱）直接回完整值，設定頁要顯示它。 */
+function plain(value) {
+  const v = value?.trim() ?? '';
+  return { configured: Boolean(v), value: v };
+}
+
 export function readSettings() {
   return {
     AZURE_SPEECH_KEY: mask(process.env.AZURE_SPEECH_KEY?.trim()),
-    // 區域不是機密，直接回完整值方便顯示
-    AZURE_SPEECH_REGION: {
-      configured: Boolean(process.env.AZURE_SPEECH_REGION?.trim()),
-      value: process.env.AZURE_SPEECH_REGION?.trim() ?? '',
-    },
+    AZURE_SPEECH_REGION: plain(process.env.AZURE_SPEECH_REGION),
     GEMINI_API_KEY: mask(process.env.GEMINI_API_KEY?.trim()),
+    // 講評走哪一條路的四個變數。金鑰以外都不是機密 ——
+    // 而「現在指到哪個端點、哪個 model」是換模型時唯一能自己查的東西
+    NARRATION_PROVIDER: plain(process.env.NARRATION_PROVIDER),
+    NARRATION_BASE_URL: plain(process.env.NARRATION_BASE_URL),
+    NARRATION_API_KEY: mask(process.env.NARRATION_API_KEY?.trim()),
+    NARRATION_MODEL: plain(process.env.NARRATION_MODEL),
   };
 }
 
 /**
- * 更新 .env 裡指定的幾個變數，其餘內容（註解、其他變數）原樣保留。
- * 值傳空字串代表清除該設定。
+ * 一個值合不合法。回問題描述，沒問題回 null。
+ *
+ * 為什麼要驗：這些值存下去之後只會在「送出一次錄音」時才用到，
+ * 而錯的症狀是「講評沒出現」或「認證失敗」—— 離設定的動作很遠。
+ * 在按下儲存的當下就講清楚，比事後翻伺服器 log 便宜得多。
  */
-export function writeSettings(root, updates) {
-  const envPath = path.join(root, '.env');
+export function valueProblem(key, value) {
+  const v = String(value ?? '');
+  if (/[\r\n]/.test(v)) return `${key} 不能包含換行。請確認貼上的內容正確。`;
+  if (v.length > MAX_VALUE_LENGTH) return `${key} 太長了（上限 ${MAX_VALUE_LENGTH} 個字元）。`;
+  if (v === '') return null;   // 空字串是「清除這一項」，一律合法
+
+  // 單引號是我們寫檔時的引號（見 formatEnvValue），值裡有它就沒辦法安全地寫出去。
+  // 在這裡擋而不是在寫檔的時候擋 —— 所有檢查在同一個地方做完，
+  // 才不會出現「有幾個變數已經寫進去了，第三個才失敗」
+  if (v.includes("'")) return `${key} 不能包含單引號（'）。請確認貼上的內容正確。`;
+
+  if (key === 'AZURE_SPEECH_REGION') {
+    // Azure 的區域是小寫英數，例如 eastasia、japaneast。
+    // 貼成「East Asia」或整個端點 URL 是最常見的錯法，而症狀是認證失敗
+    if (!/^[a-z0-9-]+$/.test(v)) {
+      return 'Azure 區域只能是小寫英數字，例如 eastasia、japaneast、westus。' +
+        '（不是「East Asia」，也不是完整的端點網址。）';
+    }
+  }
+
+  if (key === 'NARRATION_PROVIDER' && !PROVIDERS.includes(v)) {
+    return `講評來源只能填 ${PROVIDERS.join(' / ')}，留空表示自動判斷。`;
+  }
+
+  if (key === 'NARRATION_BASE_URL') {
+    let url;
+    try {
+      url = new URL(v);
+    } catch {
+      return '講評端點要是完整網址，例如 https://router.huggingface.co/v1。';
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return '講評端點只能是 http 或 https。';
+    }
+    // 我們自己會接上 /chat/completions，連著填會變成 …/chat/completions/chat/completions
+    if (/\/chat\/completions\/?$/.test(url.pathname)) {
+      return '講評端點只要填到 /v1，不要含 /chat/completions —— 那一段伺服器會自己接。';
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 寫進 `<DATA_DIR>/settings.env`。檔案裡其他內容（註解、別的變數）原樣保留。
+ * 值傳空字串代表清除該設定。
+ *
+ * @param {string} dataDir DATA_DIR（帳號與進度放的那個目錄）
+ * @param {Record<string, string>} updates
+ * @returns {string[]} 真的寫進去的變數名
+ */
+export function writeSettings(dataDir, updates) {
+  const file = settingsPath(dataDir);
 
   const clean = {};
   for (const [key, value] of Object.entries(updates)) {
     if (!MANAGED_KEYS.includes(key)) continue;
     const v = String(value ?? '').trim();
-    if (/[\r\n]/.test(v)) {
-      throw new SettingsError(400, `${key} 不能包含換行。請確認貼上的內容正確。`);
-    }
+    const problem = valueProblem(key, v);
+    if (problem) throw new SettingsError(400, problem);
     clean[key] = v;
   }
 
@@ -87,10 +196,13 @@ export function writeSettings(root, updates) {
 
   let lines = [];
   try {
-    lines = fs.readFileSync(envPath, 'utf8').split('\n');
+    lines = fs.readFileSync(file, 'utf8').split('\n');
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
-    lines = ['# 由設定頁面建立。此檔案已列在 .gitignore，不會被 commit。'];
+    lines = [
+      '# 由設定頁面寫的。這個檔案在 DATA_DIR 裡（跟帳號與學習進度一起），',
+      '# 而且會蓋掉專案根目錄 .env 與環境變數裡的同名設定。',
+    ];
   }
 
   const seen = new Set();
@@ -98,20 +210,21 @@ export function writeSettings(root, updates) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=/);
     if (!m || !(m[1] in clean)) return line;
     seen.add(m[1]);
-    return `${m[1]}=${clean[m[1]]}`;
+    return `${m[1]}=${formatEnvValue(clean[m[1]])}`;
   });
 
   // 先去掉結尾空行，再追加新變數 —— 否則新的一行會被原本檔尾的空行隔開
   while (next.length && next[next.length - 1].trim() === '') next.pop();
 
   for (const [key, value] of Object.entries(clean)) {
-    if (!seen.has(key)) next.push(`${key}=${value}`);
+    if (!seen.has(key)) next.push(`${key}=${formatEnvValue(value)}`);
   }
 
   // 權限設成只有擁有者能讀寫，避免同機其他使用者讀到金鑰
-  fs.writeFileSync(envPath, next.join('\n') + '\n', { mode: 0o600 });
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, next.join('\n') + '\n', { mode: 0o600 });
   try {
-    fs.chmodSync(envPath, 0o600);
+    fs.chmodSync(file, 0o600);
   } catch {
     // Windows／WSL 的某些檔案系統不支援，忽略
   }
@@ -123,4 +236,21 @@ export function writeSettings(root, updates) {
   }
 
   return Object.keys(clean);
+}
+
+/**
+ * 寫進 .env 檔的形狀。
+ *
+ * 為什麼不是直接接上去：dotenv 會把未加引號值後面的 ` #` 當成註解砍掉，
+ * 而 model 的 id 與端點雖然通常很乾淨，貼進來的東西不保證。
+ * 單引號在 dotenv 裡是「原樣」，所以只要值裡沒有單引號就一律安全。
+ */
+function formatEnvValue(value) {
+  if (value === '') return '';
+  if (/^[A-Za-z0-9_\-.:/@+=~]+$/.test(value)) return value;
+  // 單引號在 valueProblem() 就擋掉了，這裡只是不要讓將來多一個呼叫端時默默寫壞
+  if (value.includes("'")) {
+    throw new SettingsError(400, '設定值不能包含單引號（\'）。請確認貼上的內容正確。');
+  }
+  return `'${value}'`;
 }

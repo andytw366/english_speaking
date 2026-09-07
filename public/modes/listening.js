@@ -13,6 +13,10 @@ let items = [];
 let current = null;
 let answers = [];      // 使用者選的選項索引
 let submitted = false;
+// 這一組算進今天的進度了沒。**跟著題組走，不是跟著 submitted 走** ——
+// 「再做一次」會把 submitted 清成 false，拿它判斷的話同一組會被算第二次。
+// （中翻英的 `counted` 是同一個理由，README 的雷單裡記過。）
+let counted = false;
 let showTranscript = false;
 let root = null;
 
@@ -30,7 +34,16 @@ export async function mount(container) {
 
 function pick(item) {
   current = item;
-  answers = new Array(item.questions.length).fill(null);
+  counted = false;
+  restart();
+}
+
+/**
+ * 同一組重來。跟 `pick()` 的差別只有一個：**不動 `counted`** ——
+ * 重做一次不是又練完一組，今天的份不該再加一次。
+ */
+function restart() {
+  answers = new Array(current.questions.length).fill(null);
   submitted = false;
   showTranscript = false;
   render();
@@ -126,7 +139,7 @@ function render() {
       h('div', { class: 'result' },
         h('p', { class: 'result__score' }, `答對 ${correct} / ${current.questions.length} 題`),
         h('div', { class: 'row' },
-          h('button', { class: 'btn', onclick: () => pick(current) }, '再做一次'),
+          h('button', { class: 'btn', onclick: restart }, '再做一次'),
           h('button', { class: 'btn btn--primary', onclick: nextItem }, '下一題'),
         ),
       ),
@@ -168,9 +181,18 @@ function onKey(key) {
 
 /** 對答案。按鈕與 Enter 共用同一份 —— 分兩份寫的話「今天的份」會有一邊忘了記。 */
 function recordAnswers() {
-  // 一組有好幾題，今天的份照題數算 —— 單位是「題」，
-  // 跟畫面上寫的「答對 4 / 6 題」對得起來
-  recordPractice('listening', current.questions.length);
+  // 今天的份算「答完的題組數」，一組算一次。
+  //
+  // 原本是照題數算（一組 3 題就 +3），有兩個問題：
+  //   1. 每組的題數不一樣（2～6 題），同樣練完一組，數字跳多少要看運氣，
+  //      「今天練了 12」講不出練了多少東西；
+  //   2. 真正的一個練習單位是「聽一段、把整組答完」，不是單一題 ——
+  //      題目是綁在同一段錄音上的，不能分開練。
+  // 畫面上的「答對 4 / 6 題」照舊，那是這一組的正確率，跟今天的份是兩回事。
+  if (!counted) {
+    counted = true;
+    recordPractice('listening');
+  }
   render();
 }
 

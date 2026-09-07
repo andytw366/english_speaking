@@ -204,10 +204,13 @@ export function renderAssessment(container, data, targetText, replaceSentence) {
 
 // 講評是誰寫的、為什麼。四種情況要講四句不同的話 ——
 // 「你自己關掉的」與「這次沒回來」如果寫成同一句，使用者會以為壞了。
+//
+// 講評的來源現在不一定是 Gemini（伺服器的 .env 可以指到任何 OpenAI 相容端點），
+// 所以這幾句話都不寫死廠商名 —— 實際是誰由回應的 narrationLabel 帶上來。
 const NARRATION_NOTE = {
   disabled: '（中文講評已關閉，上面是本地摘要。要更具體的建議可以到「設定」重新開啟。）',
-  no_key: '（上面的講評由本地摘要產生 —— 伺服器還沒設定 GEMINI_API_KEY。）',
-  failed: '（這次的 Gemini 講評沒有回來，已改用本地摘要。分數不受影響。）',
+  no_key: '（上面的講評由本地摘要產生 —— 伺服器還沒設定講評用的模型。）',
+  failed: '（這次的講評沒有回來，已改用本地摘要。分數不受影響。）',
   gemini_scores: '（沒有設定 Azure 時分數本身就是 Gemini 給的，所以關掉講評不會變快。）',
 };
 
@@ -217,13 +220,16 @@ function narrationNote(data) {
 
   // 舊的回應沒有 narrationReason，只有 narrationSource
   if (data.narrationSource === 'local') {
-    return h('p', { class: 'hint' }, '（上面的講評由本地摘要產生，未使用 Gemini）');
+    return h('p', { class: 'hint' }, '（上面的講評由本地摘要產生，沒有呼叫模型）');
   }
 
-  // 有用 Gemini 的話把等待時間寫出來 —— 「值不值得等」要看得到才判斷得出來
-  if (data.narrationSource === 'gemini' && typeof data.narrationMs === 'number') {
+  // 有呼叫模型的話把等待時間寫出來 —— 「值不值得等」要看得到才判斷得出來，
+  // 也是換了模型之後唯一能比較快慢的地方
+  if (data.narrationSource && data.narrationSource !== 'local'
+      && typeof data.narrationMs === 'number') {
+    const who = data.narrationLabel || 'AI';
     return h('p', { class: 'hint' },
-      `（講評由 Gemini 產生，等了 ${(data.narrationMs / 1000).toFixed(1)} 秒。` +
+      `（講評由 ${who} 產生，等了 ${(data.narrationMs / 1000).toFixed(1)} 秒。` +
       '嫌慢可以到「設定」關掉，分數不受影響。）');
   }
 

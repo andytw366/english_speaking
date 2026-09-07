@@ -13,3 +13,7 @@ caddy-root.crt
 
 # ECDICT 的原始 CSV（約 63 MB，npm run build:vocabulary 會自己下載）
 ecdict.csv
+
+# 帳號、session 與學習進度（本機開發時的 DATA_DIR 預設值）。
+# 裡面有密碼雜湊與 session，絕對不能 commit
+userdata/

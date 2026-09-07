@@ -159,12 +159,26 @@ function resultCard() {
     );
   } else {
     append(card, diffView(input || '（空白）', current.answer));
-    if (current.accept.length > 1) {
-      append(card, h('p', { class: 'hint' }, `另一種說法：${current.accept[1]}`));
+    // 其他說法全部列出來，不是只列第一個。
+    //
+    // 從 Tatoeba 匯入的題目每題平均有 1.4 種說法、最多 8 種，而且那些都是
+    // **真人寫的對等翻譯** —— 一句中文可以怎麼講，這裡是最有價值的一塊。
+    // 只秀 accept[1] 的話，剩下的說法明明判得對卻看不到。
+    const others = current.accept.slice(1);
+    if (others.length > 0) {
+      append(card,
+        h('p', { class: 'hint' }, others.length === 1 ? '另一種說法：' : `其他說法（${others.length} 種）：`),
+        h('ul', { class: 'trans__alts' }, others.map((a) => h('li', {}, a))),
+      );
     }
   }
 
-  append(card, h('p', { class: 'explain explain--neutral' }, current.explain_zh));
+  // explain_zh 是手寫題目才有的欄位。從語料匯入的題目沒有 ——
+  // 與其硬湊一句沒有內容的說明，不如把版面留給上面那些真正的說法。
+  // （少了這道判斷會印出一個空的 <p>，畫面上是一段莫名其妙的空白。）
+  if (current.explain_zh) {
+    append(card, h('p', { class: 'explain explain--neutral' }, current.explain_zh));
+  }
 
   append(card, 
     h('div', { class: 'row' },

@@ -19,10 +19,25 @@ services:
       # Gemini：把分數講成中文的教練建議。沒設會退回本地摘要，Azure 的分數還看得到。
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-}
+      # 講評改走別的模型（Hugging Face 的 Inference Providers、Groq、自己的 Ollama…）。
+      # 留空就是用 Gemini。四個要一起設，缺一個會退回本地摘要 ——
+      # 設定頁的「跟讀的中文講評」會直接寫出缺哪一個。
+      NARRATION_PROVIDER: ${NARRATION_PROVIDER:-}
+      NARRATION_BASE_URL: ${NARRATION_BASE_URL:-}
+      NARRATION_API_KEY: ${NARRATION_API_KEY:-}
+      NARRATION_MODEL: ${NARRATION_MODEL:-}
+      # 註冊預設只開放第一個帳號（那個就是擁有者）。要再開一個就設這個，
+      # 註冊時要填對才放行。留空 = 之後完全不開放註冊。
+      INVITE_CODE: ${INVITE_CODE:-}
     # 刻意不用 ports：App 不對外開埠，只有 Caddy 連得到它。
     # 直接開 3000 的話，那條路是 http，麥克風照樣不能用，只會讓人以為壞了。
     expose:
       - '3000'
+    volumes:
+      # ⚠️ 帳號與**全部的學習進度**都在這裡。沒有這個 volume 的話，
+      # `docker compose up --build` 一次就全部消失，而且不會有任何錯誤訊息 ——
+      # 使用者看到的只是「重新部署之後進度從頭開始」。
+      - userdata:/data
 
   caddy:
     image: caddy:2-alpine
@@ -62,5 +77,8 @@ services:
 # 把 duckdns 換成 cloudflare（或其他 caddy-dns 模組）就是換一家 DNS 供應商。
 
 volumes:
+  # 使用者資料（帳號、session、學習進度）。跟 caddy_data 一樣是具名 volume
+  # 而不是綁在容器生命週期上 —— 刪掉它等於刪掉所有人的學習進度
+  userdata:
   caddy_data:
   caddy_config:

@@ -34,7 +34,77 @@ const check = (name, ok, extra = '') => {
 const shot = (page, name) =>
   SHOTS ? page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true }) : null;
 
-const sentences = await fetch(`${BASE}/api/content/sentences`).then((r) => r.json());
+// ─── 先登入 ──────────────────────────────────────────────────────────────
+//
+// 所有 /api 端點都要登入（見 server/routes-auth.js），所以測試自己要有帳號。
+//
+// 「先註冊，403 就改成登入」是為了兩種情境都能跑：
+//   CI     每次都是全新的容器 → 沒有帳號 → 註冊成功
+//   本機   重跑第二次時帳號已經在了 → 註冊回 403 → 用同一組密碼登入
+// 需要伺服器指向一個乾淨的 DATA_DIR 才會是「第一個帳號」，所以這組帳密
+// 只會出現在開發／CI 的伺服器上。
+const TEST_USER = { username: 'uitest', password: 'ui-test-password' };
+
+async function authenticate() {
+  const post = (path, body) => fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  let res = await post('/api/auth/register', TEST_USER);
+  if (!res.ok) res = await post('/api/auth/login', TEST_USER);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error(
+      `測試帳號登入不了（HTTP ${res.status}）：${body.message ?? ''}\n` +
+      '這台伺服器上已經有別的帳號了。請用一個乾淨的 DATA_DIR 重新啟動伺服器：\n' +
+      '  DATA_DIR=$(mktemp -d) npm start'
+    );
+    process.exit(1);
+  }
+  // 同一個 cookie 要同時給 fetch（下面的預檢）與瀏覽器用
+  return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+}
+
+const cookieHeader = await authenticate();
+
+/**
+ * 打 API 一律走這裡 —— 每一個端點都要登入，漏帶 cookie 的話拿到的是 401 的
+ * JSON 物件而不是預期的陣列，症狀會是「`.find` is not a function」這種
+ * 完全看不出原因的錯（真的踩過）。
+ */
+const apiGet = (path) =>
+  fetch(`${BASE}${path}`, { headers: { cookie: cookieHeader } }).then((r) => r.json());
+
+/**
+ * 把伺服器上的進度清成「什麼都沒練過」。【22】用。
+ *
+ * 【22】驗的是絕對數字（兩台各練 N → 總和是 N+M），所以伺服器上不可以留著
+ * **上一次跑測試**留下的今日計數 —— 同一個 `DATA_DIR` 重跑第二次時，
+ * 上一輪那兩台裝置的格子會被合併進來，症狀是四條測試同時說數字變成兩倍，
+ * 看起來像合併寫錯了（真的踩過，而且第一眼完全不像測試自己的問題）。
+ *
+ * 走的是「整包覆蓋」那個端點 —— 它就是為了覆蓋而存在的，
+ * 而 `POST /merge` 的語意是合併，清不掉東西。
+ */
+async function resetServerProgress() {
+  const current = await apiGet('/api/sync');
+  const res = await fetch(`${BASE}/api/sync`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', cookie: cookieHeader },
+    body: JSON.stringify({
+      rev: current.rev ?? 0,
+      data: { srs: {}, activity: {}, history: [] },
+    }),
+  });
+  if (!res.ok) {
+    console.error(`清不掉伺服器上的進度（HTTP ${res.status}）—— 【22】的數字會不準。`);
+    process.exit(1);
+  }
+}
+
+const sentences = await apiGet('/api/content/sentences');
 if (!Array.isArray(sentences) || sentences.length < 10) {
   console.error(`讀不到練習句，${BASE} 上的伺服器有在跑嗎？`);
   process.exit(1);
@@ -43,6 +113,17 @@ if (!Array.isArray(sentences) || sentences.length < 10) {
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 // acceptDownloads：備份那一段會真的下載一個檔案再讀回來
 const context = await browser.newContext({ acceptDownloads: true });
+
+// 把登入的 cookie 塞進瀏覽器，其餘的測試就跟以前一樣不必管登入。
+// 登入畫面本身另外有一段測（【21】）
+{
+  const url = new URL(BASE);
+  const [name, value] = cookieHeader.split('=');
+  await context.addCookies([{
+    name, value, domain: url.hostname, path: '/', httpOnly: true, secure: false,
+  }]);
+}
+
 const page = await context.newPage();
 
 // TTS 的錯誤濾掉：headless 沒有安裝任何語音包，那不是 App 的問題。
@@ -111,6 +192,10 @@ async function seed({
     localStorage.setItem('speaking-coach:srs', JSON.stringify(r));
     localStorage.removeItem('speaking-coach:srsVersion');
     localStorage.removeItem('speaking-coach:vocabDays');
+    // **把自動同步關掉。** 這些測試塞的是假的 localStorage，而自動同步會把
+    // 伺服器上（前面幾段測試推上去的）東西合進來 —— 假資料就不是假資料了。
+    // 跨裝置同步本身在【22】用自己的 context 測，那裡是開著的。
+    localStorage.setItem('speaking-coach:autoSync', 'off');
     if (a) localStorage.setItem('speaking-coach:activity', JSON.stringify(a));
     else localStorage.removeItem('speaking-coach:activity');
   }, { h: history, s: settings, m: mode, r: srs, a: activity });
@@ -510,8 +595,13 @@ check('練滿之後今天的進度是滿的', (await text('.card--today')).inclu
   (await text('.card--today')).replace(/\s+/g, ' '));
 check('連續天數從 0 變成 1', (await text('.today__block--streak .today__value')) === '1');
 check('告訴使用者今天完成了', (await viewText()).includes('今天的 3 個字練完了'));
-check('答對答錯都算進今天的份', (await page.evaluate(() =>
-  Object.values(JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}').vocabulary ?? {})[0])) === 3);
+check('答對答錯都算進今天的份', (await page.evaluate(() => {
+  const days = JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}').vocabulary ?? {};
+  const first = Object.values(days)[0];
+  return first && typeof first === 'object'
+    ? Object.values(first).reduce((x, y) => x + y, 0)
+    : Number(first) || 0;
+})) === 3);
 await shot(page, 'ui-12-每日目標');
 
 // 這是每日目標跟舊的「一輪最多幾張」最重要的差別
@@ -549,7 +639,7 @@ check('五個模式都設得到目標',
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【13】單字卡：選擇題');
 
-const tier1 = await fetch(`${BASE}/api/vocabulary/tier-1.json`).then((r) => r.json());
+const tier1 = await apiGet('/api/vocabulary/tier-1.json');
 const meaningOf = (word) => firstSense(tier1.find((c) => c.word === word)?.meaning_zh);
 
 // 固定成「看英文選中文」，這樣測試知道正確答案是哪一個字串
@@ -787,28 +877,67 @@ await page.waitForSelector('.card--today');
 
 const activityOf = () => page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}'));
+
+/**
+ * 某個模式第一天的數字。
+ *
+ * 計數表是「一天一格、每台裝置各一格」（跨裝置合併用，見 lib/merge.js），
+ * 所以要把格子加起來 —— 直接讀原始值會拿到 `[object Object]`。
+ * 舊形狀（一天一個數字）也要讀得懂，`getActivity()` 對還沒搬過的資料就是那樣。
+ */
+const dayTotal = (days) => {
+  const first = Object.values(days ?? {})[0];
+  if (first && typeof first === 'object') {
+    return Object.values(first).reduce((x, y) => x + (Number(y) || 0), 0);
+  }
+  return Number(first) || 0;
+};
 const built = await activityOf();
-check('舊的 vocabDays 搬進計數表', Object.values(built.vocabulary ?? {})[0] === 12,
+// 搬進去的是固定的 `legacy` 格，**不是本機那一格** ——
+// 兩台裝置各搬一次的話，同一段歷史會被算成兩台的份而加倍
+check('舊的 vocabDays 搬進計數表的 legacy 格', dayTotal(built.vocabulary) === 12
+  && Object.keys(Object.values(built.vocabulary)[0])[0] === 'legacy',
   JSON.stringify(built.vocabulary));
 check('跟讀紀錄也數成每天幾句', Object.keys(built.shadowing ?? {}).length === 2,
   JSON.stringify(built.shadowing));
 
-// 聽力：一組答完照題數算
-check('聽力有今天的進度卡', (await text('.card--today')).includes('今天練的題'));
-await page.evaluate(() => {
-  const seen = new Set();
-  document.querySelectorAll('#view .option').forEach((el) => {
-    if (seen.has(el.parentElement)) return;
-    seen.add(el.parentElement);
-    el.click();
+// 聽力：**一組算一次**，不是照題數算。
+// 一組有 2～6 題，照題數算的話同樣練完一組、數字跳多少要看運氣。
+const answerWholeSet = async () => {
+  await page.evaluate(() => {
+    const seen = new Set();
+    document.querySelectorAll('#view .option').forEach((el) => {
+      if (seen.has(el.parentElement)) return;
+      seen.add(el.parentElement);
+      el.click();
+    });
   });
-});
-await page.locator('#view button', { hasText: '對答案' }).click();
-await page.waitForTimeout(300);
-const listened = Object.values((await activityOf()).listening ?? {})[0];
-check('聽力照題數記進今天的份', listened > 0, `${listened} 題`);
+  await page.locator('#view button', { hasText: '對答案' }).click();
+  await page.waitForTimeout(300);
+};
+const listeningCount = async () => dayTotal((await activityOf()).listening);
+
+check('聽力有今天的進度卡', (await text('.card--today')).includes('今天練的題組'));
+const questionsInSet = await page.locator('#view .question').count();
+await answerWholeSet();
+const listened = await listeningCount();
+check('聽力一組只算一次，不是照題數算', listened === 1,
+  `這一組有 ${questionsInSet} 題，記了 ${listened}`);
 check('聽力的今天進度跟著動', (await text('.card--today')).startsWith(`${listened} /`),
   (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+
+// 「再做一次」是重練同一組，不是又練完一組 —— 中翻英的「再試一次」是同一條規則
+await page.locator('#view button', { hasText: '再做一次' }).click();
+await page.waitForTimeout(200);
+await answerWholeSet();
+check('聽力「再做一次」同一組不重複算', (await listeningCount()) === 1,
+  `變成 ${await listeningCount()}`);
+
+await page.locator('#view button', { hasText: '下一題' }).click();
+await page.waitForTimeout(400);
+await answerWholeSet();
+check('聽力換一組答完才會再加一次', (await listeningCount()) === 2,
+  `變成 ${await listeningCount()}`);
 await shot(page, 'ui-16-聽力進度');
 
 // 中翻英：一題只算一次
@@ -857,11 +986,12 @@ const todayKey = (offset = 0) => {
 };
 
 // 單字達標、聽力一半、跟讀今天還沒練（但昨天有）
+// 聽力的目標是 2 組（單位是「組」不是「題」），所以「一半」是 1
 await seed({
   mode: 'home',
   activity: {
     vocabulary: { [todayKey(0)]: 20, [todayKey(1)]: 20 },
-    listening: { [todayKey(0)]: 3 },
+    listening: { [todayKey(0)]: 1 },
     shadowing: { [todayKey(1)]: 5 },
   },
   srs: {
@@ -873,7 +1003,7 @@ await seed({
 await page.waitForSelector('.homelist');
 
 check('五個練習模式各一列', (await page.locator('.homerow').count()) === 5);
-check('今天的總數是跨模式加起來的', (await text('.today__value')) === '23',
+check('今天的總數是跨模式加起來的', (await text('.today__value')) === '21',
   await text('.today__value'));
 // 昨天練單字、今天練聽力，沒有斷 —— 連續天數不能只看單一模式
 check('連續天數是「任何一個模式有練就算」',
@@ -1040,9 +1170,200 @@ await context.setOffline(false);
 const cacheNames = await page.evaluate(() => caches.keys());
 check('App 與題庫分開兩個快取', cacheNames.length === 2, cacheNames.join(' | '));
 
+// ─── Chrome 自己認不認為這個 App 裝得起來 ────────────────────────────────
+//
+// 上面那幾條驗的是「檔案齊不齊、內容對不對」，但**齊全不等於裝得起來** ——
+// manifest 少一個必要欄位、圖示尺寸不合、start_url 掉出 scope、service worker
+// 沒接管，Chrome 都會安靜地不給「安裝應用程式」那個選項，而畫面上完全看不出來。
+// 與其自己重寫一份 Chrome 的判斷規則（一定會跟它的實作分岔），不如直接問它：
+// CDP 的 `Page.getInstallabilityErrors` 回的就是 Chrome 自己列的阻礙清單。
+//
+// **一定要用 persistent context。** 一般的 Playwright context 是無痕模式，
+// Chrome 在無痕下一律回 `in-incognito`，那條會蓋掉所有其他原因 ——
+// 看起來像「有一個阻礙」，其實是測試自己造成的。
+{
+  const dir = fs.mkdtempSync(`${os.tmpdir()}/pwa-profile-`);
+  const persistent = await chromium.launchPersistentContext(dir, {
+    executablePath: process.env.CHROMIUM || undefined,
+  });
+  try {
+    const p2 = await persistent.newPage();
+    await p2.goto(BASE, { waitUntil: 'networkidle' });
+    await p2.waitForTimeout(2000);
+
+    const cdp = await persistent.newCDPSession(p2);
+    const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
+    check('Chrome 沒有列出任何安裝阻礙', installabilityErrors.length === 0,
+      installabilityErrors.map((e) => e.errorId).join(' | ') || '（0 項）');
+
+    const { errors: manifestErrors } = await cdp.send('Page.getAppManifest');
+    check('manifest 沒有解析錯誤', manifestErrors.length === 0,
+      manifestErrors.map((e) => e.message).join(' | ') || '（0 項）');
+
+    // ⚠️ **刻意不驗 `beforeinstallprompt` 有沒有發。**
+    //
+    // 那個事件除了「符合安裝條件」之外還要看 Chrome 的使用者互動熱度
+    // （engagement heuristics）與版本，所以在 CI 上不會發 —— 本機全過、
+    // CI 紅，而 App 本身完全沒問題。`getInstallabilityErrors` 給的是同一件事
+    // 而且是確定的（上面那條），這裡再驗一次只是換來一條會無故變紅的測試。
+  } finally {
+    await persistent.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【20】JS 錯誤');
 check('沒有 console error 或未捕捉例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【21】登入');
+
+// 用**自己的 context**（等於另一台裝置，沒有 cookie）——
+// 上面那個 context 已經帶著登入的 cookie，看不到登入畫面。
+// 而且這一段預期會有 401／400 的網路錯誤（登入畫面本來就是這樣），
+// 分開之後才不會污染【20】那條「沒有 console error」
+{
+  const fresh = await browser.newContext();
+  const p2 = await fresh.newPage();
+  await p2.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await p2.waitForSelector('.login', { timeout: 15000 });
+
+  check('沒登入時看到的是登入畫面', await p2.locator('.login').isVisible());
+  // 側欄留著的話，點下去只會拿到一連串 401，畫面看起來像壞了
+  check('沒登入時側欄收起來', !(await p2.locator('.rail').isVisible()));
+  const width = (await p2.locator('.login').boundingBox()).width;
+  // .rail 被藏起來之後 .page 會掉進 grid 的第一欄（側欄那格）——
+  // 沒有 `body.locked .shell { display: block }` 的話這裡會是 230 左右
+  check('登入卡沒有被擠成一條', width > 300, `${Math.round(width)}px`);
+
+  await p2.fill('#login-username', TEST_USER.username);
+  await p2.fill('#login-password', 'definitely-the-wrong-password');
+  await p2.locator('.login button[type=submit]').click();
+  await p2.waitForSelector('.hint--warn', { timeout: 10000 });
+  check('密碼錯了會講', (await p2.locator('.hint--warn').innerText()).includes('不對'),
+    await p2.locator('.hint--warn').innerText());
+  // 密碼打錯就得連帳號一起重打的話，很快就會讓人不想登入
+  check('失敗之後帳號欄還留著', (await p2.inputValue('#login-username')) === TEST_USER.username);
+
+  await p2.fill('#login-password', TEST_USER.password);
+  await p2.locator('.login button[type=submit]').click();
+  await p2.waitForSelector('.homelist', { timeout: 15000 });
+  check('密碼對了就進 App', await p2.locator('.rail').isVisible());
+  await shot(p2, 'ui-21-登入');
+  await fresh.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【22】跨裝置自動合併');
+
+// 這一段是階段 B 的驗收標準：**兩台裝置各練各的，數字要等於兩邊的總和**，
+// 而且**同一次合併重跑幾次數字都不變**。
+//
+// 用兩個獨立的 context 當兩台裝置（各自的 localStorage、各自的 deviceId），
+// 而且走真的伺服器 —— 合併是在伺服器上做的，mock 掉就等於沒測到。
+{
+  // 伺服器上不能留著上一次跑測試的今日計數（見 `resetServerProgress()`）
+  await resetServerProgress();
+
+  const devices = [];
+  const openDevice = async () => {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    p.on('dialog', (d) => d.accept());
+    await p.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await p.waitForSelector('.login', { timeout: 15000 });
+    await p.fill('#login-username', TEST_USER.username);
+    await p.fill('#login-password', TEST_USER.password);
+    await p.locator('.login button[type=submit]').click();
+    await p.waitForSelector('.homelist', { timeout: 15000 });
+    // 等啟動時的自動同步跑完
+    await p.waitForTimeout(1500);
+    devices.push(ctx);
+    return p;
+  };
+
+  const answerOneSet = async (p) => {
+    await p.evaluate(() => localStorage.setItem('speaking-coach:mode', 'listening'));
+    await p.reload({ waitUntil: 'domcontentloaded' });
+    await p.waitForSelector('#view .question', { timeout: 15000 });
+    await p.evaluate(() => {
+      const seen = new Set();
+      document.querySelectorAll('#view .option').forEach((el) => {
+        if (seen.has(el.parentElement)) return;
+        seen.add(el.parentElement);
+        el.click();
+      });
+    });
+    await p.locator('#view button', { hasText: '對答案' }).click();
+    await p.waitForTimeout(300);
+  };
+
+  const syncNow = async (p) => {
+    await p.evaluate(() => localStorage.setItem('speaking-coach:mode', 'settings'));
+    await p.reload({ waitUntil: 'domcontentloaded' });
+    await p.waitForSelector('#view .card', { timeout: 15000 });
+    await p.locator('#view .card', { hasText: '跨裝置同步' })
+      .locator('button', { hasText: '現在同步' }).click();
+    await p.waitForTimeout(2000);
+  };
+
+  // 那一天所有格子的總和 —— 這就是畫面上看到的數字
+  const listeningTotal = (p) => p.evaluate(() => {
+    const a = JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}');
+    const days = a.listening ?? {};
+    return Object.values(days).reduce((sum, slots) => sum
+      + (typeof slots === 'object'
+        ? Object.values(slots).reduce((x, y) => x + y, 0)
+        : Number(slots) || 0), 0);
+  });
+  const slotCount = (p) => p.evaluate(() => {
+    const a = JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}');
+    const days = Object.values(a.listening ?? {});
+    return days.length ? Object.keys(days[0]).length : 0;
+  });
+
+  try {
+    const one = await openDevice();
+    const two = await openDevice();
+
+    const idOf = (p) => p.evaluate(() => localStorage.getItem('speaking-coach:deviceId'));
+
+    await answerOneSet(one);
+    await answerOneSet(two);
+    await answerOneSet(two);
+
+    // 每台裝置一格 —— 同一個 id 的話兩台會互相覆蓋對方的格子
+    check('兩台裝置拿到不一樣的 deviceId', (await idOf(one)) !== (await idOf(two)),
+      `${await idOf(one)} / ${await idOf(two)}`);
+
+    await syncNow(one);
+    await syncNow(two);
+    await syncNow(one);
+
+    const t1 = await listeningTotal(one);
+    const t2 = await listeningTotal(two);
+    // 取 max 會得到 2（少算）、相加會不冪等（重跑就膨脹）
+    check('兩台各練各的，合起來是總和', t1 === 3 && t2 === 3, `甲 ${t1} / 乙 ${t2}（該都是 3）`);
+    check('一天兩格（各自一格，沒有互相覆蓋）', (await slotCount(one)) === 2, `${await slotCount(one)} 格`);
+
+    // 冪等：同一次合併重跑幾次都不該變
+    await syncNow(one);
+    await syncNow(two);
+    await syncNow(one);
+    const after = await listeningTotal(one);
+    check('重複同步不會讓數字膨脹', after === 3, `變成 ${after}`);
+
+    // 全新的裝置登入之後**不用按任何按鈕**就該把進度拉下來
+    const three = await openDevice();
+    const t3 = await listeningTotal(three);
+    check('全新裝置登入後自動拉到進度', t3 === 3, `${t3}（該是 3）`);
+
+    await shot(three, 'ui-22-跨裝置同步');
+  } finally {
+    for (const ctx of devices) await ctx.close();
+  }
+}
 
 await browser.close();
 console.log(`\n${failed === 0 ? '全部通過' : `*** ${failed} 項失敗 ***`}`);

@@ -43,18 +43,23 @@ const SHELL = [
   '/lib/azure-issues.js',
   '/lib/backup.js',
   '/lib/daily.js',
+  '/lib/device.js',
   '/lib/dom.js',
   '/lib/grade.js',
   '/lib/keys.js',
   '/lib/labels.js',
+  '/lib/login-view.js',
   '/lib/layout.js',
+  '/lib/merge.js',
   '/lib/modes.js',
   '/lib/practice.js',
   '/lib/quiz.js',
   '/lib/recorder.js',
+  '/lib/session.js',
   '/lib/settings.js',
   '/lib/stat-tile.js',
   '/lib/storage.js',
+  '/lib/sync.js',
   '/lib/text-diff.js',
   '/lib/today-card.js',
   '/lib/trend-chart.js',
@@ -80,13 +85,24 @@ const DATA_PREFIXES = ['/api/content/', '/api/vocabulary/'];
  *
  * @param {URL} url
  * @param {string} mode `request.mode`，換頁是 `'navigate'`
- * @returns {'navigate'|'shell'|'data'|'network'}
+ * @returns {'navigate'|'shell'|'data'|'auth-probe'|'network'}
  */
 function strategyFor(url, mode = '') {
   if (url.origin !== self.location.origin) return 'network';
   if (mode === 'navigate') return 'navigate';
   if (DATA_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) return 'data';
-  // 其餘的 /api/* 一律不碰快取（金鑰、發音評估、health）
+  // App 一啟動就問「現在是誰」。離線時這個請求一定失敗，而 console 會因此
+  // 留下一筆紅色錯誤 —— 那會淹掉真正的錯誤（`test/ui.mjs`【20】在抓）。
+  // 所以離線時由 service worker 直接回一個 **200** 的「問不到」。
+  //
+  // 為什麼一定要 200：瀏覽器對**網路失敗**與 **4xx/5xx** 都會記一筆
+  // 「Failed to load resource」。先改成 503 還是紅（CI 上實測過），
+  // 只有 2xx 才真的安靜。
+  //
+  // **不要改用 `navigator.onLine` 判斷。** 那個值在某些 Chromium 版本下
+  // 不會跟著離線變成 false（CI 的版本就是），防護會安靜地失效。
+  if (url.pathname === '/api/auth/me') return 'auth-probe';
+  // 其餘的 /api/* 一律不碰快取（金鑰、發音評估、health、登入登出）
   if (url.pathname.startsWith('/api/')) return 'network';
   return 'shell';
 }
@@ -125,6 +141,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(request));
     return;
   }
+  if (strategy === 'auth-probe') {
+    event.respondWith(authProbe(request));
+    return;
+  }
   event.respondWith(staleWhileRevalidate(
     request,
     strategy === 'data' ? DATA_CACHE : SHELL_CACHE,
@@ -142,6 +162,30 @@ async function networkFirst(request) {
     const cached = await cache.match('/index.html') ?? await cache.match('/');
     if (cached) return cached;
     throw err;
+  }
+}
+
+/**
+ * 「現在是誰」：**完全不快取**，只是把連不上的情況換成一個「問不到」的回應。
+ *
+ * 為什麼不直接放給瀏覽器處理：失敗的請求會在 console 留下紅色錯誤，
+ * 而離線本來就是預期中的狀態，不該長得像出事了。
+ *
+ * ⚠️ **狀態碼一定要是 200。** 瀏覽器對網路失敗與 4xx/5xx 都會記一筆
+ * 「Failed to load resource」—— 先寫成 503，CI 上照樣紅。真正安靜的只有 2xx，
+ * 所以「問不到」是寫在 body 裡的旗標而不是狀態碼。
+ *
+ * `lib/session.js` 的 `whoAmI()` 看到 `offline: true` 就知道這不是
+ * 「沒登入」而是「問不到」，App 照常開啟（題庫在快取裡、進度在 localStorage 裡）。
+ */
+async function authProbe(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    return new Response(JSON.stringify({ offline: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
   }
 }
 

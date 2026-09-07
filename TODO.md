@@ -26,13 +26,14 @@
 | 🗂️ 單字卡 | 10,040 字，**自己選難度**（6 級）＋各級進度＋**每日目標**＋**中英雙向選擇題**（答完會列出其他選項的意思與發音），Leitner 盒子制 | 完成 |
 | ⌨️ 鍵盤 | 六個模式都能不摸滑鼠練完（提示在左側模式列） | 完成 |
 | 📱 PWA | 加得到主畫面、斷線也打得開 | 完成 |
-| 🎧 聽力 | 81 組 / 226 題＋每日進度 | 完成 |
-| ✍️ 中翻英 | 279 題＋每日進度 | 完成 |
+| 🎧 聽力 | 81 組 / 226 題＋每日進度（**照題組算，不是照題數**） | 完成 |
+| ✍️ 中翻英 | **2,159 題**（填空 161 / 整句 1,998）＋每日進度 | 完成 |
 | 💬 情境對話 | 61 段 / 427 句台詞＋每日進度 | 完成 |
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
-| ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料 | 完成 |
+| ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料、**跨裝置同步** | 完成 |
+| 🔐 帳號 | 全部 `/api` 都要登入；進度存在伺服器上，**跨裝置自動合併**（手動整包覆蓋留著當逃生門） | 完成 |
 
-驗證狀態：`npm test` 220 項全過、`npm run test:ui` 208 項全過、
+驗證狀態：`npm test` 323 項全過、`npm run test:ui` 223 項全過、
 `npm run test:layout` 是尺不是測試（見 README「版面盤點」）、
 `npm run test:e2e` 的【1】【2】【4】全過（【3】【5】要金鑰，會自動跳過）。
 CI（`.github/workflows/ci.yml`）在 GitHub 上是綠的。
@@ -62,7 +63,75 @@ README「覺得慢？中文講評可以整段關掉」。
 而選擇題可以把「義項不重疊」變成出題規則，順便讓間隔重複的訊號變客觀
 （不再是使用者自己按「記得」）。
 
-最新的一件：**第二階段（日常手感）做完了** —— 鍵盤操作、釋義截斷、PWA。
+最新的一件：**帳號與跨裝置同步的階段 B 做完了 —— 同步現在是自動的**
+（設計在 `docs/accounts-and-sync.md`，那份文件現在的用途是「為什麼是這樣合的」）。
+
+做完的是：每台裝置一個 `deviceId`（`public/lib/device.js`）、
+合併規則（`public/lib/merge.js`，**純函式，伺服器 import 同一份**）、
+`POST /api/sync/merge`（**合併在伺服器上做** —— `store.mergeData()` 把讀→合→寫
+包在同一個獨佔區段裡，所以不會有「讀完之後另一台先寫進去」的 409 迴圈）、
+前端的時機（載入時合併、切背景推、有寫入之後 debounce 10 秒推、回前景拉）、
+以及一個**每台裝置各自的**自動同步開關。
+
+每個鍵的規則不一樣，理由寫在 `merge.js` 各自的函式上。一句話版本：
+`srs` 每張卡整筆取 `at` 比較新的那一次、`activity` 每台裝置一格逐格取 max
+（G-Counter —— 取 max 會少算、相加不冪等，只有這個同時不少算也不膨脹）、
+`history` 取聯集、`settings` 整包取 `updatedAt` 比較新的那一邊。
+**每一條都要滿足冪等與交換律**，`test/merge.test.js` 除了逐條舉例之外
+還用 300 輪的隨機序列掃這兩個性質 —— 而那正是抓到 `history` 不滿足交換律的東西。
+
+手動的整包上傳／下載**刻意留著**：自動合併萬一出問題，
+「用這一台的整份蓋過去」是使用者唯一能自己救回來的動作（設定頁收在「進階」裡）。
+
+五個實作時踩到、值得記住的（詳見下面的雷）：`return router;` 在
+`routes-auth.js` 裡出現兩次（新路由很容易掛錯 router）、空的 `data` 不可以被
+merge 拒收、`importState()` 要把寫入通知關掉不然同步會餵自己、
+自動同步會讓塞假 localStorage 的測試變得不確定、以及「決定性」不夠要**全序**。
+
+再前一件：**帳號與跨裝置同步的階段 A**。做完的是：Docker volume、
+帳號（scrypt + cookie session + CSRF + 登入退避）、
+**全部 `/api` 端點都要登入**（只有 `/api/health` 與 `/api/auth/*` 例外）、
+伺服器存檔（`GET`／`PUT /api/sync`，rev 樂觀鎖，保留最近 10 版）、
+登入畫面、設定頁的「跨裝置同步」卡。
+
+順手做掉的兩件（為階段 B 鋪路，早加早有資料）：`srs` 每一筆多寫一個 `at`
+（最後一次作答的時間 —— `due` 判斷不了新舊），`settings` 多一個 `updatedAt`。
+
+三個實作時踩到、值得記住的（詳見下面的雷）：掛在 `/api` 的中介層裡
+`req.path` 是相對路徑、`body.locked` 藏掉側欄之後 `.page` 會掉進 grid 的第一欄、
+離線時不要去問 `/api/auth/me`。
+
+再前一件：**講評可以換成任何 OpenAI 相容的模型**（同一個分支）。
+理由是設定好 Azure 之後唯一有感的等待就是那一段，而它做的事很小
+（吃一小段 JSON、吐四行中文），換個快的模型就會快很多。設計寫在 README
+「換一個更快的講評模型」。
+
+三個接手時要知道的位置：`server/narrator.js`（**選擇邏輯只有這一份** ——
+`/api/health`、真的要呼叫、啟動訊息三個地方都問它，各判斷一次一定會有一天
+對不起來）、`server/openai-narrator.js`（真正的 HTTP）、
+`server/narration.js` 的 `buildNarrationPrompt()` 與 `cleanNarration()`
+（prompt 兩條路共用，回來的純文字在這裡整理）。
+
+**這條路跟 Azure 一樣，在容器裡驗不到真的呼叫**（egress 擋掉 HF／Groq／OpenAI）。
+但整條路有真的跑過一次：用 loader 把 Azure 換成假的、`NARRATION_BASE_URL`
+指到 loopback 上一個假的 OpenAI 端點 —— 走的是真的 fetch、真的 HTTP。
+指令在 README 那一節。這招也抓到一個只有跑起來才看得到的 bug（見下面的雷）。
+
+再前一件：**中翻英題庫從 279 題擴到 2,159 題**（分支
+`claude/expand-question-bank-model-swap-84rc5q`）。用的是**同一批** Tatoeba 語料 ——
+跟讀句庫只吃英文那一半，中文那一半在中翻英才派上用場，所以這件事離線就做得完、
+不用金鑰。設計寫在 README「中翻英題目：同一批語料的另一半」。
+
+重點不是題數，是 **`accept[]`**：同一句中文在語料裡常常對到好幾句英文，
+那些是真人寫的對等翻譯，整組收下去，使用者寫出任何一種都算完全正確。
+`keywords` 也改成「每一個 accept 都出現的實詞」的交集 —— 不然畫面上明明把某個說法
+列在「其他說法」裡，照著寫的變化型卻拿到 ❌。
+
+順手做掉的：兩支匯入腳本的語料清洗抽成 `scripts/corpus.js`（唯一一份），
+中翻英答完之後「其他說法」全部列出來（本來只列第一個），
+`explain_zh` 變成選填（匯入的題目沒有，硬湊一句沒內容的說明不如把版面讓給說法）。
+
+再前一件：**第二階段（日常手感）做完了** —— 鍵盤操作、釋義截斷、PWA。
 設計都寫在 README（「鍵盤操作」、「🗂️ 單字卡」的釋義那段、「加到主畫面（PWA）」），
 這裡只記三個接手時會用到的位置：`public/lib/keys.js`（擋掉打字中／組字中／
 按鈕上的鍵是它的重點）、`public/sw.js` 的 `strategyFor()`（哪個網址走哪條規則的
@@ -102,6 +171,8 @@ README「覺得慢？中文講評可以整段關掉」。
 | `public/lib/today-card.js` | 「今天練了幾個 + 連續天數」那張卡，單字卡與跟讀共用。改文案要想到兩邊 |
 | `public/lib/layout.js` | 練習區怎麼分欄。**改任何模式的版面都從這裡開始**：主欄放「現在要動手的那一件事」，其餘進輔助欄。`side` 的 DOM 順序就是手機上的顯示順序 |
 | `public/lib/quiz.js` | 選擇題的出題與干擾項規則。**「義項不重疊」那條是安全規則，永遠不能放寬** —— 放寬就會出現兩個都對的選項 |
+| `public/lib/merge.js` | 兩份進度怎麼合成一份的**唯一一份**規則（伺服器 import 同一份）。**純函式**，改這裡要跑 `merge.test.js`，尤其那條 300 輪的隨機序列測試 —— 合併寫錯是靜悄悄的 |
+| `public/lib/device.js` | 這台裝置的 id，`activity` 的 G-Counter 靠它分格。**絕對不能進 `BACKUP_KEYS`** |
 
 ---
 
@@ -186,20 +257,48 @@ README「覺得慢？中文講評可以整段關掉」。
 **使用者說在他本機測過可以動，但這裡沒有證據，不要假設它一定沒問題。**
 `npm run test:e2e` 的【3】【5】就是為它寫的，有金鑰時在本機跑。
 
-**3-b. 內容量** —— 聽力 81 組 / 226 題、對話 61 段，照每天練的量兩三週就會開始重複
-（單字 10,040、跟讀 2,041 撐得久）。要補的話一定要跑過
-`scripts/generate-content.mjs` 的驗證，別手寫繞過去。
+**3-b. 內容量** —— 中翻英做完了（279 → 2,159 題），**聽力 81 組 / 226 題、
+對話 61 段還沒動**，照每天練的量兩三週就會開始重複（單字 10,040、跟讀 2,041 撐得久）。
+
+中翻英能離線補是因為 Tatoeba 給的本來就是中英句對，剛好就是這個模式要的東西；
+聽力要逐字稿、對話要整段對白，語料裡沒有，只能用 `scripts/generate-content.mjs`
+生成 —— **那需要 `GEMINI_API_KEY`，而開發容器裡沒有金鑰**，所以這兩個只能在本機跑：
+
+```bash
+node scripts/generate-content.mjs listening --count 20
+node scripts/generate-content.mjs dialogue  --count 10 --category work
+```
+
+一定要跑過那支腳本的驗證，別手寫繞過去（見下面「內容」那一段的雷）。
 
 **3-c. 公開部署的門禁** —— 沒帳號密碼、沒 rate limit。後端拿著兩組金鑰，
-公開網址等於任何人都能一直送錄音上來燒配額；而且 `/api/settings` 會寫伺服器的
-`.env`（見下面的雷）。只在 VPN／區網用就不急。
+公開網址等於任何人都能一直送錄音上來燒配額。只在 VPN／區網用就不急。
+
+✅ **做完了**（階段 A + B，設計在 `docs/accounts-and-sync.md`）。
+現在全部 `/api` 都要登入（只有 `/api/health` 與 `/api/auth/*` 例外），
+註冊要邀請碼或「還沒有人註冊過」，登入失敗會退避。
+進度存在伺服器上並且**跨裝置自動合併**。
+
+**別忘了 Docker volume** —— `app` 現在掛了 `userdata:/data`。沒掛的話容器一重建
+使用者的全部進度就消失，而且沒有任何錯誤訊息。
+
+還沒做的只有 rate limit：登入有退避，但 `/api/pronunciation-feedback`
+沒有次數上限 —— 已登入的使用者（就是自己）可以一直送。自己用不急。
+
+一個對下面那條雷的更正：`/api/settings` **已經是安全的**。`assertLocalRequest()`
+只放行 127.0.0.1，而在 Caddy 後面所有請求的來源都是代理的容器 IP，
+包含攻擊者的。真正沒有把關的是 `/api/pronunciation-feedback`。
 
 ### 現在不建議做
 
 - **打字輸入式** —— 選擇題已經涵蓋主動回想，打字多出來的只有拼寫，而要處理
   29% 同義撞號的成本不低。真想練拼寫再做中→英一個方向就好，`lib/grade.js` 可重用。
 - **多答案選擇題** —— 同一個字的義項本來就很接近（說 / 講 / 念），會變成考中文語感。
-- **帳號 + 雲端同步** —— 一個人用的話，1-a 的匯出／匯入解決 90% 的需求。
+- ~~**帳號 + 雲端同步**~~ —— **這條改主意了**，設計在 `docs/accounts-and-sync.md`。
+  原本的理由是「一個人用的話，1-a 的匯出／匯入解決 90% 的需求」，
+  而那個前提在有了網域 + 手機安裝之後不成立：匯出／匯入是**覆蓋不是合併**，
+  天天在兩台裝置之間手動搬，遲早有一次拿舊的蓋掉新的、而且沒有錯誤訊息。
+  更關鍵的是**帳號跟下面 3-c 的門禁是同一件事**，一起做只做一次。
 
 ### 順手可以還的技術債
 
@@ -213,6 +312,32 @@ README「覺得慢？中文講評可以整段關掉」。
 - **中文講評的開關只存在瀏覽器**（`geminiNarration`）。走 Docker 給家裡幾台裝置用的話，
   每台都要各自關一次。要的話可以加一個 `.env` 的預設值回在 `/api/health` 裡。
   **刻意沒先做**：一個人自己用設定一次就好，加了反而多一組要對齊的狀態。
+- **手寫的 118 題中翻英，keywords penalise 自己列出來的「其他說法」**。
+  118 題裡有 93 題的 keywords 是照 `answer` 挑的，而 `accept[1]` 常常是很不一樣的
+  講法（「That works for me.」／「That's fine with me.」）。照著 `accept[1]`
+  一字不差地寫沒問題（`grade()` 先比對完全相符），但寫成它的變化型就會被判
+  「再想想」。匯入的 1,880 題沒有這個問題（`keywordsFor()` 用交集算，
+  `test/translation.test.js` 釘住）。要修的話跑：
+  ```bash
+  node --input-type=module -e "
+  import {tokens} from './public/lib/grade.js';
+  import {readFileSync} from 'node:fs';
+  const d=JSON.parse(readFileSync('content/translation.json','utf8'));
+  for(const x of d.filter(y=>!y.source&&y.keywords))
+    for(const a of x.accept){const g=new Set(tokens(a));
+      const m=x.keywords.filter(k=>!tokens(k).every(t=>g.has(t)));
+      if(m.length)console.log(x.id,m.join(','),'|',a);}"
+  ```
+  **刻意沒自動修**：那些 keywords 是照教學意圖挑的（「walk me through」、
+  「round-trip」），用交集重算會把它們換成 try / things 這種沒有教學價值的字。
+  真要修得一題一題看。
+
+- **`test/ui.mjs` 的「弱點音加權」那條測試是機率性的**，它斷言
+  `low > high * 2`（弱點音出現的次數是強項的兩倍以上）。實測連續三輪拿到
+  6.3× / 5.3× / 2.1×，而且真的紅過一次（1.9×）。那條測試自己的註解就寫著
+  「有機率隨機紅」。要修的話應該讓它抽更多輪、或改成斷言排序而不是倍數，
+  **但別把門檻調低到失去意義**（加權真的壞掉時它就抓不到了）。
+
 - **`focus` 標籤與內容清洗都是啟發式的** —— 擋得掉「不完整」與「不像對話」，
   擋不掉「文法正確但沒人會這樣講」。要再往上就得有人看過，或用 AI 做一次**離線**的
   品質評分（一次性成本，不是執行期的）。
@@ -271,6 +396,16 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   migration 不會跑，跟讀的今天進度就會是 0。
 - **清成績與清「有沒有回來練」是兩件事**：`resetSrs()` 與 `clearHistory()` 都
   不動計數表，要清連續天數得用設定頁的「清除每日紀錄」（`clearActivity()`）。
+- **聽力的「再做一次」跟中翻英的「再試一次」是同一個坑。** 兩個都會把
+  `submitted` / `checked` 清掉，所以**不能拿它們判斷有沒有算過** ——
+  要另外一個跟著題目（題組）走的 `counted` 旗標。聽力原本就是這樣壞的：
+  同一組重做會再記一次。
+- **改一個模式的計數單位，要同時改四個地方**：模式的 `recordPractice()`、
+  `lib/modes.js` 的 `unit` / `todayLabel`、`settings.js` 的 `DEFAULTS.dailyGoals`
+  與 `migrate()`、以及設定頁的 `GOAL_CHOICES`。漏掉 `migrate()` 的症狀最糟 ——
+  使用者設過的目標數字意思悄悄變了，目標從此達不到，而畫面上沒有任何徵兆。
+  `test/ui.mjs` 裡寫死的 activity 假資料也要跟著改單位（首頁那個「聽力一半」
+  的 fixture 就是因此變成「已達標」，害另一條測試紅掉）。
 - **「一次算什麼」每個模式不一樣**，而且都有理由（見 README 的表）。
   中翻英要注意「再試一次」會把 `checked` 清成 null，所以不能拿它判斷有沒有算過，
   要另外一個跟著題目走的旗標。
@@ -319,8 +454,90 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   原本都是 `e.currentTarget` 拿按鈕來改字，鍵盤按 S / P 時沒有按鈕，
   兩支都改成按鈕可以是 null。
 
+### 帳號與同步
+
+- **掛在 `/api` 上的中介層裡，`req.path` 是相對路徑。** express 會把掛載路徑
+  剝掉，所以 `/api/health` 進到關卡時 `req.path` 是 `/health` ——
+  拿它去比對免登入清單就會把 healthcheck 也擋掉。症狀是容器一直 unhealthy、
+  或啟動腳本的「等 `/api/health`」永遠等不到（**真的踩過**，而且第一眼看起來
+  像伺服器沒起來）。要用 `req.baseUrl + req.path`。
+- **`Secure` cookie 要看請求決定，不能寫死。** 本機開發是 `http://localhost`，
+  帶了 `Secure` 的 cookie 在 http 上根本不會被存起來，而症狀是
+  「按了登入沒反應」，console 也不會有東西。
+- **離線時不要去問 `/api/auth/me`。** 那個請求一定失敗，而失敗的資源請求會在
+  console 留下一筆紅色錯誤 —— `test/ui.mjs`【20】會抓到。離線本來就該直接進 App
+  （題庫在快取裡、進度在 localStorage 裡）。用 `navigator.onLine === false` 判斷。
+- **`body.locked` 把側欄藏起來之後，shell 的分欄也要關掉。** 桌機上 `.shell` 是
+  `grid-template-columns: var(--rail-w) minmax(0,1fr)`，而 `display:none` 的 `.rail`
+  會被移出 grid 流 —— `.page` 於是掉進**第一欄**（側欄那格），登入卡被擠成
+  230px 寬的一條。實測踩到，`test/ui.mjs`【21】有一條釘住。
+- **切到登入畫面要走 `single(view)`，不是 `clear(view)`。** 跟版面那一段是同一條雷：
+  `#view` 上留著上一個畫面的分欄類別的話，登入卡只會用到左邊那一欄。
+- **登入表單重畫時欄位的值要自己留著。** 每次 `draw()` 都是整個重建 DOM ——
+  不留的話密碼打錯一次就得連帳號一起重打。
+- **`test/ui.mjs` 需要一個乾淨的 `DATA_DIR`**（`DATA_DIR=$(mktemp -d) npm start`）。
+  測試會建一個 `uitest` 帳號，而「第一個帳號」才建得起來。
+  **同一個 `DATA_DIR` 重跑第二次時，【22】驗的絕對數字會被上一輪留下的
+  今日計數污染**（四條同時說數字變兩倍，看起來像合併寫錯了）——
+  所以【22】開頭會先用「整包覆蓋」把伺服器上的進度清掉（`resetServerProgress()`）。
+  加任何「驗絕對數字」的同步測試都要想到這件事。
+  裡面打 API 一律走 `apiGet()` —— 漏帶 cookie 的話拿到的是 401 的 JSON 物件而不是
+  陣列，症狀是「`.find` is not a function」，完全看不出原因（踩過）。
+- **`sessions.json` 裡不可以出現明文 token。** 只存 SHA-256，
+  `auth.test.js` 有一條真的去搜檔案內容。
+- **壞掉的資料檔不可以被當成「空的」往下走** —— 那等於把使用者的進度靜靜清空。
+  寧可整個請求失敗，至少人看得到、也知道去翻 `u/<id>.rev-N.json`。
+- **`server/routes-auth.js` 裡 `return router;` 出現兩次。** 新的路由用
+  「插在 `return router;` 前面」的方式加進去時，很容易掛到 `createAuthRoutes`
+  上（那個 router 掛在 `/api/auth`）—— 症狀是 `POST /api/sync/merge` 回 404
+  而程式碼看起來完全正確。**真的踩過**（merge 路由第一版就掛錯了）。
+- **`POST /api/sync/merge` 不可以拒收空的 `data`。** 剛登入的新裝置本機什麼都沒有，
+  而它正是最需要同步的那一台 —— 拒收的話「換一台裝置登入」永遠拉不到進度。
+  `PUT /api/sync`（整包覆蓋）**照樣要拒收**空的：那會把伺服器上的東西清掉。
+  兩個端點對「空的」的態度不一樣，這是刻意的。
+- **套用合併結果時要把寫入通知關掉。** `importState()` 走的是 `write()`，
+  而 `write()` 發的 `progress-written` 就是觸發同步的事件 ——
+  不關的話每次同步都會再排一次同步（`storage.js` 的 `suppressNotify`）。
+- **合併規則的「決定性」不夠，要是**全序**。** 分不出新舊時「先到的贏」不行 ——
+  先到的是誰取決於哪一邊先合，`merge(a,b) ≠ merge(b,a)`，兩台裝置就會一直互相推翻。
+  排序也一樣（只比 `at` 的話時間相同的幾筆會維持進來的順序）。
+  兩處都改成比 JSON 字串的全序（`merge.js` 的 `stable()` 與 `byNewest()`）。
+  **這是 300 輪隨機序列的性質測試抓到的，逐條舉例的那些全過** ——
+  改合併規則之後那條測試比任何一條舉例都值得看。
+- **自動同步會讓「塞假 localStorage 再重載」的測試變得不確定。** `test/ui.mjs` 的
+  `seed()` 寫進去的假進度會被自動同步跟伺服器上累積的東西合併，假資料就不是假資料。
+  所以自動同步有一個**每台裝置各自的**開關（`speaking-coach:autoSync`），
+  `seed()` 會把它設成 `off`。那個開關刻意**不放在 `settings` 裡** ——
+  `settings` 會跟著同步，變成「在一台關掉，每一台都關掉」。
+- **`deviceId` 不可以進 `BACKUP_KEYS`。** 還原到另一台裝置時會是同一個 id，
+  兩台從此互相覆蓋對方的格子 —— 症狀是「明明兩台都練了，數字卻只有一台的」，
+  沒有任何錯誤訊息。`pwa.test.js` 之外沒有東西會提醒你，所以寫在 `device.js` 檔頭。
+- **舊的每日數字要搬進固定的 `legacy` 格，不是本機裝置那一格。**
+  搬進本機那一格的話，兩台各搬一次會讓同一段歷史加倍。
+- **合併之後跟原本一樣就不要寫。** 不然每次同步都多一個版本，
+  保留的 10 版會被沒有變化的紀錄佔滿，真正想回溯的那一版就被推掉了。
+- **`DATA_DIR` 沒掛 volume ＝ 進度全沒**，而且症狀是「重新部署之後從頭開始」，
+  沒有任何錯誤訊息。`chown` 漏了則是容器起得來、healthcheck 也過，
+  只有第一次寫進度時才 EACCES。
+  **這兩個在這個容器裡驗不到**（有 docker CLI 但沒有 daemon）——
+  驗過的是「同一個 `DATA_DIR` 重啟之後帳號、session 與進度都還在」。
+
 ### PWA
 
+- **Android 上「已封鎖不安全的應用程式 / 這個應用程式是專為舊版 Android 打造」
+  不是這個 App 的問題，也不是 Play 防護擋來源不明。** 那是 Android 14+ 對
+  `targetSdkVersion < 34` 的封鎖，而 WebAPK 的 targetSdk 是**瀏覽器的產生伺服器**
+  決定的，manifest 影響不到。Samsung Internet 到 2026-09 還在產低於 34 的包
+  （[SamsungInternet/support#123](https://github.com/SamsungInternet/support/issues/123)，
+  還開著），Chrome 產的是 ≥ 34 —— **同一個網址用 Chrome 裝就過**。
+  不要為了這個去改 manifest，改不動。
+- **要判斷「是不是 App 這一側的問題」，直接問 Chrome，不要自己重寫一份判斷規則。**
+  `npm run test:ui`【19】最後三條用 CDP 的 `Page.getInstallabilityErrors` /
+  `Page.getAppManifest` + `beforeinstallprompt`。自己照文件重寫一份的話一定會跟
+  Chrome 的實作分岔，而分岔的方向永遠是「測試說可以、實際裝不起來」。
+- **那三條一定要用 `launchPersistentContext`。** 一般的 Playwright context 是
+  無痕模式，Chrome 在無痕下一律回 `in-incognito`，那一條會蓋掉所有其他原因 ——
+  看起來像「有一個阻礙」，其實是測試自己造成的。
 - **新增 `public/` 底下的 .js / .css 要加進 `sw.js` 的 `SHELL`。** 漏掉的症狀是
   「離線時某個模式打不開」，而有網路的時候完全看不出來。`test/pwa.test.js`
   會掃過目錄比對，所以漏了會紅 —— 那條測試存在的唯一理由就是這個。
@@ -353,6 +570,27 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 - **`test/ui.mjs` 的 `seed()` 要把 `vocabDays` 也清掉。** 選擇題那一段接在
   「每日目標」後面跑，今天的份已經被上一段用掉 3 張，counter 就變成 1 / 17
   而不是 1 / 20 —— 症狀看起來像選擇題的 bug，其實是測試之間互相汙染。
+
+### 本機全過 ≠ CI 會過
+
+- **本機的 Chromium 跟 CI 不是同一版。** 這個容器裡預裝的是 `chromium-1194`，
+  而 `@playwright/test` 1.62 要的是 `chromium-1234`（`npx playwright install`
+  在這裡下載不到，egress 擋掉 CDN）。CI 用的是對的那一版，所以
+  **「本機 npm run test:ui 全過」不代表 CI 會綠** —— 已經因此連紅兩次而沒發現。
+  **push 之後一定要回頭看 CI**，不要只看本機。
+- **`navigator.onLine` 不可靠。** 它在某些 Chromium 版本下不會跟著離線變成
+  `false`（CI 的版本就是），所以拿它當「要不要發請求」的**唯一防線**會安靜地失效。
+  它只能拿來省事，真正的防護要放在別的地方（`/api/auth/me` 是靠 `sw.js` 的
+  `auth-probe` 把連不上換成 503）。
+  重現方式：`p.addInitScript(() => Object.defineProperty(navigator, 'onLine',
+  { get: () => true }))` 再 `ctx.setOffline(true)`，就跟 CI 的行為一樣。
+- **想讓 console 安靜，回應一定要 2xx。** 瀏覽器對**網路失敗**與 **4xx/5xx**
+  都會記一筆「Failed to load resource」。`auth-probe` 第一版回 503，
+  CI 照樣紅（而 chromium-1194 不會記 service worker 合成的錯誤回應，
+  所以本機看不出來）。「問不到」要寫成 200 + body 裡的旗標。
+- **不要驗 `beforeinstallprompt` 有沒有發。** 那個事件除了「符合安裝條件」之外
+  還要看 Chrome 的使用者互動熱度與版本，CI 上不會發 —— 本機全過、CI 紅，
+  而 App 本身完全沒問題。`Page.getInstallabilityErrors` 給的是同一件事而且是確定的。
 
 ### 前端測試的選擇器很脆
 
@@ -392,6 +630,21 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
   `content/vocabulary/`，重跑一次就刪掉它；而且腳本寫的欄位叫 `bands`、
   App 讀的是 `decks`（committed 的 index.json 是後來手改的）。兩個都修了，
   `vocabulary.test.js` 各有一條釘住。**改建置腳本時記得它的輸出要餵得動 App。**
+- **`server/index.js` 裡有一個叫 `narrate` 的區域變數**（「使用者要不要講評」的布林值）。
+  從 `narrator.js` import 進來的函式如果也叫 `narrate`，handler 裡的 `const`
+  會把它遮掉，而錯誤是執行期的 `narrate is not a function` —— 單元測試抓不到
+  （測不進 index.js），只有真的送一次錄音才會出現。所以那個 import 改名成
+  `generateNarration`。**真的踩過**，就是在 loopback 假端點那次跑出來的。
+- **講評的訊息不可以寫死廠商名。** 講評走哪一條路由 `NARRATION_PROVIDER` 決定，
+  可以是 Gemini、也可以是任何 OpenAI 相容端點。寫死的話換過去之後，
+  訊息會叫使用者去看一個根本沒在用的服務（「請設定 GEMINI_API_KEY」）。
+  `narration.test.js` 有一條掃過三種缺席說明擋這件事。實際要顯示的名字由
+  回應的 `narrationLabel` 帶上來，前端不自己猜（它看不到 `.env`）。
+- **`cleanNarration()` 先拿掉符號、確認有字，才補上「• 」。** 順序反過來的話，
+  只有一個符號的那一行會變成一個空的「• 」留在畫面上。測試抓到過。
+- **超時要用 `AbortController`，不要用 `Promise.race`。** race 輸掉的那個請求
+  還是掛在背景跑完才放掉連線，連續超時幾次就會累積一堆沒人要的請求。
+  （Gemini 那條路還是 `Promise.race`，因為它走的是 SDK 不是 fetch。）
 - **`server/gemini.js` 的 model 是白名單 + 陣列，不是單一常數。** 整合時
   `narrateAssessment()` 裡還留著舊的 `MODEL` 常數 —— 一設定 Azure 就會 ReferenceError，
   而那條路在容器裡測不到。動 model 相關的東西時把兩條路徑都掃過。
@@ -419,6 +672,18 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 
 ### 內容
 
+- **算 keywords 一定要用 `grade.js` 的 `tokens()`，不能用 `corpus.js` 的 `lower()`。**
+  兩邊對連字號的處理不一樣：`lower()` 把 `ten-minute` 拆成 ten / minute，
+  真正批改的 `tokens()` 留成一個。用 `lower()` 算出來的 keyword「ten」
+  **永遠比對不到**，那一題就再也判不出「意思對了」，而畫面上只會說
+  「少了這些關鍵用字：ten」，看起來像使用者漏字。匯入時中了 19 題，
+  `test/translation.test.js` 的「每一個 keyword 都出現在 answer 裡」會抓。
+- **`accept` 裡的每一種說法都必須自己過得了 `grade()`。** 它們會列在畫面上的
+  「其他說法」裡 —— 使用者照著寫卻拿到 ❌ 是最傷的一種 bug，而且沒有任何錯誤訊息。
+  加題目（手寫或匯入）之後跑 `node --test test/translation.test.js`。
+- **`content/translation.json` 是 854 KB**（gzip 後 155 KB）。Caddy 有
+  `encode zstd gzip` 所以走 Docker 沒問題，但**後端自己沒有壓縮中介層** ——
+  要把它擺在別的反向代理後面時記得確認那一層有開壓縮。
 - **解析不能只是把英文原句抄一遍加中文句號。** 這是這個專案裡反覆犯的錯，三個聽力批次
   分別被驗證擋下 12、0、5 筆，全是同一個問題。`scripts/generate-content.mjs` 的驗證會擋，
   **新增內容一定要跑過那套驗證**（指令見 README「內容驗證」）。
@@ -441,6 +706,8 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 | 可連 | 不可連 |
 |---|---|
 | `generativelanguage.googleapis.com` | `*.stt.speech.microsoft.com` |
+| （其餘見下） | `huggingface.co` / `router.huggingface.co` |
+| | `api.groq.com` / `api.openai.com` |
 | `github.com` / `raw.githubusercontent.com` | `*.api.cognitive.microsoft.com` |
 | `registry.npmjs.org` | `learn.microsoft.com` / `azure.microsoft.com` |
 | `login.microsoftonline.com` | `example.com` |

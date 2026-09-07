@@ -2,6 +2,11 @@ import { h, append } from '../lib/dom.js';
 import { grid } from '../lib/layout.js';
 import { loadVoices, speak } from '../lib/tts.js';
 import { getSettings, updateSettings, resetSettings, setGoal, DEFAULTS } from '../lib/settings.js';
+import { getUser, logout } from '../lib/session.js';
+import {
+  ConflictError, applyRemote, describe, describeLocal, fetchRemote, isAutoSyncOn,
+  pushOverwrite, setAutoSync, syncNow,
+} from '../lib/sync.js';
 import {
   resetSrs, clearHistory, getHistory, getSrsState, exportState, importState,
   clearActivity, getActivity, activityDays,
@@ -22,7 +27,7 @@ const CATEGORIES = Object.entries(CATEGORY_LABEL);
 /** 每日目標的快速選項，依模式各給一組合理的量。數字輸入框還在，這幾顆只是省得手打。 */
 const GOAL_CHOICES = {
   vocabulary: [10, 20, 30, 50],
-  listening: [3, 6, 12, 20],
+  listening: [1, 2, 4, 8],   // 單位是「組」不是「題」——一組要聽完再答 2～6 題
   translation: [5, 10, 20, 30],
   dialogue: [3, 6, 10, 20],
   shadowing: [3, 5, 10, 20],
@@ -36,6 +41,7 @@ let serverSettings = null;
 let serverError = '';
 let saveState = '';
 let backupState = '';
+let syncState = '';
 let root = null;
 
 export async function mount(container) {
@@ -77,7 +83,7 @@ function render() {
   if (!root) return;
   // 五張卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
   // 單欄排下來 1440×900 要捲三個螢幕才看得完
-  append(grid(root), apiCard(), goalCard(), practiceCard(), voiceCard(), dataCard());
+  append(grid(root), apiCard(), goalCard(), practiceCard(), voiceCard(), syncCard(), dataCard());
 }
 
 // ─── API 金鑰 ────────────────────────────────────────────────────────────
@@ -313,24 +319,49 @@ function narrationField(s) {
   const on = s.geminiNarration !== false;
   const azure = health?.azureConfigured === true;
 
+  // 講評走哪一條路是**伺服器的 .env** 決定的（NARRATION_PROVIDER），不是這裡。
+  // 顯示它的唯一理由：改了 .env 卻沒生效時，「畫面上寫的跟實際跑的一樣」
+  // 是使用者自己查得出問題的唯一方式 —— 不然只會覺得「換了還是一樣慢」。
+  const narration = health?.narration ?? null;
+
   return h('div', { class: 'field' },
     h('span', { class: 'field__label' }, '跟讀的中文講評'),
     h('div', { class: 'chips' },
-      [[true, '要（Gemini，慢幾秒）'], [false, '不要（本地摘要，快）']].map(([value, label]) =>
+      [[true, '要（AI 講評）'], [false, '不要（本地摘要，最快）']].map(([value, label]) =>
         toggleChip(label, on === value, () => {
           updateSettings({ geminiNarration: value });
           render();
         }))),
     h('p', { class: 'hint' },
       on
-        ? '送出錄音後會多等 Gemini 幾秒，換來「th 要把舌尖輕觸上齒」這種具體建議。'
+        ? '送出錄音後要多等講評那一段，換來「th 要把舌尖輕觸上齒」這種具體建議。'
         : '送出後直接看分數，講評改用本地摘要（照樣會指出最弱的面向與唸不好的字）。'),
+    on && narration && narrationStatus(narration),
     !azure && h('p', { class: 'hint' },
       health
         ? '⚠️ 目前沒有設定 Azure，跟讀的分數本身就是 Gemini 給的 —— ' +
           '這個開關要等設定了 Azure 金鑰才省得到時間。'
         : '（讀不到伺服器狀態，無法判斷目前的評分來源。）'),
   );
+}
+
+/** 講評實際會走哪一條路。這幾行不能改成 App 的設定 —— 它讀的是伺服器狀態。 */
+function narrationStatus(narration) {
+  if (narration.id === 'local') {
+    return h('p', { class: 'hint' },
+      '目前伺服器設定成只用本地摘要（NARRATION_PROVIDER=local），不會呼叫任何模型。');
+  }
+  if (!narration.ready) {
+    return h('p', { class: 'hint hint--warn' },
+      `⚠️ 講評設定成走 ${narration.label}，但${narration.problem} —— ` +
+      '現在會退回本地摘要。請到伺服器的 .env 補上再重啟。');
+  }
+  if (narration.id === 'openai') {
+    return h('p', { class: 'hint' },
+      `講評由 ${narration.label} 的 ${narration.model} 產生` +
+      '（伺服器 .env 的 NARRATION_* 決定，這裡不能改）。');
+  }
+  return null;
 }
 
 function toggleChip(label, active, onclick) {
@@ -386,6 +417,159 @@ function voiceCard() {
       },
     }, '🔊 試聽'),
   );
+}
+
+// ─── 跨裝置同步 ──────────────────────────────────────────────────────────
+//
+// **階段 A 是手動的整包上傳／下載**，不是自動合併（設計與階段 B 寫在
+// `docs/accounts-and-sync.md`）。所以這裡的語意跟匯出／匯入一樣是「覆蓋」，
+// 而每一個覆蓋動作都先講清楚用什麼覆蓋什麼 —— 只問「確定嗎」等於沒問。
+function syncCard() {
+  const user = getUser();
+
+  return h('div', { class: 'card' },
+    h('p', { class: 'card__title' }, '跨裝置同步'),
+    user
+      ? h('p', { class: 'who' }, `目前登入：${user.username}`)
+      : h('p', { class: 'hint hint--warn' },
+        '沒有登入，所以同步不了 —— 進度只留在這個瀏覽器裡。'),
+
+    h('p', { class: 'hint' },
+      '進度存在你自己的伺服器上，而且是',
+      h('strong', {}, '自動'),
+      '合併的：打開 App 時、切到背景時、以及練完一段之後都會同步一次。' +
+      '兩台裝置各練各的，數字會加起來。'),
+
+    user && h('div', { class: 'field' },
+      h('span', { class: 'field__label' }, '自動同步'),
+      h('div', { class: 'chips' },
+        [[true, '開'], [false, '關（只手動）']].map(([value, label]) =>
+          toggleChip(label, isAutoSyncOn() === value, () => {
+            setAutoSync(value);
+            // 這是**這台裝置**的選擇，不會跟著同步到別台 ——
+            // 所以它不放在 settings 裡（那個會同步）
+            syncState = value
+              ? '已開啟自動同步。重新整理之後生效。'
+              : '已關閉自動同步 —— 這台裝置只會在你按「現在同步」時同步。';
+            render();
+          }))),
+    ),
+
+    user && h('div', { class: 'row' },
+      h('button', { class: 'btn btn--primary', onclick: syncNowClicked }, '🔄 現在同步'),
+      h('button', { class: 'btn btn--ghost', onclick: signOut }, '登出'),
+    ),
+
+    syncState && h('p', { class: 'hint' }, syncState),
+
+    // 覆蓋是**逃生門**，不是日常操作 —— 所以收在 details 裡，
+    // 而且每一次都會先把兩邊的內容並排出來讓人確認
+    user && h('details', { class: 'field' },
+      h('summary', {}, '整包覆蓋（自動合併出問題時才用）'),
+      h('p', { class: 'hint' },
+        '這兩顆是',
+        h('strong', {}, '覆蓋'),
+        '不是合併：會讓其中一邊的進度完全取代另一邊。' +
+        '自動合併壞掉、或想強制讓某一台的版本說話時才用。'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', onclick: uploadProgress }, '⬆️ 用這台覆蓋伺服器'),
+        h('button', { class: 'btn', onclick: downloadProgress }, '⬇️ 用伺服器覆蓋這台'),
+      ),
+    ),
+  );
+}
+
+async function syncNowClicked() {
+  syncState = '同步中…';
+  render();
+  const { merged, error } = await syncNow();
+  if (error) {
+    syncState = `這次沒同步成功：${error.message}`;
+    return render();
+  }
+  if (merged) {
+    // 合併之後本機的資料變了 —— 重載是唯一能保證每個模組都看到新資料的做法
+    window.location.reload();
+    return;
+  }
+  syncState = `已同步，兩邊一樣（${describeLocal()}）。`;
+  render();
+}
+
+async function uploadProgress() {
+  syncState = '上傳中…';
+  render();
+  try {
+    const res = await pushOverwrite();
+    syncState = `已上傳（${describeLocal()}），伺服器版本 ${res.rev}。`;
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      // 伺服器上有這台裝置沒看過的東西 —— 覆蓋前一定要把兩邊都列出來
+      const ok = window.confirm(
+        '伺服器上的進度比這台裝置知道的新（可能是另一台裝置上傳過）。\n\n' +
+        `伺服器上：${describe(err.current?.data)}\n` +
+        `這台裝置：${describeLocal()}\n\n` +
+        '要用這台裝置的進度覆蓋伺服器上的嗎？覆蓋之後無法復原。'
+      );
+      if (!ok) {
+        syncState = '已取消上傳。要改成拿伺服器的版本請按「從伺服器下載」。';
+        return render();
+      }
+      try {
+        const res = await pushOverwrite({ force: true });
+        syncState = `已覆蓋伺服器上的進度，版本 ${res.rev}。`;
+      } catch (err2) {
+        syncState = `上傳失敗：${err2.message}`;
+      }
+    } else {
+      syncState = `上傳失敗：${err.message}`;
+    }
+  }
+  render();
+}
+
+async function downloadProgress() {
+  syncState = '讀取中…';
+  render();
+  try {
+    const remote = await fetchRemote();
+    if (!remote.rev) {
+      syncState = '伺服器上還沒有任何進度 —— 請先在某一台裝置按「上傳」。';
+      return render();
+    }
+
+    if (!window.confirm(
+      '要用伺服器上的進度覆蓋這台裝置嗎？\n\n' +
+      `伺服器上：${describe(remote.data)}\n` +
+      `這台裝置：${describeLocal()}\n\n` +
+      '這台裝置現在的進度會被取代，而且無法復原。'
+    )) {
+      syncState = '已取消下載。';
+      return render();
+    }
+
+    applyRemote(remote);
+    // 重新整理而不是重畫：設定與複習進度都有模組層級的快取，
+    // 重載是唯一能保證每個模組都看到新資料的做法（還原備份也是同一個理由）
+    window.location.reload();
+  } catch (err) {
+    syncState = `下載失敗：${err.message}`;
+    render();
+  }
+}
+
+async function signOut() {
+  if (!window.confirm(
+    '登出之後要重新輸入帳號密碼才能繼續練。\n\n' +
+    '這台裝置上的學習進度不會被清掉，但還沒上傳的部分也不會自動保留到伺服器 —— ' +
+    '要的話請先按「上傳到伺服器」。'
+  )) return;
+
+  try {
+    await logout();
+  } finally {
+    window.location.reload();
+  }
 }
 
 // ─── 學習資料 ────────────────────────────────────────────────────────────

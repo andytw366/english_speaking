@@ -4,8 +4,12 @@
 // 手機是「練習區 ＋ 下方模式列」。同一份 `renderNav()` 同時畫左側與下方兩份，
 // 由 CSS 決定哪一份出現 —— 兩份各自維護的話，加一個模式就會有一邊忘了加。
 import { h, clear, append } from './lib/dom.js';
+import { single } from './lib/layout.js';
 import { MODES, MODE_IDS, modeMeta } from './lib/modes.js';
 import { overallToday } from './lib/daily.js';
+import { setUnauthenticatedHandler, whoAmI } from './lib/session.js';
+import { renderLogin } from './lib/login-view.js';
+import { start as startSync } from './lib/sync.js';
 
 const nav = document.getElementById('nav');
 const dock = document.getElementById('dock');
@@ -174,7 +178,83 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-let saved = null;
-try { saved = localStorage.getItem('speaking-coach:mode'); } catch { /* 忽略 */ }
-// 沒有上次用的模式就落在首頁 —— 打開 App 的第一個問題是「我今天該做什麼」
-switchTo(MODE_IDS.includes(saved) ? saved : 'home');
+/**
+ * 進 App 之前先確認登入。
+ *
+ * 為什麼是「先問再畫」而不是「先畫，錯了再說」：模式模組一掛上去就會抓題庫，
+ * 沒登入的話那些請求全都是 401，使用者會先看到六種各自的載入失敗訊息，
+ * 沒有人猜得到那其實是「要登入」。
+ */
+async function boot() {
+  // 明確知道離線時就省下這一次請求。
+  //
+  // ⚠️ **這只是省事，不是防線** —— `navigator.onLine` 在某些 Chromium 版本下
+  // 不會跟著離線變成 false（CI 的版本就是這樣，所以本機全過、CI 紅）。
+  // 真正擋掉「離線時 console 出現紅色錯誤」的是 `sw.js` 的 `auth-probe`：
+  // 它把連不上換成一個 503 回應。
+  if (navigator.onLine === false) return enterApp();
+
+  let state;
+  try {
+    state = await whoAmI();
+  } catch (err) {
+    // 連不到伺服器（離線、伺服器掛了）。**不要卡在登入畫面** ——
+    // 題庫與進度都在快取與 localStorage 裡，照樣練得起來
+    console.warn('[auth] 問不到登入狀態，先照常開啟：', err.message);
+    return enterApp();
+  }
+
+  if (state.user) return enterApp();
+  showLogin(state);
+}
+
+function showLogin(state) {
+  document.body.classList.add('locked');
+  // 標題要跟卡片上寫的一致 —— 第一次開啟時卡片是「建立第一個帳號」，
+  // 標題卻寫「登入」的話，看起來像跑錯畫面
+  pageTitle.textContent = state.firstRun ? '🔐 建立帳號' : '🔐 登入';
+  subtitle.textContent = state.firstRun
+    ? '這台伺服器還沒有帳號。建立一個之後，練習進度就會存在上面。'
+    : '練習進度存在伺服器上，登入之後每一台裝置看到的是同一份。';
+  railKeys.hidden = true;
+  // 走 single() 而不是 clear()：`#view` 上可能還留著上一個畫面的分欄類別
+  // （README 的雷單有這一條）。留著的話登入卡會被擠成窄窄一條
+  renderLogin(single(view), { ...state, onDone: () => enterApp() });
+}
+
+function enterApp() {
+  document.body.classList.remove('locked');
+  currentMode = null;   // 從登入畫面回來時要真的重畫一次
+  let saved = null;
+  try { saved = localStorage.getItem('speaking-coach:mode'); } catch { /* 忽略 */ }
+  // 沒有上次用的模式就落在首頁 —— 打開 App 的第一個問題是「我今天該做什麼」
+  switchTo(MODE_IDS.includes(saved) ? saved : 'home');
+
+  // 自動同步。**先畫再同步**，不是先同步再畫 ——
+  // 同步要等一次網路往返，而離線時那一次永遠不會回來；擋在畫面前面的話
+  // 使用者會對著空白畫面等，而他其實已經可以開始練了。
+  //
+  // 合併之後如果本機的資料真的被改過（另一台裝置練過），重畫一次讓數字跟上。
+  startSync().then(({ merged }) => {
+    if (!merged) return;
+    renderToday();
+    // 模式模組在 mount 時就把資料讀進自己的狀態了，所以要重掛一次才看得到
+    const mode = currentMode;
+    currentMode = null;
+    switchTo(mode);
+  }).catch((err) => {
+    // start() 自己已經吞掉同步失敗了，這裡只擋意外
+    console.warn('[sync] 啟動自動同步時出錯：', err?.message);
+  });
+}
+
+// session 過期（30 天）之後每一個請求都會回 401。沒有這一段的話，
+// 使用者看到的是各模式各自的載入失敗，而且**重新整理也不會好**
+setUnauthenticatedHandler(() => {
+  if (document.body.classList.contains('locked')) return;   // 已經在登入畫面了
+  try { cleanup?.(); } catch { /* 忽略 */ }
+  cleanup = null;
+  showLogin({ firstRun: false, canRegister: false });
+});
+
+boot();

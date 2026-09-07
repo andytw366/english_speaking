@@ -915,6 +915,16 @@ body {
   font-weight: 500;
 }
 
+/* 「其他說法」的清單。一題最多會有 8 種，所以縮排要窄、行距要緊，
+   不然一張結果卡會被它撐成整個螢幕。 */
+.trans__alts {
+  margin: 0.2rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
 .result__title { margin: 0 0 0.5rem; font-size: 1.15rem; font-weight: 600; }
 .result--ok .result__title { color: var(--ok); }
 .result--close .result__title { color: var(--warn-text); }
@@ -1856,5 +1866,29 @@ body {
 .homerow__note {
   grid-column: 2 / -1;
   font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* 沒登入時：側欄、下方模式列與齒輪整個收起來。
+   留著它們的話，點下去只會拿到一連串 401，而畫面看起來像壞了。 */
+body.locked .rail,
+body.locked .dock,
+body.locked .page__gear,
+body.locked .page__foot { display: none; }
+
+/* 側欄藏起來之後 shell 的分欄也要關掉。
+   桌機上 `.shell` 是 `grid-template-columns: var(--rail-w) minmax(0,1fr)`，
+   而 `display:none` 的 .rail 會被移出 grid 流 —— `.page` 於是掉進**第一欄**
+   （側欄那格，230px 寬），登入卡就被擠成窄窄一條。實測踩到。 */
+body.locked .shell { display: block; }
+
+/* width + max-width 兩個都要：`#view` 是 flex 容器，只給 max-width 的話
+   卡片會縮到內容的寬度（實測在 1280px 上變成 230px 寬的一條） */
+.login { width: 100%; max-width: 26rem; }
+.login .field { margin-bottom: 0.9rem; }
+
+/* 目前登入的是誰。放在設定頁「同步」那張卡的標題旁邊 */
+.who {
+  font-size: 0.875rem;
   color: var(--text-muted);
 }

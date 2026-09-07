@@ -46,6 +46,9 @@ jobs:
       # 等 /api/health 回應再往下跑，不要用 sleep 猜啟動要多久。
       - name: 啟動伺服器
         run: |
+          # 乾淨的 DATA_DIR：測試會建一個 uitest 帳號，而「第一個帳號」才建得起來。
+          # runner 每次都是新的，這裡明講只是為了讓意圖看得出來
+          export DATA_DIR="$RUNNER_TEMP/userdata"
           npm start &
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3000/api/health > /dev/null; then

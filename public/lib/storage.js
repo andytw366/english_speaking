@@ -184,6 +184,71 @@ export function srsSummary(cards) {
 }
 
 /**
+ * 每個盒子裡有哪些字。
+ *
+ * **為什麼需要它**：`srsSummary()` 只回數量（待複習 12、學習中 30…），
+ * 而「這 30 個是哪些字」是使用者真正想知道的事 —— 沒有清單的話，
+ * 「我到底練過什麼」只能靠下一次抽到它才知道。
+ *
+ * **只列練過的卡**（有 srs 狀態的）。沒練過的可能有 10,040 張，
+ * 列出來是一面牆而不是資訊，所以只回數量（`fresh`）。
+ *
+ * 純函式：`srsState` 與 `now` 都是參數（測試不能靠真實時鐘與 localStorage）。
+ *
+ * @param {Array<object>} cards 目前牌組的卡片
+ * @param {object} srsState `getSrsState()` 的結果
+ * @param {number} now
+ * @returns {{
+ *   boxes: Array<{box: number, intervalDays: number, mastered: boolean, cards: Array<{
+ *     card: object, due: number, overdue: boolean, seen: number, correct: number}>}>,
+ *   practised: number, fresh: number, total: number, due: number}}
+ */
+export function boxBreakdown(cards, srsState, now = Date.now()) {
+  const boxes = BOX_INTERVAL_DAYS.map((days, i) => ({
+    box: i + 1,
+    intervalDays: days,
+    // 最後一盒就是 srsSummary() 算「已熟練」的那一盒 —— 兩邊要對得起來，
+    // 不然畫面上會出現「已熟練 12」但盒子裡數不出 12 個
+    mastered: i + 1 >= BOX_INTERVAL_DAYS.length,
+    cards: [],
+  }));
+
+  let practised = 0;
+  let due = 0;
+
+  for (const card of cards ?? []) {
+    const state = srsState?.[srsKeyOf(card)];
+    if (!state) continue;
+
+    // 盒號來自存下來的資料，可能超出範圍（改過盒子數、或別的版本寫的）。
+    // 夾回合法範圍而不是丟掉那張卡 —— 練過的字不該從清單上消失
+    const box = Math.min(Math.max(Math.floor(Number(state.box)) || 1, 1), BOX_INTERVAL_DAYS.length);
+    const dueAt = Number(state.due) || 0;
+    const overdue = dueAt <= now;
+
+    boxes[box - 1].cards.push({
+      card,
+      due: dueAt,
+      overdue,
+      seen: Number(state.seen) || 0,
+      correct: Number(state.correct) || 0,
+    });
+    practised += 1;
+    if (overdue) due += 1;
+  }
+
+  // 排序：快要複習的在前面。同一個時間點的用字母排 —— 不定序的話，
+  // 每次重新整理清單的順序都不一樣，看起來像資料在跳
+  for (const b of boxes) {
+    b.cards.sort((x, y) => x.due - y.due ||
+      String(x.card.word ?? '').localeCompare(String(y.card.word ?? '')));
+  }
+
+  const total = cards?.length ?? 0;
+  return { boxes, practised, fresh: total - practised, total, due };
+}
+
+/**
  * 每一級的學習進度。
  *
  * **為什麼不直接統計卡片**：`srsSummary()` 要把整個牌組的卡片傳進來，而六個

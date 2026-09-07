@@ -548,6 +548,42 @@ check('換級之後標題跟著換', (await text('.deckbar')).includes('第 4 �
 check('選的難度記在設定裡', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDeck)) === 'tier-4');
 
+// ─── 複習盒：哪些字在哪個盒子 ────────────────────────────────────────────
+//
+// 側欄那四個數字回答得了「我練了多少」，回答不了「那些是哪些字」。
+// 這幾條驗的是**清單跟數字說的是同一件事** —— 對不起來的話，
+// 畫面會出現「已熟練 20」但盒子裡數不出 20 個，而且沒有任何錯誤訊息。
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1' }, srs: legacySrs });
+await page.waitForSelector('.deckbar');
+
+const mastered = Number(await text('.srsstat--mastered .srsstat__value'));
+const learning = Number(await text('.srsstat--learning .srsstat__value'));
+
+await page.locator('#view button', { hasText: '看複習盒' }).click();
+await page.waitForSelector('.boxlist');
+
+check('五個盒子都在', (await page.locator('.card', { has: page.locator('.deckbar') }).count()) >= 5,
+  `${await page.locator('.card').count()} 張卡`);
+check('間隔寫在盒子上', (await viewText()).includes('每 21 天複習'));
+
+const boxWords = async (n) => page.locator('.card', { hasText: `第 ${n} 盒` })
+  .locator('.boxlist__word').count();
+check('最後一盒的字數跟「已熟練」對得起來', (await boxWords(5)) === mastered,
+  `第 5 盒 ${await boxWords(5)} 個・已熟練 ${mastered}`);
+check('學習中的字散在中間那幾盒',
+  (await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4)) === learning,
+  `1～4 盒共 ${(await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4))}・學習中 ${learning}`);
+check('到期的字標出來了', (await page.locator('.boxlist .chip--due').count()) > 0,
+  `${await page.locator('.boxlist .chip--due').count()} 個標成已到期`);
+check('每個字都寫出答對幾次', /答對 \d+ \/ \d+ 次/.test(await viewText()));
+check('沒練過的那幾千個字只給數量、不列出來', (await viewText()).includes('還沒練過，不列在下面'));
+await shot(page, 'ui-11b-複習盒');
+
+await page.locator('#view button', { hasText: '回去練' }).click();
+await page.waitForTimeout(400);
+check('回去練會回到題目', (await page.locator('.boxlist').count()) === 0 &&
+  (await page.locator('.card--today').count()) === 1);
+
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【12】單字卡：每日目標');
 

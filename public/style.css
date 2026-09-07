@@ -1826,6 +1826,51 @@ body {
   color: var(--text-muted);
 }
 
+/* 複習盒的字表（單字卡 → 看複習盒）。
+   形狀刻意跟答完題後的「其他選項」一樣 —— 兩邊都是「字＋音標＋意思」，
+   長得不一樣的話會像兩種不同的東西。 */
+.boxlist {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.boxlist__item {
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+}
+
+.boxlist__item + .boxlist__item { border-top: 1px solid var(--border); }
+
+.boxlist__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.boxlist__word { font-weight: 600; }
+
+.boxlist__ipa {
+  font-family: var(--font-ipa);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.boxlist__pos {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* 發音鍵推到最右邊，一排幾十顆對齊才好按 */
+.boxlist__speak { margin-left: auto; }
+
+.boxlist__meaning {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    首頁：每個模式一列
    ═══════════════════════════════════════════════════════════════════════ */

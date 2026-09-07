@@ -310,8 +310,10 @@ node scripts/generate-content.mjs dialogue  --count 10 --category work
   （`currentPool()` 對 ECDICT 的牌組刻意不套難度篩選）。設定頁應該講清楚它影響誰。
 - **每日目標是一個數字，複習與新字共用**。到期的字超過每日目標時，那一天會全部
   拿去複習、抽不到新字（Anki 是拆成兩個上限）。字量還不大時碰不到，真的遇到再拆。
-- **單字卡缺「哪些卡在哪個盒子」的完整清單**（`srsSummary()` 只給數量）。
-  跟讀的紀錄檢視可以照抄形狀，見 `public/modes/shadowing-views.js`。
+- ~~**單字卡缺「哪些卡在哪個盒子」的完整清單**~~ 做完了：側欄的「看複習盒」
+  進到一整頁的字表（`boxBreakdown()` 是純函式，規則測試在 `vocabulary.test.js`）。
+  **只列這一級練過的字** —— 別級的卡片沒載下來，localStorage 裡只有 `ecdict:1234`
+  這樣的鍵，湊不出字本身。要跨級列的話得先想清楚「載哪些檔案」這件事。
 - **中文講評的開關只存在瀏覽器**（`geminiNarration`）。走 Docker 給家裡幾台裝置用的話，
   每台都要各自關一次。要的話可以加一個預設值回在 `/api/capabilities` 裡。
   **刻意沒先做**：一個人自己用設定一次就好，加了反而多一組要對齊的狀態。

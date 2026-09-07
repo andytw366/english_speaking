@@ -1,6 +1,7 @@
 // localStorage 包一層：私密瀏覽或停用儲存時不會炸掉，只是不記錄。
 
 import { BACKUP_KEYS } from './backup.js';
+import { LEGACY_SLOT, deviceId } from './device.js';
 import { dayKey } from './practice.js';
 
 const PREFIX = 'speaking-coach:';
@@ -17,10 +18,33 @@ function read(key, fallback) {
 function write(key, value) {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify(value));
+    notifyWritten(key);
     return true;
   } catch {
     // 私密瀏覽、配額用盡都會走到這裡。功能照常，只是不記錄。
     return false;
+  }
+}
+
+/**
+ * 「有進度被寫進去了」——跨裝置同步靠這個知道什麼時候該推上去。
+ *
+ * 掛在 `write()` 而不是各模式裡：這裡是**所有**寫入的唯一出入口
+ * （`read` / `write` 是模組私有的，每一個 export 都經過它），
+ * 所以不必去改五個模式，也不會有哪個模式漏掉。
+ *
+ * 只有要同步的鍵才發（`BACKUP_KEYS`）—— `mode`（上次用哪個模式）之類的
+ * 純本機偏好不該觸發一次網路請求。
+ */
+let suppressNotify = 0;
+
+function notifyWritten(key) {
+  if (suppressNotify > 0) return;
+  if (!BACKUP_KEYS.includes(key)) return;
+  try {
+    window.dispatchEvent(new CustomEvent('progress-written', { detail: { key } }));
+  } catch {
+    // 沒有 window（測試直接 import 這個模組時）就算了
   }
 }
 
@@ -204,7 +228,17 @@ export function resetSrs() {
 
 // ─── 每天練了什麼（六個模式共用）──────────────────────────────────────────
 //
-// 形狀：{ vocabulary: { '2026-09-05': 23 }, listening: { … }, … }
+// 形狀：{ vocabulary: { '2026-09-05': { 'dev-a1b2': 23 } }, listening: { … }, … }
+//
+// **一天一格「每台裝置各記各的」（G-Counter）**，不是一天一個數字。
+// 為什麼：跨裝置同步時，一天的數字要能合併，而
+//   取 max → 手機 3、桌機 2 得到 3（少算）
+//   相加   → 得到 5，但重複同步一次就變 10（不冪等）
+// 每台一格之後：寫入只加自己那一格、讀取把所有格子加起來、合併逐格取 max ——
+// 同時不少算也不膨脹。合併規則在 `lib/merge.js`，設計在 docs/accounts-and-sync.md。
+//
+// 舊資料（一天一個數字）讀進來時搬到固定的 `legacy` 格，**不是搬到本機那一格** ——
+// 兩台裝置各搬一次的話，同一段歷史會被算成兩台的份而加倍。
 //
 // **為什麼要另外記一份、不從各模式自己的資料算**：
 //   - 單字卡的 `srs` 每張卡只留**最後一次**的狀態，答過就被下一次蓋掉 ——
@@ -233,9 +267,9 @@ export const ACTIVITY_DAY_LIMIT = 400;
 export function buildActivity({ vocabDays, history } = {}) {
   const activity = {};
 
-  // 單字卡：舊的 vocabDays 就是同一種形狀，直接搬
+  // 單字卡：舊的 vocabDays 是一天一個數字，搬進 legacy 格
   if (vocabDays && typeof vocabDays === 'object') {
-    activity.vocabulary = { ...vocabDays };
+    activity.vocabulary = toSlots(vocabDays);
   }
 
   // 跟讀：從逐筆紀錄數出每天幾句。只算有分數的 —— 沒分數代表沒真的練成一句
@@ -246,10 +280,20 @@ export function buildActivity({ vocabDays, history } = {}) {
       const key = dayKey(record.at);
       if (key) days[key] = (days[key] ?? 0) + 1;
     }
-    if (Object.keys(days).length) activity.shadowing = days;
+    if (Object.keys(days).length) activity.shadowing = toSlots(days);
   }
 
   return activity;
+}
+
+/** 一天一個數字 → 一天一格（全部進 `legacy`）。 */
+function toSlots(days) {
+  const out = {};
+  for (const [key, value] of Object.entries(days)) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) out[key] = { [LEGACY_SLOT]: Math.floor(n) };
+  }
+  return out;
 }
 
 /** 只留認得的模式與合理的數字。localStorage 是使用者改得到的。 */
@@ -278,9 +322,27 @@ export function getActivity() {
   return built;
 }
 
-/** 某一天、某個模式練了幾個。壞掉的值當成 0。 */
+/**
+ * 某一天、某個模式練了幾個。壞掉的值當成 0。
+ *
+ * **兩種形狀都要讀得懂**：新的是一天一格（把格子加起來），
+ * 舊的是一天一個數字（還沒被搬過的 localStorage 就長這樣）。
+ * 少了這道相容，改版之後使用者的連續天數會直接歸零。
+ */
 export function activityCount(activity, mode, key) {
-  const n = Number(activity?.[mode]?.[key]);
+  return countOf(activity?.[mode]?.[key]);
+}
+
+function countOf(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    let total = 0;
+    for (const slot of Object.values(value)) {
+      const n = Number(slot);
+      if (Number.isFinite(n) && n > 0) total += Math.floor(n);
+    }
+    return total;
+  }
+  const n = Number(value);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
@@ -303,13 +365,25 @@ export function activityToday(activity, key) {
 
 /**
  * 某個模式在某一天加 n。純函式，回一份新的計數表。
+ *
+ * **只加自己那一格**（`slot`），別台裝置的格子一個都不碰 —— 那是 G-Counter
+ * 能夠冪等合併的全部原因。真正的寫入一定要帶這台裝置的 id
+ * （`recordActivity()` 會帶）；`slot` 省略時進 `legacy`，那是給搬家與測試用的。
  */
-export function addActivity(activity, mode, key, n = 1, limit = ACTIVITY_DAY_LIMIT) {
+export function addActivity(activity, mode, key, n = 1, {
+  slot = LEGACY_SLOT, limit = ACTIVITY_DAY_LIMIT,
+} = {}) {
   if (!MODE_IDS.includes(mode) || !key || !Number.isFinite(n) || n <= 0) {
     return { ...activity };
   }
   const days = { ...(activity?.[mode] ?? {}) };
-  days[key] = (Number(days[key]) || 0) + Math.floor(n);
+  const before = days[key];
+  // 舊形狀（一天一個數字）先攤成 legacy 格再加，不然會把它整個蓋掉
+  const slots = before && typeof before === 'object' && !Array.isArray(before)
+    ? { ...before }
+    : (countOf(before) > 0 ? { [LEGACY_SLOT]: countOf(before) } : {});
+  slots[slot] = (Number(slots[slot]) || 0) + Math.floor(n);
+  days[key] = slots;
 
   // 只留最近的幾天。鍵是 YYYY-MM-DD，字串由大到小排就是由新到舊。
   const keys = Object.keys(days).sort().reverse();
@@ -335,7 +409,7 @@ export function clearActivity() {
 
 /** 記一次練習（預設今天、加一）。回傳更新後的計數表。 */
 export function recordActivity(mode, n = 1, now = Date.now()) {
-  const next = addActivity(getActivity(), mode, dayKey(new Date(now)), n);
+  const next = addActivity(getActivity(), mode, dayKey(new Date(now)), n, { slot: deviceId() });
   write('activity', next);
   return next;
 }
@@ -368,9 +442,19 @@ export function exportState() {
  */
 export function importState(data) {
   const written = [];
-  for (const key of BACKUP_KEYS) {
-    if (data?.[key] === undefined) continue;
-    if (write(key, data[key])) written.push(key);
+  // 套用進來的資料**不發「有進度被寫進去」事件**。
+  //
+  // 發的話會變成一個迴圈：同步把合併結果寫進來 → 事件觸發 → 又排一次推上去。
+  // 不會無限（下一次合併是 no-op），但每次同步都會多一輪沒有必要的請求。
+  // 這裡寫進去的東西**本來就是從伺服器來的**，沒有什麼要推回去。
+  suppressNotify += 1;
+  try {
+    for (const key of BACKUP_KEYS) {
+      if (data?.[key] === undefined) continue;
+      if (write(key, data[key])) written.push(key);
+    }
+  } finally {
+    suppressNotify -= 1;
   }
   return written;
 }

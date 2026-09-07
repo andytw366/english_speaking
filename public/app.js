@@ -9,6 +9,7 @@ import { MODES, MODE_IDS, modeMeta } from './lib/modes.js';
 import { overallToday } from './lib/daily.js';
 import { setUnauthenticatedHandler, whoAmI } from './lib/session.js';
 import { renderLogin } from './lib/login-view.js';
+import { start as startSync } from './lib/sync.js';
 
 const nav = document.getElementById('nav');
 const dock = document.getElementById('dock');
@@ -228,6 +229,23 @@ function enterApp() {
   try { saved = localStorage.getItem('speaking-coach:mode'); } catch { /* 忽略 */ }
   // 沒有上次用的模式就落在首頁 —— 打開 App 的第一個問題是「我今天該做什麼」
   switchTo(MODE_IDS.includes(saved) ? saved : 'home');
+
+  // 自動同步。**先畫再同步**，不是先同步再畫 ——
+  // 同步要等一次網路往返，而離線時那一次永遠不會回來；擋在畫面前面的話
+  // 使用者會對著空白畫面等，而他其實已經可以開始練了。
+  //
+  // 合併之後如果本機的資料真的被改過（另一台裝置練過），重畫一次讓數字跟上。
+  startSync().then(({ merged }) => {
+    if (!merged) return;
+    renderToday();
+    // 模式模組在 mount 時就把資料讀進自己的狀態了，所以要重掛一次才看得到
+    const mode = currentMode;
+    currentMode = null;
+    switchTo(mode);
+  }).catch((err) => {
+    // start() 自己已經吞掉同步失敗了，這裡只擋意外
+    console.warn('[sync] 啟動自動同步時出錯：', err?.message);
+  });
 }
 
 // session 過期（30 天）之後每一個請求都會回 401。沒有這一段的話，

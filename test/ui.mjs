@@ -77,6 +77,33 @@ const cookieHeader = await authenticate();
 const apiGet = (path) =>
   fetch(`${BASE}${path}`, { headers: { cookie: cookieHeader } }).then((r) => r.json());
 
+/**
+ * 把伺服器上的進度清成「什麼都沒練過」。【22】用。
+ *
+ * 【22】驗的是絕對數字（兩台各練 N → 總和是 N+M），所以伺服器上不可以留著
+ * **上一次跑測試**留下的今日計數 —— 同一個 `DATA_DIR` 重跑第二次時，
+ * 上一輪那兩台裝置的格子會被合併進來，症狀是四條測試同時說數字變成兩倍，
+ * 看起來像合併寫錯了（真的踩過，而且第一眼完全不像測試自己的問題）。
+ *
+ * 走的是「整包覆蓋」那個端點 —— 它就是為了覆蓋而存在的，
+ * 而 `POST /merge` 的語意是合併，清不掉東西。
+ */
+async function resetServerProgress() {
+  const current = await apiGet('/api/sync');
+  const res = await fetch(`${BASE}/api/sync`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', cookie: cookieHeader },
+    body: JSON.stringify({
+      rev: current.rev ?? 0,
+      data: { srs: {}, activity: {}, history: [] },
+    }),
+  });
+  if (!res.ok) {
+    console.error(`清不掉伺服器上的進度（HTTP ${res.status}）—— 【22】的數字會不準。`);
+    process.exit(1);
+  }
+}
+
 const sentences = await apiGet('/api/content/sentences');
 if (!Array.isArray(sentences) || sentences.length < 10) {
   console.error(`讀不到練習句，${BASE} 上的伺服器有在跑嗎？`);
@@ -165,6 +192,10 @@ async function seed({
     localStorage.setItem('speaking-coach:srs', JSON.stringify(r));
     localStorage.removeItem('speaking-coach:srsVersion');
     localStorage.removeItem('speaking-coach:vocabDays');
+    // **把自動同步關掉。** 這些測試塞的是假的 localStorage，而自動同步會把
+    // 伺服器上（前面幾段測試推上去的）東西合進來 —— 假資料就不是假資料了。
+    // 跨裝置同步本身在【22】用自己的 context 測，那裡是開著的。
+    localStorage.setItem('speaking-coach:autoSync', 'off');
     if (a) localStorage.setItem('speaking-coach:activity', JSON.stringify(a));
     else localStorage.removeItem('speaking-coach:activity');
   }, { h: history, s: settings, m: mode, r: srs, a: activity });
@@ -564,8 +595,13 @@ check('練滿之後今天的進度是滿的', (await text('.card--today')).inclu
   (await text('.card--today')).replace(/\s+/g, ' '));
 check('連續天數從 0 變成 1', (await text('.today__block--streak .today__value')) === '1');
 check('告訴使用者今天完成了', (await viewText()).includes('今天的 3 個字練完了'));
-check('答對答錯都算進今天的份', (await page.evaluate(() =>
-  Object.values(JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}').vocabulary ?? {})[0])) === 3);
+check('答對答錯都算進今天的份', (await page.evaluate(() => {
+  const days = JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}').vocabulary ?? {};
+  const first = Object.values(days)[0];
+  return first && typeof first === 'object'
+    ? Object.values(first).reduce((x, y) => x + y, 0)
+    : Number(first) || 0;
+})) === 3);
 await shot(page, 'ui-12-每日目標');
 
 // 這是每日目標跟舊的「一輪最多幾張」最重要的差別
@@ -841,8 +877,26 @@ await page.waitForSelector('.card--today');
 
 const activityOf = () => page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}'));
+
+/**
+ * 某個模式第一天的數字。
+ *
+ * 計數表是「一天一格、每台裝置各一格」（跨裝置合併用，見 lib/merge.js），
+ * 所以要把格子加起來 —— 直接讀原始值會拿到 `[object Object]`。
+ * 舊形狀（一天一個數字）也要讀得懂，`getActivity()` 對還沒搬過的資料就是那樣。
+ */
+const dayTotal = (days) => {
+  const first = Object.values(days ?? {})[0];
+  if (first && typeof first === 'object') {
+    return Object.values(first).reduce((x, y) => x + (Number(y) || 0), 0);
+  }
+  return Number(first) || 0;
+};
 const built = await activityOf();
-check('舊的 vocabDays 搬進計數表', Object.values(built.vocabulary ?? {})[0] === 12,
+// 搬進去的是固定的 `legacy` 格，**不是本機那一格** ——
+// 兩台裝置各搬一次的話，同一段歷史會被算成兩台的份而加倍
+check('舊的 vocabDays 搬進計數表的 legacy 格', dayTotal(built.vocabulary) === 12
+  && Object.keys(Object.values(built.vocabulary)[0])[0] === 'legacy',
   JSON.stringify(built.vocabulary));
 check('跟讀紀錄也數成每天幾句', Object.keys(built.shadowing ?? {}).length === 2,
   JSON.stringify(built.shadowing));
@@ -861,7 +915,7 @@ const answerWholeSet = async () => {
   await page.locator('#view button', { hasText: '對答案' }).click();
   await page.waitForTimeout(300);
 };
-const listeningCount = async () => Object.values((await activityOf()).listening ?? {})[0] ?? 0;
+const listeningCount = async () => dayTotal((await activityOf()).listening);
 
 check('聽力有今天的進度卡', (await text('.card--today')).includes('今天練的題組'));
 const questionsInSet = await page.locator('#view .question').count();
@@ -1198,6 +1252,117 @@ console.log('\n【21】登入');
   check('密碼對了就進 App', await p2.locator('.rail').isVisible());
   await shot(p2, 'ui-21-登入');
   await fresh.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【22】跨裝置自動合併');
+
+// 這一段是階段 B 的驗收標準：**兩台裝置各練各的，數字要等於兩邊的總和**，
+// 而且**同一次合併重跑幾次數字都不變**。
+//
+// 用兩個獨立的 context 當兩台裝置（各自的 localStorage、各自的 deviceId），
+// 而且走真的伺服器 —— 合併是在伺服器上做的，mock 掉就等於沒測到。
+{
+  // 伺服器上不能留著上一次跑測試的今日計數（見 `resetServerProgress()`）
+  await resetServerProgress();
+
+  const devices = [];
+  const openDevice = async () => {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    p.on('dialog', (d) => d.accept());
+    await p.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await p.waitForSelector('.login', { timeout: 15000 });
+    await p.fill('#login-username', TEST_USER.username);
+    await p.fill('#login-password', TEST_USER.password);
+    await p.locator('.login button[type=submit]').click();
+    await p.waitForSelector('.homelist', { timeout: 15000 });
+    // 等啟動時的自動同步跑完
+    await p.waitForTimeout(1500);
+    devices.push(ctx);
+    return p;
+  };
+
+  const answerOneSet = async (p) => {
+    await p.evaluate(() => localStorage.setItem('speaking-coach:mode', 'listening'));
+    await p.reload({ waitUntil: 'domcontentloaded' });
+    await p.waitForSelector('#view .question', { timeout: 15000 });
+    await p.evaluate(() => {
+      const seen = new Set();
+      document.querySelectorAll('#view .option').forEach((el) => {
+        if (seen.has(el.parentElement)) return;
+        seen.add(el.parentElement);
+        el.click();
+      });
+    });
+    await p.locator('#view button', { hasText: '對答案' }).click();
+    await p.waitForTimeout(300);
+  };
+
+  const syncNow = async (p) => {
+    await p.evaluate(() => localStorage.setItem('speaking-coach:mode', 'settings'));
+    await p.reload({ waitUntil: 'domcontentloaded' });
+    await p.waitForSelector('#view .card', { timeout: 15000 });
+    await p.locator('#view .card', { hasText: '跨裝置同步' })
+      .locator('button', { hasText: '現在同步' }).click();
+    await p.waitForTimeout(2000);
+  };
+
+  // 那一天所有格子的總和 —— 這就是畫面上看到的數字
+  const listeningTotal = (p) => p.evaluate(() => {
+    const a = JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}');
+    const days = a.listening ?? {};
+    return Object.values(days).reduce((sum, slots) => sum
+      + (typeof slots === 'object'
+        ? Object.values(slots).reduce((x, y) => x + y, 0)
+        : Number(slots) || 0), 0);
+  });
+  const slotCount = (p) => p.evaluate(() => {
+    const a = JSON.parse(localStorage.getItem('speaking-coach:activity') ?? '{}');
+    const days = Object.values(a.listening ?? {});
+    return days.length ? Object.keys(days[0]).length : 0;
+  });
+
+  try {
+    const one = await openDevice();
+    const two = await openDevice();
+
+    const idOf = (p) => p.evaluate(() => localStorage.getItem('speaking-coach:deviceId'));
+
+    await answerOneSet(one);
+    await answerOneSet(two);
+    await answerOneSet(two);
+
+    // 每台裝置一格 —— 同一個 id 的話兩台會互相覆蓋對方的格子
+    check('兩台裝置拿到不一樣的 deviceId', (await idOf(one)) !== (await idOf(two)),
+      `${await idOf(one)} / ${await idOf(two)}`);
+
+    await syncNow(one);
+    await syncNow(two);
+    await syncNow(one);
+
+    const t1 = await listeningTotal(one);
+    const t2 = await listeningTotal(two);
+    // 取 max 會得到 2（少算）、相加會不冪等（重跑就膨脹）
+    check('兩台各練各的，合起來是總和', t1 === 3 && t2 === 3, `甲 ${t1} / 乙 ${t2}（該都是 3）`);
+    check('一天兩格（各自一格，沒有互相覆蓋）', (await slotCount(one)) === 2, `${await slotCount(one)} 格`);
+
+    // 冪等：同一次合併重跑幾次都不該變
+    await syncNow(one);
+    await syncNow(two);
+    await syncNow(one);
+    const after = await listeningTotal(one);
+    check('重複同步不會讓數字膨脹', after === 3, `變成 ${after}`);
+
+    // 全新的裝置登入之後**不用按任何按鈕**就該把進度拉下來
+    const three = await openDevice();
+    const t3 = await listeningTotal(three);
+    check('全新裝置登入後自動拉到進度', t3 === 3, `${t3}（該是 3）`);
+
+    await shot(three, 'ui-22-跨裝置同步');
+  } finally {
+    for (const ctx of devices) await ctx.close();
+  }
 }
 
 await browser.close();

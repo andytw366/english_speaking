@@ -3,7 +3,10 @@ import { grid } from '../lib/layout.js';
 import { loadVoices, speak } from '../lib/tts.js';
 import { getSettings, updateSettings, resetSettings, setGoal, DEFAULTS } from '../lib/settings.js';
 import { getUser, logout } from '../lib/session.js';
-import { ConflictError, applyRemote, describe, describeLocal, fetchRemote, push } from '../lib/sync.js';
+import {
+  ConflictError, applyRemote, describe, describeLocal, fetchRemote, isAutoSyncOn,
+  pushOverwrite, setAutoSync, syncNow,
+} from '../lib/sync.js';
 import {
   resetSrs, clearHistory, getHistory, getSrsState, exportState, importState,
   clearActivity, getActivity, activityDays,
@@ -432,28 +435,72 @@ function syncCard() {
         '沒有登入，所以同步不了 —— 進度只留在這個瀏覽器裡。'),
 
     h('p', { class: 'hint' },
-      '進度存在你自己的伺服器上。現在是手動的：在一台裝置按「上傳」，' +
-      '到另一台按「下載」。兩邊都會先告訴你要用什麼覆蓋什麼。'),
+      '進度存在你自己的伺服器上，而且是',
+      h('strong', {}, '自動'),
+      '合併的：打開 App 時、切到背景時、以及練完一段之後都會同步一次。' +
+      '兩台裝置各練各的，數字會加起來。'),
+
+    user && h('div', { class: 'field' },
+      h('span', { class: 'field__label' }, '自動同步'),
+      h('div', { class: 'chips' },
+        [[true, '開'], [false, '關（只手動）']].map(([value, label]) =>
+          toggleChip(label, isAutoSyncOn() === value, () => {
+            setAutoSync(value);
+            // 這是**這台裝置**的選擇，不會跟著同步到別台 ——
+            // 所以它不放在 settings 裡（那個會同步）
+            syncState = value
+              ? '已開啟自動同步。重新整理之後生效。'
+              : '已關閉自動同步 —— 這台裝置只會在你按「現在同步」時同步。';
+            render();
+          }))),
+    ),
 
     user && h('div', { class: 'row' },
-      h('button', { class: 'btn btn--primary', onclick: uploadProgress }, '⬆️ 上傳到伺服器'),
-      h('button', { class: 'btn', onclick: downloadProgress }, '⬇️ 從伺服器下載'),
+      h('button', { class: 'btn btn--primary', onclick: syncNowClicked }, '🔄 現在同步'),
       h('button', { class: 'btn btn--ghost', onclick: signOut }, '登出'),
     ),
 
     syncState && h('p', { class: 'hint' }, syncState),
 
-    h('p', { class: 'hint' },
-      '自動合併（兩台各練各的、數字加起來）還沒做 —— 現在上傳與下載都是整包覆蓋，' +
-      '所以練完的那一台先上傳，另一台再下載。'),
+    // 覆蓋是**逃生門**，不是日常操作 —— 所以收在 details 裡，
+    // 而且每一次都會先把兩邊的內容並排出來讓人確認
+    user && h('details', { class: 'field' },
+      h('summary', {}, '整包覆蓋（自動合併出問題時才用）'),
+      h('p', { class: 'hint' },
+        '這兩顆是',
+        h('strong', {}, '覆蓋'),
+        '不是合併：會讓其中一邊的進度完全取代另一邊。' +
+        '自動合併壞掉、或想強制讓某一台的版本說話時才用。'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', onclick: uploadProgress }, '⬆️ 用這台覆蓋伺服器'),
+        h('button', { class: 'btn', onclick: downloadProgress }, '⬇️ 用伺服器覆蓋這台'),
+      ),
+    ),
   );
+}
+
+async function syncNowClicked() {
+  syncState = '同步中…';
+  render();
+  const { merged, error } = await syncNow();
+  if (error) {
+    syncState = `這次沒同步成功：${error.message}`;
+    return render();
+  }
+  if (merged) {
+    // 合併之後本機的資料變了 —— 重載是唯一能保證每個模組都看到新資料的做法
+    window.location.reload();
+    return;
+  }
+  syncState = `已同步，兩邊一樣（${describeLocal()}）。`;
+  render();
 }
 
 async function uploadProgress() {
   syncState = '上傳中…';
   render();
   try {
-    const res = await push();
+    const res = await pushOverwrite();
     syncState = `已上傳（${describeLocal()}），伺服器版本 ${res.rev}。`;
   } catch (err) {
     if (err instanceof ConflictError) {
@@ -469,7 +516,7 @@ async function uploadProgress() {
         return render();
       }
       try {
-        const res = await push({ force: true });
+        const res = await pushOverwrite({ force: true });
         syncState = `已覆蓋伺服器上的進度，版本 ${res.rev}。`;
       } catch (err2) {
         syncState = `上傳失敗：${err2.message}`;

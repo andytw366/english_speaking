@@ -11,6 +11,10 @@ import {
   parseCookies, passwordProblem, serializeCookie, usernameProblem, verifyPassword,
 } from './auth.js';
 import { MAX_DATA_BYTES, StoreError } from './store.js';
+// 合併規則跟前端**共用同一份**（純函式，沒有 DOM 也沒有 localStorage）。
+// 伺服器自己再寫一份的話，兩邊一定會分岔，而分岔的症狀是
+// 「同步之後數字對不起來」，沒有錯誤訊息。
+import { mergeState } from '../public/lib/merge.js';
 
 /** 這些鍵才會被存進伺服器 —— 跟前端的 `BACKUP_KEYS` 是同一份清單。 */
 export const SYNC_KEYS = ['srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings'];
@@ -146,6 +150,7 @@ export function createAuthRoutes(store, { inviteCode = '' } = {}) {
     }
   });
 
+
   return router;
 }
 
@@ -194,7 +199,11 @@ export function createAuthGate(store) {
 }
 
 /**
- * 同步端點。階段 A 是整包上下傳，階段 B 才會加自動合併（`POST /merge`）。
+ * 同步端點。
+ *
+ *   GET  /api/sync         整包下載
+ *   PUT  /api/sync         整包上傳（rev 樂觀鎖）—— 覆蓋，需要使用者確認
+ *   POST /api/sync/merge   合併（階段 B，自動同步走這條）
  *
  * 資料的形狀就是前端匯出檔的 `data`（`BACKUP_KEYS` 那五個鍵），
  * 所以伺服器不必另外定義一套格式，前端也能重用 `lib/backup.js` 的檢查。
@@ -210,6 +219,46 @@ export function createSyncRoutes(store) {
     }
   });
 
+  /**
+   * 收進來的 `data` 檢查 + 白名單。回 `{ clean }` 或 `{ error }`。
+   *
+   * 白名單是刻意的：不擋的話前端塞什麼進來伺服器就存什麼，
+   * 而那些東西會在同步時被寫回每一台裝置的 localStorage。
+   */
+  function cleanIncoming(data, { allowEmpty = false } = {}) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return { error: { status: 400, error: 'bad_data', message: 'data 必須是物件。' } };
+    }
+
+    const clean = {};
+    for (const key of SYNC_KEYS) {
+      if (data[key] !== undefined) clean[key] = data[key];
+    }
+    if (Object.keys(clean).length === 0 && !allowEmpty) {
+      // PUT 是整包覆蓋 —— 空的送上去等於把伺服器清空，那幾乎一定是誤觸。
+      // **合併不一樣**：一台還沒練過任何東西的新裝置本來就沒東西可送，
+      // 而它正是最需要同步的那一台（登入之後要把全部拉下來）。
+      return {
+        error: {
+          status: 400, error: 'empty_data',
+          message: '這份資料裡沒有任何認得的進度，沒有上傳。',
+        },
+      };
+    }
+
+    const size = Buffer.byteLength(JSON.stringify(clean));
+    if (size > MAX_DATA_BYTES) {
+      return {
+        error: {
+          status: 413, error: 'too_large',
+          message: `進度資料太大了（${(size / 1024 / 1024).toFixed(1)} MB，` +
+            `上限 ${MAX_DATA_BYTES / 1024 / 1024} MB）。`,
+        },
+      };
+    }
+    return { clean };
+  }
+
   router.put('/', async (req, res, next) => {
     try {
       const { rev, data } = req.body ?? {};
@@ -217,31 +266,9 @@ export function createSyncRoutes(store) {
       if (!Number.isInteger(rev) || rev < 0) {
         return res.status(400).json({ error: 'bad_rev', message: 'rev 必須是非負整數。' });
       }
-      if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        return res.status(400).json({ error: 'bad_data', message: 'data 必須是物件。' });
-      }
 
-      // 白名單：只收認得的鍵。不擋的話，前端塞什麼進來伺服器就存什麼，
-      // 而那些東西會在還原時被寫回每一台裝置的 localStorage
-      const clean = {};
-      for (const key of SYNC_KEYS) {
-        if (data[key] !== undefined) clean[key] = data[key];
-      }
-      if (Object.keys(clean).length === 0) {
-        return res.status(400).json({
-          error: 'empty_data',
-          message: '這份資料裡沒有任何認得的進度，沒有上傳。',
-        });
-      }
-
-      const size = Buffer.byteLength(JSON.stringify(clean));
-      if (size > MAX_DATA_BYTES) {
-        return res.status(413).json({
-          error: 'too_large',
-          message: `進度資料太大了（${(size / 1024 / 1024).toFixed(1)} MB，` +
-            `上限 ${MAX_DATA_BYTES / 1024 / 1024} MB）。`,
-        });
-      }
+      const { clean, error } = cleanIncoming(data);
+      if (error) return res.status(error.status).json(error);
 
       const next_ = await store.writeData(req.user.id, clean, rev);
       res.json({ rev: next_.rev, updatedAt: next_.updatedAt });
@@ -255,6 +282,35 @@ export function createSyncRoutes(store) {
           current: err.current,
         });
       }
+      next(err);
+    }
+  });
+
+  /**
+   * 合併：把這台裝置的整份進度送上來，跟伺服器上那份合成一份，寫回去，
+   * 再把**合併後的結果**回給前端套用。
+   *
+   * 為什麼合併在伺服器端做，而不是前端 GET → 合 → PUT：
+   *   1. **原子性** —— 合併與寫入在 store 的同一個獨佔區段裡完成，
+   *      不會出現「讀完之後另一台先寫進去」而要重試的 409 迴圈；
+   *   2. 伺服器上永遠是合併後的真相，不必倚賴某一台裝置有沒有跑完流程。
+   *
+   * 而規則本身是**跟前端共用的那一份純函式**，所以「合併在哪裡做」
+   * 不影響結果，也不會有兩份實作分岔的問題。
+   *
+   * 這裡**不做樂觀鎖**：合併本身是冪等且滿足交換律的（`lib/merge.js` 的
+   * 兩條性質），所以「讀到的 rev 過期了」不會造成任何損失 ——
+   * 就是再合一次而已，結果一樣。
+   */
+  router.post('/merge', async (req, res, next) => {
+    try {
+      // allowEmpty：剛登入的新裝置沒有任何進度，而它正是最需要同步的那一台
+      const { clean, error } = cleanIncoming(req.body?.data, { allowEmpty: true });
+      if (error) return res.status(error.status).json(error);
+
+      const result = await store.mergeData(req.user.id, (current) => mergeState(current, clean));
+      res.json({ rev: result.rev, updatedAt: result.updatedAt, data: result.data });
+    } catch (err) {
       next(err);
     }
   });

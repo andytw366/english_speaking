@@ -272,8 +272,32 @@ test('同一天累加，不同天、不同模式各算各的', () => {
 test('addActivity 不改到原本的計數表（畫面拿著舊的那份在算）', () => {
   const before = { vocabulary: { [TODAY]: 1 } };
   const after = addActivity(before, 'vocabulary', TODAY);
+  // 原本那份一個字都不能動
   assert.equal(before.vocabulary[TODAY], 1);
-  assert.equal(after.vocabulary[TODAY], 2);
+  // 讀出來要用 activityCount ——「一天一格」之後裡面是 { slot: n } 而不是數字
+  assert.equal(activityCount(after, 'vocabulary', TODAY), 2);
+});
+
+test('每台裝置只加自己那一格，別台的一個都不碰', () => {
+  // 這是跨裝置合併能夠冪等的全部原因（見 lib/merge.js）
+  const before = { vocabulary: { [TODAY]: { 'dev-other': 5 } } };
+  const after = addActivity(before, 'vocabulary', TODAY, 2, { slot: 'dev-me' });
+
+  assert.deepEqual(after.vocabulary[TODAY], { 'dev-other': 5, 'dev-me': 2 });
+  assert.equal(activityCount(after, 'vocabulary', TODAY), 7, '讀出來要是所有格子的總和');
+});
+
+test('舊形狀（一天一個數字）加一次之後攤成 legacy 格 + 自己那一格', () => {
+  // 直接蓋掉的話，改版之前練的那些就不見了
+  const after = addActivity({ listening: { [TODAY]: 3 } }, 'listening', TODAY, 1, { slot: 'dev-me' });
+  assert.deepEqual(after.listening[TODAY], { legacy: 3, 'dev-me': 1 });
+  assert.equal(activityCount(after, 'listening', TODAY), 4);
+});
+
+test('activityCount 兩種形狀都讀得懂', () => {
+  // 少了這道相容，改版之後使用者的連續天數會直接歸零
+  assert.equal(activityCount({ vocabulary: { x: 7 } }, 'vocabulary', 'x'), 7);
+  assert.equal(activityCount({ vocabulary: { x: { a: 3, b: 4 } } }, 'vocabulary', 'x'), 7);
 });
 
 test('不認得的模式與不合理的數量不會寫進去', () => {

@@ -193,6 +193,42 @@ export function createStore(dir) {
         return next;
       });
     },
+
+    /**
+     * 合併寫入：在**同一個獨佔區段**裡讀 → 合 → 寫。
+     *
+     * 這是它跟「GET 之後再 PUT」的差別 —— 中間沒有讓別人插進來的空隙，
+     * 所以不需要樂觀鎖也不會有 409 迴圈。合併規則本身由呼叫端傳進來
+     * （`mergeState`，純函式），store 只負責「原子地做完這件事」。
+     *
+     * @param {string} userId
+     * @param {(current: object) => object} merge 吃目前的 data，回合併後的 data
+     */
+    async mergeData(userId, merge) {
+      return exclusive(async () => {
+        const current = await readJson(dataFile(userId), { rev: 0, updatedAt: null, data: {} });
+        const merged = merge(current.data ?? {});
+
+        // 合併之後跟原本一模一樣就不寫了 —— 不然每次同步都會多一個版本，
+        // 而保留的 10 版會被沒有變化的紀錄佔滿，真正想回溯的那一版就被推掉了
+        if (JSON.stringify(merged) === JSON.stringify(current.data ?? {})) {
+          return { ...current, data: merged, changed: false };
+        }
+
+        const next = {
+          rev: current.rev + 1,
+          updatedAt: new Date().toISOString(),
+          data: merged,
+        };
+
+        if (current.rev > 0) {
+          await writeJson(path.join(userDir, `${userId}.rev-${current.rev}.json`), current);
+          await pruneRevisions(userId, current.rev);
+        }
+        await writeJson(dataFile(userId), next);
+        return { ...next, changed: true };
+      });
+    },
   };
 
   async function pruneRevisions(userId, latestRev) {

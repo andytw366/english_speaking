@@ -1517,6 +1517,7 @@ npm test
 | `settings.test.js` | 設定的搬家規則。搬家錯了**沒有任何錯誤訊息** —— 使用者設過的 50 無聲變回 20，或者一個數字的單位換了、數字沒換算，目標從此永遠達不到。聽力的目標從「題」變成「組」那次全部釘住：換算過、不會把小目標變成 0、0（不設目標）維持 0、靠旗標所以只換算一次、**只碰使用者設過的值不碰預設值**（`migrate()` 收併好 DEFAULTS 的版本就會把預設值一起除下去，真的踩過） |
 | `pwa.test.js` | manifest、圖示與 service worker。釘的三件事都是**壞掉不會有徵兆**的：快取清單漏掉一個檔案（掃過 `public/` 比對，漏了就紅）、金鑰或發音評估被存進快取、manifest 指到不存在或尺寸不符的圖示（直接讀 PNG 檔頭）。service worker 沒辦法在 node 裡真的跑起來，所以「哪個網址走哪一條規則」寫成純函式 `strategyFor()`，測試用 `node:vm` 載進來直接呼叫 |
 | `translation.test.js` | `content/translation.json` 這份資料（2,159 題，其中 1,880 題是腳本匯入的）。最重要的一條是**每個 `accept` 自己送進 `grade()` 都要判成「完全正確」**—— 使用者看得到「其他說法」，照著寫卻拿到 ❌ 是最傷的一種 bug，而且完全沒有錯誤訊息。其餘：keywords 每種說法都涵蓋得到（匯入的題目才保證，手寫的 118 題是既有資料債）、keyword 是 answer 裡的**完整 token**（`complicate` 不是 `overcomplicate` 的一部分，那一題會永遠判不到「意思對了」）、`answer` 排在 `accept[0]`、簡繁轉換的錯字與殘留簡體字 |
+| `content-generation.test.js` | 題庫生成的守門員（`scripts/generate-content.mjs`）與聽力／對話這兩份資料。這兩個模式的內容是**模型生出來的**，而壞掉通常沒有徵兆：一題只有三個選項、兩個選項一模一樣、解析把英文原句抄一遍、對話的 `keywords` 不在參考答案裡（那一題就永遠判不到「意思對了」）。真的呼叫模型要金鑰又要配額、回來的東西每次還不一樣，所以驗收規則自己要測。另外釘住兩件會靜靜壞掉的事：**生成器的情境清單跟 App 一樣**（原本自己寫死四個，於是餐飲／購物／健康／學習永遠生不出來）、**現有資料過得了同一套規則**（規則與資料分家的話，下一批寫進來的東西會比現有的差） |
 | `sentences.test.js` | `content/sentences.json` 這份資料，以及匯入時的配額。擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的、簡繁轉換踩到一對多陷阱、每個情境的句數跑出 200～300 之外、重跑匯入把句庫疊成兩倍 |
 
 ### 前端 UI 測試（223 項，需要伺服器，不需要金鑰）
@@ -1598,11 +1599,23 @@ Azure／Gemini → 顯示講評 → 寫進 `localStorage` → 影響下一次抽
 
 ### 內容驗證
 
+聽力與情境對話的資料**已經掛進 `npm test`**（`content-generation.test.js`）：
+每一筆都要過得了 `scripts/generate-content.mjs` 的 `validate()`、id 不重複、
+近似重複的內容不重複、情境與難度是 App 認得的那八個與三個。
+
+> **規則跟資料必須是同一套。** 分家的話有兩種壞法：規則變鬆（下一批生成寫進來的
+> 東西比現有的差），或規則變嚴到連現有資料都不合格 —— 而那批東西早就在使用者
+> 眼前了，只有測試會告訴你。
+
+手動掃一次（中翻英那 1,880 筆匯入的題目**不適用**生成器的規則 ——
+它們沒有 `explain_zh`，情境也用滿了八個）：
+
 ```bash
 node --input-type=module -e "
 import fs from 'node:fs';
 const { TYPES } = await import('./scripts/generate-content.mjs');
-for (const [t, spec] of Object.entries(TYPES)) {
+for (const t of ['listening', 'dialogue']) {
+  const spec = TYPES[t];
   const items = JSON.parse(fs.readFileSync('content/' + spec.file, 'utf8'));
   const bad = items.filter((x) => spec.validate(x));
   console.log(t, items.length, bad.length ? '❌' + bad.length : '✅');
@@ -1611,6 +1624,32 @@ for (const [t, spec] of Object.entries(TYPES)) {
 
 > **解析不能只是把英文原句抄一遍加中文句號。** 這是這個專案裡反覆犯的錯，
 > 三個聽力批次分別被驗證擋下 12、0、5 筆，全是同一個問題。新增內容一定要跑過這套驗證。
+
+### 補聽力與情境對話的題庫
+
+生成要 `GEMINI_API_KEY`；**看現況不用**：
+
+```bash
+node scripts/generate-content.mjs listening --plan   # 現況、缺哪些情境、建議的指令
+node scripts/generate-content.mjs dialogue  --plan
+```
+
+⚠️ **這兩份資料現在只涵蓋四個情境**（日常對話、旅遊、職場、面試），
+餐飲、購物、健康、學習各 0 筆 —— 生成器原本自己寫死了四個情境。
+設定頁那八顆按鈕照樣點得下去，點了會**靜靜退回全部題目**，所以一直沒被發現。
+現在生成器跟 App 用同一份清單（`public/lib/labels.js`），可以補了。
+
+```bash
+# 先看一批的品質，覺得可以再真的寫進去
+node scripts/generate-content.mjs listening --count 5 --category food --dry-run
+node scripts/generate-content.mjs listening --count 26 --category food
+npm test    # 資料測試會把新內容一起驗一次
+```
+
+不指定 `--category` 就**每一批都補目前最少的那個情境** —— 照順序輪的話，
+0 筆的那個情境要等好幾批才輪得到一次。一批 5 筆（太多會讓品質下降），
+退件會自動重試（上限 = 批數 + 3）。一筆都沒收下時 exit code 是 1，
+而訊息會分清楚是「呼叫失敗」（重跑就好）還是「全被退件」（先看退件原因）。
 
 ---
 

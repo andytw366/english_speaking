@@ -214,6 +214,48 @@ export function pickSentence(pool, options = {}) {
  * @param {Array<object>} history 由新到舊
  * @returns {Array<{at:string, score:number, sentenceText:string}>} 由舊到新
  */
+/**
+ * 把一題的選項洗牌，並把正解的索引跟著換過去。
+ *
+ * **為什麼一定要有**：聽力題的選項是照著資料的順序畫出來的，而題庫裡
+ * 366 題有 68% 的正解都在第二個位置（作者寫題目時會不自覺地把答案放第二個 ——
+ * 這批新寫的 48 組自己也是 59%）。也就是說**一路按 B 就能對三分之二**，
+ * 那就不是在練聽力了。單字卡沒有這個問題（`quiz.js` 出題時就洗過）。
+ *
+ * 在「拿到這一組題目的時候」洗，不是每次 render 都洗 —— 不然選項會在
+ * 使用者要按下去的那一刻自己跳位。
+ *
+ * 純函式（`random` 可注入），不改動傳進來的那一題。
+ *
+ * @param {{options: string[], answer: number}} question
+ * @param {() => number} [random]
+ * @returns {object} 洗過的新物件，`answer` 指向洗牌後正解的位置
+ */
+export function shuffleOptions(question, random = Math.random) {
+  const options = question?.options;
+  if (!Array.isArray(options) || options.length < 2) return question;
+
+  // 連著正解一起搬，才不會出現「洗完之後 answer 指到別的選項」——
+  // 那種錯的症狀是「明明選對卻說錯」，而且只有部分題目會這樣
+  const pairs = options.map((text, i) => ({ text, correct: i === question.answer }));
+
+  // Fisher-Yates。用 for 迴圈而不是 sort(() => random() - 0.5)：
+  // 那種寫法的分佈是歪的（而且各家 sort 的實作不同，歪法還不一樣）
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+
+  const answer = pairs.findIndex((p) => p.correct);
+  return {
+    ...question,
+    options: pairs.map((p) => p.text),
+    // 原本的 answer 壞掉（超出範圍）時 findIndex 會回 -1 —— 那就維持原值，
+    // 不要把它變成 -1 而讓「對答案」永遠說你錯
+    answer: answer >= 0 ? answer : question.answer,
+  };
+}
+
 export function trendPoints(history, limit = TREND_LIMIT) {
   if (!Array.isArray(history)) return [];
   return history

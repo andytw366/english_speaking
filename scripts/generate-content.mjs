@@ -5,6 +5,7 @@
  *
  * 用法：
  *   node scripts/generate-content.mjs listening   --plan            # 現況與建議，不呼叫 API
+ *   node scripts/generate-content.mjs listening   --from batch.json # 收一批現成的，不呼叫 API
  *   node scripts/generate-content.mjs listening   --count 20
  *   node scripts/generate-content.mjs translation --count 40
  *   node scripts/generate-content.mjs dialogue    --count 10 --category food
@@ -49,6 +50,12 @@ const DRY_RUN = rest.includes('--dry-run');
 // --plan 只看現況、不呼叫 API，所以**不需要金鑰**：先知道要補哪些情境、
 // 分幾批跑，再決定要不要真的花那些呼叫
 const PLAN_ONLY = rest.includes('--plan');
+// --from：收一批**已經寫好的** JSON，不呼叫 API（所以也不需要金鑰）。
+//
+// 為什麼要有這條路：內容不一定是這支腳本當場叫模型生的 —— 手寫的、別的模型
+// 寫的、上一次 --dry-run 印出來改過的，都是同一種東西。而它們**一樣要過同一道門**
+// （validate + 去重 + 接 id），不然「別手寫繞過驗證」這條規矩就只是寫在 TODO 裡而已。
+const FROM_FILE = argOf('--from', '');
 
 // ─── 各類型的 schema、提示詞與驗證 ───────────────────────────────────────
 const TYPES = {
@@ -372,7 +379,7 @@ if (PLAN_ONLY) {
   process.exit(0);
 }
 
-if (!process.env.GEMINI_API_KEY?.trim()) {
+if (!FROM_FILE && !process.env.GEMINI_API_KEY?.trim()) {
   console.error('找不到 GEMINI_API_KEY。請在專案根目錄的 .env 填入金鑰，或用設定頁填。');
   process.exit(1);
 }
@@ -380,12 +387,29 @@ if (!process.env.GEMINI_API_KEY?.trim()) {
 // 多個鍵（標題、逐字稿開頭…）都算「見過了」，見各 type 的 dedupeKeys
 const seen = new Set(existing.flatMap(spec.dedupeKeys));
 const tally = countByCategory(existing);
-console.log(`現有 ${existing.length} 筆，目標再產生 ${COUNT} 筆。`);
+console.log(FROM_FILE
+  ? `現有 ${existing.length} 筆。`
+  : `現有 ${existing.length} 筆，目標再產生 ${COUNT} 筆。`);
 console.log(`目前的情境分佈：${describeTally(tally)}\n`);
 
-const ai = new GoogleGenAI({});
 const accepted = [];
 const rejected = [];
+
+if (FROM_FILE) {
+  const raw = JSON.parse(fs.readFileSync(path.resolve(FROM_FILE), 'utf8'));
+  const items = Array.isArray(raw) ? raw : raw.items ?? [];
+  console.log(`從 ${FROM_FILE} 讀到 ${items.length} 筆。`);
+
+  const batch = sift(spec, items, seen);
+  accepted.push(...batch.accepted);
+  rejected.push(...batch.rejected);
+  for (const item of batch.accepted) tally[item.category] = (tally[item.category] ?? 0) + 1;
+} else {
+  await generate();
+}
+
+async function generate() {
+const ai = new GoogleGenAI({});
 let round = 0;
 
 while (accepted.length < COUNT && round < Math.ceil(COUNT / BATCH) + 3) {
@@ -417,6 +441,7 @@ while (accepted.length < COUNT && round < Math.ceil(COUNT / BATCH) + 3) {
   rejected.push(...batch.rejected);
   console.log(`收下 ${batch.accepted.length} / ${items.length}（累計 ${accepted.length}/${COUNT}）`);
 }
+}
 
 console.log(`\n通過 ${accepted.length} 筆，退掉 ${rejected.length} 筆。`);
 if (rejected.length) {
@@ -426,6 +451,14 @@ if (rejected.length) {
   for (const [reason, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
     console.log(`  ${n}×  ${reason}`);
   }
+  // --from 的來源是一個改得動的檔案，所以要指得出是哪一筆 ——
+  // 只給一句「3× 選項重複」的話，還要自己一筆一筆找
+  if (FROM_FILE) {
+    console.log('被退掉的是：');
+    for (const r of rejected) {
+      console.log(`  「${r.item?.title ?? r.item?.zh ?? '(無標題)'}」→ ${r.problem}`);
+    }
+  }
 }
 
 if (accepted.length === 0) {
@@ -433,8 +466,8 @@ if (accepted.length === 0) {
   //   呼叫失敗 → 金鑰、配額或網路的問題，重跑就好（exit 1，腳本串起來時看得出來）
   //   全被退件 → 是內容品質的問題，重跑只會再燒一次配額，要先看退件原因
   console.log(rejected.length === 0
-    ? '\n沒有可寫入的內容 —— 每一批呼叫都失敗了（金鑰、配額或網路）。'
-    : '\n沒有可寫入的內容 —— 產出來的每一筆都被退件了。先看上面的退件原因。');
+    ? `\n沒有可寫入的內容 —— ${FROM_FILE ? '那個檔案裡沒有東西。' : '每一批呼叫都失敗了（金鑰、配額或網路）。'}`
+    : '\n沒有可寫入的內容 —— 每一筆都被退件了。先看上面的退件原因。');
   process.exit(1);
 }
 

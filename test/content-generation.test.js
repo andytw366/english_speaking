@@ -301,13 +301,21 @@ test('情境對話：每一段都有 2～5 句你的台詞', () => {
   }
 });
 
-test('聽力與情境對話目前各涵蓋幾個情境（補完之後要調上來）', () => {
-  // 這兩份資料是生成器寫的，而生成器原本只認得四個情境 ——
-  // 所以餐飲、購物、健康、學習現在是 0。這條**釘的是「不能再變少」**，
-  // 補完之後把數字調上去（八個情境都有的時候就是 8）。
+test('聽力與情境對話涵蓋的情境數不能變少', () => {
+  // 生成器原本只認得四個情境，所以餐飲、購物、健康、學習曾經都是 0。
+  // 聽力已經補齊八個；對話還在補，所以兩邊的門檻不一樣。
+  // **這條釘的是「不能再變少」** —— 對話補完之後把 4 改成 8。
   const covered = (file) => new Set(load(file).map((x) => x.category)).size;
-  assert.ok(covered('listening.json') >= 4, `聽力只涵蓋 ${covered('listening.json')} 個情境`);
+  assert.ok(covered('listening.json') >= 8, `聽力只涵蓋 ${covered('listening.json')} 個情境`);
   assert.ok(covered('dialogues.json') >= 4, `對話只涵蓋 ${covered('dialogues.json')} 個情境`);
+
+  // 每個情境至少要有 5 筆才算「這個情境練得起來」——
+  // 只有一兩筆的話，設定頁篩了它就是同一題一直重複
+  for (const [c, n] of Object.entries(
+    load('listening.json').reduce((acc, x) => ({ ...acc, [x.category]: (acc[x.category] ?? 0) + 1 }), {})
+  )) {
+    assert.ok(n >= 5, `聽力的「${c}」只有 ${n} 組`);
+  }
 
   // 情境本身一定要是 App 認得的那八個，不然設定頁篩不到它
   for (const file of ['listening.json', 'dialogues.json']) {

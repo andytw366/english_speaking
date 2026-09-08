@@ -3213,5 +3213,1977 @@
         "explain_zh": "after-school club 是校內的課後照顧，runs until seven 指營運到七點。"
       }
     ]
+  },
+  {
+    "id": 82,
+    "title": "Kitchen closes at nine",
+    "category": "food",
+    "difficulty": "easy",
+    "transcript": "Thanks for calling Marlowe's. Just so you know, the kitchen closes at nine, but the bar stays open until eleven, so if you get here at nine fifteen you can still order drinks and something from the snack menu. We do take walk-ins on weekdays, and tonight is a weekday, so you should be fine without a reservation.",
+    "questions": [
+      {
+        "question": "What time does the kitchen stop serving?",
+        "options": [
+          "At eight",
+          "At nine",
+          "At ten",
+          "At eleven"
+        ],
+        "answer": 1,
+        "explain_zh": "the kitchen closes at nine，廚房九點就不出菜了；十一點關的是 the bar（吧台）。"
+      },
+      {
+        "question": "What can you still order at 9:15?",
+        "options": [
+          "The full dinner menu",
+          "Nothing at all",
+          "Drinks and snacks",
+          "Only desserts"
+        ],
+        "answer": 2,
+        "explain_zh": "you can still order drinks and something from the snack menu，所以只剩飲料與小點。"
+      },
+      {
+        "question": "Do you need a reservation tonight?",
+        "options": [
+          "No, walk-ins are fine on weekdays",
+          "Yes, the restaurant is fully booked",
+          "Yes, but only for large groups",
+          "Only if you arrive after nine"
+        ],
+        "answer": 0,
+        "explain_zh": "walk-in 是「沒訂位直接走進去」。店員說平日收 walk-ins，而今天是平日。"
+      }
+    ]
+  },
+  {
+    "id": 83,
+    "title": "Peanuts in the sauce",
+    "category": "food",
+    "difficulty": "medium",
+    "transcript": "I should mention that the satay sauce has peanuts in it, and the noodle dish is cooked in the same wok, so I can't promise it's completely nut free. If the allergy is serious, the grilled fish with rice is your safest bet. I'll put a note on the ticket either way so the kitchen knows.",
+    "questions": [
+      {
+        "question": "Why can't the server promise the noodles are nut free?",
+        "options": [
+          "The noodles contain peanut flour",
+          "They are cooked in the same wok as the peanut sauce",
+          "The chef is not sure what is in them",
+          "They are made in another restaurant"
+        ],
+        "answer": 1,
+        "explain_zh": "cooked in the same wok 是關鍵 —— 問題不在麵本身，而是同一個鍋子有交叉污染的風險。"
+      },
+      {
+        "question": "What does the server recommend for a serious allergy?",
+        "options": [
+          "The satay noodles",
+          "The peanut sauce on the side",
+          "A different restaurant",
+          "The grilled fish with rice"
+        ],
+        "answer": 3,
+        "explain_zh": "your safest bet 是「最保險的選擇」，這裡指 the grilled fish with rice。"
+      }
+    ]
+  },
+  {
+    "id": 84,
+    "title": "Table for four at seven thirty",
+    "category": "food",
+    "difficulty": "easy",
+    "transcript": "Hi, I'm calling about a booking for Saturday. We were down for a table for four at seven, but two more friends want to come. Could you move us to six thirty and make it a table for six? If that's not possible, we'd rather keep the seven o'clock slot and squeeze in.",
+    "questions": [
+      {
+        "question": "What was the original booking?",
+        "options": [
+          "A table for six at six thirty",
+          "A table for four at seven",
+          "A table for four at six thirty",
+          "A table for two at seven"
+        ],
+        "answer": 1,
+        "explain_zh": "we were down for a table for four at seven。be down for 在訂位的語境是「名單上登記的是」。"
+      },
+      {
+        "question": "What does the caller ask for first?",
+        "options": [
+          "An earlier time and a bigger table",
+          "A later time and a bigger table",
+          "The same time and a bigger table",
+          "To cancel the booking"
+        ],
+        "answer": 0,
+        "explain_zh": "move us to six thirty（提早）＋ make it a table for six（加大桌），兩件事一起要。"
+      },
+      {
+        "question": "What is the caller's second choice?",
+        "options": [
+          "Eating at the bar",
+          "Coming another day",
+          "Keeping seven o'clock and squeezing in",
+          "Splitting into two tables"
+        ],
+        "answer": 2,
+        "explain_zh": "squeeze in 是「硬擠進去」；if that's not possible 之後講的就是備案。"
+      }
+    ]
+  },
+  {
+    "id": 85,
+    "title": "The card machine is down",
+    "category": "food",
+    "difficulty": "medium",
+    "transcript": "I'm so sorry about this, but our card machine has been down since lunchtime. There's a cash machine just across the street next to the pharmacy, and it doesn't charge a fee. If you'd rather not do that, you can send me a bank transfer and I'll write the details on the receipt.",
+    "questions": [
+      {
+        "question": "What is the problem?",
+        "options": [
+          "The restaurant lost the receipt",
+          "The card machine is not working",
+          "The bill was calculated wrong",
+          "The bank is closed today"
+        ],
+        "answer": 1,
+        "explain_zh": "our card machine has been down。down 在這裡是「壞掉、不能用」，不是「往下」。"
+      },
+      {
+        "question": "Where is the cash machine?",
+        "options": [
+          "Inside the restaurant",
+          "Next to the pharmacy across the street",
+          "In the bank down the road",
+          "At the train station"
+        ],
+        "answer": 1,
+        "explain_zh": "just across the street next to the pharmacy —— 在對街、藥局旁邊。"
+      },
+      {
+        "question": "What is the other way to pay?",
+        "options": [
+          "Pay next time you visit",
+          "Leave a deposit",
+          "A bank transfer",
+          "Pay half now and half later"
+        ],
+        "answer": 2,
+        "explain_zh": "you can send me a bank transfer，第二個選項是銀行轉帳。"
+      }
+    ]
+  },
+  {
+    "id": 86,
+    "title": "Two portions, one plate",
+    "category": "food",
+    "difficulty": "easy",
+    "transcript": "The lasagne is quite big, so a lot of people share it. If you want, we can bring it on two plates for no extra charge. The side salad is included, but the garlic bread isn't, and that's three fifty. Just so you know, it takes about twenty minutes because we bake it to order.",
+    "questions": [
+      {
+        "question": "How long does the lasagne take?",
+        "options": [
+          "About ten minutes",
+          "About twenty minutes",
+          "About half an hour",
+          "It is ready immediately"
+        ],
+        "answer": 1,
+        "explain_zh": "it takes about twenty minutes，因為 we bake it to order（現點現烤）。"
+      },
+      {
+        "question": "Which item costs extra?",
+        "options": [
+          "The garlic bread",
+          "The side salad",
+          "The second plate",
+          "Nothing costs extra"
+        ],
+        "answer": 0,
+        "explain_zh": "the garlic bread isn't (included), and that's three fifty。included 是「已包含」。"
+      }
+    ]
+  },
+  {
+    "id": 87,
+    "title": "Delivery is running late",
+    "category": "food",
+    "difficulty": "medium",
+    "transcript": "Hello, this is about your order. The rider is stuck in traffic near the bridge, so it will be about fifteen minutes later than the app says. Everything is in the bag except the ice cream, which we took out because it would have melted by the time it reached you. That's been refunded already.",
+    "questions": [
+      {
+        "question": "Why is the order late?",
+        "options": [
+          "The kitchen started late",
+          "The rider is stuck in traffic",
+          "The address was wrong",
+          "The app crashed"
+        ],
+        "answer": 1,
+        "explain_zh": "stuck in traffic 是「卡在車陣裡」，near the bridge 指出是橋附近。"
+      },
+      {
+        "question": "What happened to the ice cream?",
+        "options": [
+          "It was replaced with cake",
+          "It will arrive separately",
+          "It was removed and refunded",
+          "It is still in the bag"
+        ],
+        "answer": 2,
+        "explain_zh": "we took it out（拿掉了）＋ that's been refunded already（已經退款）。"
+      },
+      {
+        "question": "How much later will the order be?",
+        "options": [
+          "Five minutes",
+          "Fifteen minutes",
+          "Half an hour",
+          "An hour"
+        ],
+        "answer": 1,
+        "explain_zh": "about fifteen minutes later than the app says，比 App 上寫的再晚十五分鐘。"
+      }
+    ]
+  },
+  {
+    "id": 88,
+    "title": "Sourdough sells out early",
+    "category": "food",
+    "difficulty": "easy",
+    "transcript": "Morning! The sourdough usually sells out by ten, so if you want a loaf on Saturday I'd get here before nine. We do hold bread if you call ahead, but only until noon. The croissants come out of the oven twice, once at seven and once at three in the afternoon.",
+    "questions": [
+      {
+        "question": "When should you arrive on Saturday for sourdough?",
+        "options": [
+          "Before nine",
+          "At ten",
+          "At noon",
+          "In the afternoon"
+        ],
+        "answer": 0,
+        "explain_zh": "sells out by ten（十點前就賣完），所以店員建議 before nine。"
+      },
+      {
+        "question": "Until what time will they hold bread you reserved?",
+        "options": [
+          "Nine",
+          "Ten",
+          "Noon",
+          "Three"
+        ],
+        "answer": 2,
+        "explain_zh": "we do hold bread… but only until noon。hold 在這裡是「幫你留著」。"
+      },
+      {
+        "question": "When is the second batch of croissants ready?",
+        "options": [
+          "At seven in the morning",
+          "At nine",
+          "At noon",
+          "At three in the afternoon"
+        ],
+        "answer": 3,
+        "explain_zh": "once at seven and once at three in the afternoon，第二批是下午三點。"
+      }
+    ]
+  },
+  {
+    "id": 89,
+    "title": "Splitting the bill six ways",
+    "category": "food",
+    "difficulty": "hard",
+    "transcript": "So the total is a hundred and twenty, and there are six of us, but Dan and Priya didn't drink, so they said twelve each is fair. That leaves ninety-six between the four of us, which is twenty-four each. If everyone sends it to me tonight I'll pay the whole thing on my card now.",
+    "questions": [
+      {
+        "question": "How much are Dan and Priya paying each?",
+        "options": [
+          "Twelve",
+          "Twenty",
+          "Twenty-four",
+          "Ninety-six"
+        ],
+        "answer": 0,
+        "explain_zh": "they said twelve each is fair —— 他們沒喝酒，所以各付 12。"
+      },
+      {
+        "question": "How much does each of the other four pay?",
+        "options": [
+          "Twelve",
+          "Twenty",
+          "Twenty-four",
+          "Thirty"
+        ],
+        "answer": 2,
+        "explain_zh": "ninety-six between the four of us, which is twenty-four each。between 在這裡是「四個人分攤」。"
+      },
+      {
+        "question": "How will the bill be paid tonight?",
+        "options": [
+          "Everyone pays the restaurant separately",
+          "The speaker pays it all by card",
+          "They will pay next time",
+          "The restaurant will send an invoice"
+        ],
+        "answer": 1,
+        "explain_zh": "I'll pay the whole thing on my card now，其他人再轉錢給他。"
+      }
+    ]
+  },
+  {
+    "id": 90,
+    "title": "Not what I ordered",
+    "category": "food",
+    "difficulty": "medium",
+    "transcript": "Excuse me, sorry to bother you. I ordered the chicken curry, but this looks like the lamb. I don't mind waiting for the right one, but could you check with the kitchen? And my friend is still waiting on her soup, which we ordered at the same time about twenty minutes ago.",
+    "questions": [
+      {
+        "question": "What is wrong with the speaker's dish?",
+        "options": [
+          "It is cold",
+          "It is the wrong dish",
+          "The portion is too small",
+          "It is too spicy"
+        ],
+        "answer": 1,
+        "explain_zh": "I ordered the chicken curry, but this looks like the lamb —— 上錯菜了。"
+      },
+      {
+        "question": "What does the speaker say about waiting?",
+        "options": [
+          "They are in a hurry",
+          "They want a refund instead",
+          "They don't mind waiting for the correct dish",
+          "They want to cancel the order"
+        ],
+        "answer": 2,
+        "explain_zh": "I don't mind waiting 是「我不介意等」，語氣客氣但問題還是要解決。"
+      },
+      {
+        "question": "What is the second problem?",
+        "options": [
+          "The friend's soup hasn't arrived",
+          "The bill is wrong",
+          "The table is too small",
+          "The soup was cold"
+        ],
+        "answer": 0,
+        "explain_zh": "my friend is still waiting on her soup。wait on something 在這裡是「還在等某樣東西來」。"
+      }
+    ]
+  },
+  {
+    "id": 91,
+    "title": "Cash only above the counter",
+    "category": "food",
+    "difficulty": "easy",
+    "transcript": "This place is cash only, which catches people out. There's a sign above the counter but it's small. The noodles are about eight dollars and they only take notes, no coins for anything under a dollar. Also, you order at the counter first and they bring it to your table, so don't sit down and wait.",
+    "questions": [
+      {
+        "question": "How do you pay at this place?",
+        "options": [
+          "By card",
+          "In cash",
+          "By phone app",
+          "You pay after eating"
+        ],
+        "answer": 1,
+        "explain_zh": "cash only 就是只收現金；catch someone out 是「讓人措手不及」。"
+      },
+      {
+        "question": "What should you do first?",
+        "options": [
+          "Sit down and wait for a server",
+          "Order at the counter",
+          "Pay at the table",
+          "Get a number from the door"
+        ],
+        "answer": 1,
+        "explain_zh": "you order at the counter first，最後一句還提醒 don't sit down and wait。"
+      }
+    ]
+  },
+  {
+    "id": 92,
+    "title": "Returns within thirty days",
+    "category": "shopping",
+    "difficulty": "easy",
+    "transcript": "You can bring it back within thirty days as long as you have the receipt and the tags are still on. If it's faulty, that's different, there's no time limit on that. Sale items are refundable too, but only as store credit, not back onto your card.",
+    "questions": [
+      {
+        "question": "What do you need to return an item?",
+        "options": [
+          "Only the item itself",
+          "The receipt and the tags still on",
+          "A photo of the item",
+          "The original packaging"
+        ],
+        "answer": 1,
+        "explain_zh": "as long as you have the receipt and the tags are still on。tags 是衣服上的吊牌。"
+      },
+      {
+        "question": "How are sale items refunded?",
+        "options": [
+          "Back onto the card",
+          "In cash",
+          "As store credit",
+          "They cannot be returned"
+        ],
+        "answer": 2,
+        "explain_zh": "only as store credit, not back onto your card。store credit 是「只能在這家店用的購物金」。"
+      },
+      {
+        "question": "What is different about faulty items?",
+        "options": [
+          "There is no time limit",
+          "They must be returned in seven days",
+          "They can only be exchanged",
+          "You need to call first"
+        ],
+        "answer": 0,
+        "explain_zh": "there's no time limit on that，瑕疵品不受三十天的限制。"
+      }
+    ]
+  },
+  {
+    "id": 93,
+    "title": "Out of stock in that size",
+    "category": "shopping",
+    "difficulty": "medium",
+    "transcript": "We've got that in a small and an extra large, but the medium went this morning. Our branch in the shopping centre had two left an hour ago, and I can ask them to put one aside under your name. Otherwise it comes back into stock online on Thursday, and delivery is free over fifty.",
+    "questions": [
+      {
+        "question": "Which size is not available in this shop?",
+        "options": [
+          "Small",
+          "Medium",
+          "Large",
+          "Extra large"
+        ],
+        "answer": 1,
+        "explain_zh": "the medium went this morning。go 在這裡是「被買走了」。"
+      },
+      {
+        "question": "What can the assistant do at the other branch?",
+        "options": [
+          "Deliver it tomorrow",
+          "Give a discount",
+          "Ask them to put one aside",
+          "Nothing, it is also sold out"
+        ],
+        "answer": 2,
+        "explain_zh": "put one aside under your name 是「用你的名字先留一件」。"
+      },
+      {
+        "question": "When will it be back online?",
+        "options": [
+          "Tomorrow",
+          "Wednesday",
+          "Thursday",
+          "Next month"
+        ],
+        "answer": 2,
+        "explain_zh": "it comes back into stock online on Thursday。back into stock 是「重新有貨」。"
+      }
+    ]
+  },
+  {
+    "id": 94,
+    "title": "The discount is at the till",
+    "category": "shopping",
+    "difficulty": "medium",
+    "transcript": "The sign says twenty percent off, and that comes off at the till, so the ticket price still shows the old amount. It's on everything in this aisle except the electronics at the end. If you've got the app there's another ten percent, but the two don't stack.",
+    "questions": [
+      {
+        "question": "Why does the price tag show the old amount?",
+        "options": [
+          "The tags have not been changed yet",
+          "The discount is taken off at the till",
+          "The discount starts tomorrow",
+          "The sign is wrong"
+        ],
+        "answer": 1,
+        "explain_zh": "comes off at the till 是「結帳時才扣」；till 是收銀台。"
+      },
+      {
+        "question": "What is not included in the discount?",
+        "options": [
+          "The electronics at the end of the aisle",
+          "Everything in this aisle",
+          "Items over fifty dollars",
+          "Nothing is excluded"
+        ],
+        "answer": 0,
+        "explain_zh": "on everything in this aisle except the electronics —— except 之後就是例外。"
+      },
+      {
+        "question": "Can you use the app discount as well?",
+        "options": [
+          "Yes, you get thirty percent off in total",
+          "Yes, but only on electronics",
+          "No, the two don't stack",
+          "Only on weekdays"
+        ],
+        "answer": 2,
+        "explain_zh": "the two don't stack 是「兩個折扣不能疊加」，只能挑一個。"
+      }
+    ]
+  },
+  {
+    "id": 95,
+    "title": "Delivery slot on Saturday",
+    "category": "shopping",
+    "difficulty": "easy",
+    "transcript": "The next free slot is Saturday between eight and twelve, which is a four hour window. If you want a two hour window it's five dollars extra, and the earliest of those is Monday morning. They'll text you the night before with a rough time.",
+    "questions": [
+      {
+        "question": "How long is the free delivery window?",
+        "options": [
+          "Two hours",
+          "Four hours",
+          "All day",
+          "One hour"
+        ],
+        "answer": 1,
+        "explain_zh": "between eight and twelve, which is a four hour window。window 在這裡是「時段」。"
+      },
+      {
+        "question": "What costs five dollars extra?",
+        "options": [
+          "Saturday delivery",
+          "A two hour window",
+          "Delivery before eight",
+          "Weekend delivery"
+        ],
+        "answer": 1,
+        "explain_zh": "if you want a two hour window it's five dollars extra，較窄的時段要加錢。"
+      },
+      {
+        "question": "When will they tell you the rough time?",
+        "options": [
+          "The night before",
+          "On the morning of delivery",
+          "When you order",
+          "They will not tell you"
+        ],
+        "answer": 0,
+        "explain_zh": "they'll text you the night before。rough time 是「大概的時間」。"
+      }
+    ]
+  },
+  {
+    "id": 96,
+    "title": "Warranty covers the battery",
+    "category": "shopping",
+    "difficulty": "hard",
+    "transcript": "The standard warranty is two years on the machine and one year on the battery, and water damage isn't covered at all. The extended plan is another forty dollars and adds accidental damage, but you have to buy it within fourteen days of the purchase, not later.",
+    "questions": [
+      {
+        "question": "How long is the battery covered?",
+        "options": [
+          "Six months",
+          "One year",
+          "Two years",
+          "Three years"
+        ],
+        "answer": 1,
+        "explain_zh": "two years on the machine and one year on the battery，電池是一年，跟機器不一樣。"
+      },
+      {
+        "question": "What does the standard warranty not cover?",
+        "options": [
+          "Water damage",
+          "Faulty buttons",
+          "The battery",
+          "Delivery problems"
+        ],
+        "answer": 0,
+        "explain_zh": "water damage isn't covered at all。isn't covered 是「不在保固範圍內」。"
+      },
+      {
+        "question": "When must you buy the extended plan?",
+        "options": [
+          "Any time in the first year",
+          "Within fourteen days of buying",
+          "Before you pay",
+          "When the warranty runs out"
+        ],
+        "answer": 1,
+        "explain_zh": "within fourteen days of the purchase, not later，超過就買不到了。"
+      }
+    ]
+  },
+  {
+    "id": 97,
+    "title": "Wrong item in the parcel",
+    "category": "shopping",
+    "difficulty": "medium",
+    "transcript": "So I ordered two blue mugs and one of them arrived green, and the box was open at one end when it got here. I don't need a refund, I'd just like the right colour sent out. I've taken photos of the box and the mug if you need them for the claim.",
+    "questions": [
+      {
+        "question": "What is wrong with the order?",
+        "options": [
+          "Both mugs are broken",
+          "One mug is the wrong colour",
+          "Nothing arrived",
+          "The mugs are too small"
+        ],
+        "answer": 1,
+        "explain_zh": "one of them arrived green（訂藍色卻來綠色），而不是破損或沒到。"
+      },
+      {
+        "question": "What does the customer want?",
+        "options": [
+          "A refund",
+          "A discount on the next order",
+          "The right colour sent out",
+          "To return both mugs"
+        ],
+        "answer": 2,
+        "explain_zh": "I don't need a refund, I'd just like the right colour sent out —— 只要換對顏色。"
+      },
+      {
+        "question": "What has the customer already done?",
+        "options": [
+          "Taken photos of the box and mug",
+          "Sent the parcel back",
+          "Called the delivery company",
+          "Bought another mug"
+        ],
+        "answer": 0,
+        "explain_zh": "I've taken photos… for the claim。claim 是向店家或保險提出的「申請／索賠」。"
+      }
+    ]
+  },
+  {
+    "id": 98,
+    "title": "Only the display model left",
+    "category": "shopping",
+    "difficulty": "medium",
+    "transcript": "The only one we've got is the display model, so it's been out on the shelf and there are a couple of scratches on the base. Because of that we'd take fifteen percent off, and it still has the full warranty. I can't hold it for you though, whoever comes in first gets it.",
+    "questions": [
+      {
+        "question": "What is the condition of the item?",
+        "options": [
+          "Brand new in the box",
+          "The display model with some scratches",
+          "Broken but repairable",
+          "Second hand from a customer"
+        ],
+        "answer": 1,
+        "explain_zh": "the display model 是「展示品」，而且 a couple of scratches on the base（底部有幾道刮痕）。"
+      },
+      {
+        "question": "What does the shop offer because of the condition?",
+        "options": [
+          "Free delivery",
+          "A longer warranty",
+          "Fifteen percent off",
+          "A free accessory"
+        ],
+        "answer": 2,
+        "explain_zh": "we'd take fifteen percent off。take X off 就是折掉 X。"
+      },
+      {
+        "question": "Can they reserve it for you?",
+        "options": [
+          "Yes, for one day",
+          "Yes, if you pay a deposit",
+          "No, first come first served",
+          "Only if you call back"
+        ],
+        "answer": 2,
+        "explain_zh": "I can't hold it for you… whoever comes in first gets it —— 先到先得。"
+      }
+    ]
+  },
+  {
+    "id": 99,
+    "title": "Price match with the receipt",
+    "category": "shopping",
+    "difficulty": "hard",
+    "transcript": "We do match prices, but it has to be a local shop, not an online-only seller, and the item has to be identical, same model number. If you've already paid, bring the receipt back within seven days and we'll refund the difference onto your card.",
+    "questions": [
+      {
+        "question": "Which seller's price will they match?",
+        "options": [
+          "An online-only seller",
+          "A local shop",
+          "Any seller in the country",
+          "Only their own website"
+        ],
+        "answer": 1,
+        "explain_zh": "it has to be a local shop, not an online-only seller。online-only 是「只有網路店面」。"
+      },
+      {
+        "question": "What must be the same about the item?",
+        "options": [
+          "The colour",
+          "The brand only",
+          "The model number",
+          "The size of the box"
+        ],
+        "answer": 2,
+        "explain_zh": "identical, same model number —— 型號要一模一樣，不是「差不多的東西」。"
+      },
+      {
+        "question": "What happens if you already paid full price?",
+        "options": [
+          "Nothing can be done",
+          "They refund the difference within seven days",
+          "You get store credit",
+          "You must return the item first"
+        ],
+        "answer": 1,
+        "explain_zh": "bring the receipt back within seven days and we'll refund the difference。the difference 是「差額」。"
+      }
+    ]
+  },
+  {
+    "id": 100,
+    "title": "Self checkout needs help",
+    "category": "shopping",
+    "difficulty": "easy",
+    "transcript": "If the light goes red, don't worry, it just means something needs approving. Alcohol always does, and so does anything you weigh yourself. Put your bags in the bagging area first, otherwise the machine keeps telling you there's an unexpected item.",
+    "questions": [
+      {
+        "question": "What does a red light mean?",
+        "options": [
+          "The machine is broken",
+          "Something needs approving by staff",
+          "Your card was declined",
+          "The shop is closing"
+        ],
+        "answer": 1,
+        "explain_zh": "it just means something needs approving，需要店員來確認一下。"
+      },
+      {
+        "question": "What should you do with your bags first?",
+        "options": [
+          "Leave them in the trolley",
+          "Put them in the bagging area",
+          "Hand them to the staff",
+          "Keep them on your shoulder"
+        ],
+        "answer": 1,
+        "explain_zh": "Put your bags in the bagging area first，不然機器會一直說 unexpected item。"
+      }
+    ]
+  },
+  {
+    "id": 101,
+    "title": "Try it on upstairs",
+    "category": "shopping",
+    "difficulty": "easy",
+    "transcript": "The fitting rooms are upstairs at the back, past the shoes. You can take in four items at a time and there's usually someone at the desk to give you a tag. If it doesn't fit, hand it to them rather than putting it back on the rail yourself.",
+    "questions": [
+      {
+        "question": "Where are the fitting rooms?",
+        "options": [
+          "Upstairs at the back",
+          "Next to the till",
+          "Downstairs by the entrance",
+          "Behind the shoes on this floor"
+        ],
+        "answer": 0,
+        "explain_zh": "upstairs at the back, past the shoes —— 樓上、最裡面、經過鞋區。"
+      },
+      {
+        "question": "How many items can you take in?",
+        "options": [
+          "Two",
+          "Three",
+          "Four",
+          "As many as you like"
+        ],
+        "answer": 2,
+        "explain_zh": "four items at a time。at a time 是「一次」。"
+      },
+      {
+        "question": "What should you do with clothes that don't fit?",
+        "options": [
+          "Hang them back on the rail",
+          "Hand them to the person at the desk",
+          "Leave them in the fitting room",
+          "Take them to the till"
+        ],
+        "answer": 1,
+        "explain_zh": "hand it to them rather than putting it back on the rail yourself。rail 是掛衣服的橫桿。"
+      }
+    ]
+  },
+  {
+    "id": 102,
+    "title": "One tablet every eight hours",
+    "category": "health",
+    "difficulty": "medium",
+    "transcript": "Take one tablet every eight hours with food, so three a day, and finish the whole course even if you feel better after two days. Don't take it with the painkillers you already have at home, leave at least four hours between them. If you get a rash, stop and call us.",
+    "questions": [
+      {
+        "question": "How many tablets a day?",
+        "options": [
+          "One",
+          "Two",
+          "Three",
+          "Four"
+        ],
+        "answer": 2,
+        "explain_zh": "every eight hours 一天三次，藥師也直接說了 so three a day。"
+      },
+      {
+        "question": "What should you do if you feel better after two days?",
+        "options": [
+          "Stop taking the tablets",
+          "Finish the whole course anyway",
+          "Halve the dose",
+          "Call the pharmacy first"
+        ],
+        "answer": 1,
+        "explain_zh": "finish the whole course。course 在這裡是「一整個療程」，不是課程。"
+      },
+      {
+        "question": "What is the rule about the painkillers at home?",
+        "options": [
+          "Take them together",
+          "Leave at least four hours between them",
+          "Never take painkillers again",
+          "Take them only at night"
+        ],
+        "answer": 1,
+        "explain_zh": "leave at least four hours between them —— 兩種藥要間隔至少四小時。"
+      }
+    ]
+  },
+  {
+    "id": 103,
+    "title": "Fasting before the blood test",
+    "category": "health",
+    "difficulty": "medium",
+    "transcript": "For this one you need to fast for twelve hours, so nothing to eat after eight the night before. Water is fine, and you should keep drinking it, but no coffee, no tea, and no chewing gum. Bring the form with you, and if you take medication in the morning, take it as usual unless the doctor said otherwise.",
+    "questions": [
+      {
+        "question": "When must you stop eating?",
+        "options": [
+          "After eight the night before",
+          "At midnight",
+          "Six hours before",
+          "There is no restriction"
+        ],
+        "answer": 0,
+        "explain_zh": "fast for twelve hours，護理師換算成 nothing to eat after eight the night before。"
+      },
+      {
+        "question": "What can you still have?",
+        "options": [
+          "Black coffee",
+          "Tea without sugar",
+          "Water",
+          "Chewing gum"
+        ],
+        "answer": 2,
+        "explain_zh": "Water is fine，其他三個都被點名不行（no coffee, no tea, no chewing gum）。"
+      },
+      {
+        "question": "What about your morning medication?",
+        "options": [
+          "Skip it that day",
+          "Take it as usual unless told otherwise",
+          "Take double the dose",
+          "Take it after the test only"
+        ],
+        "answer": 1,
+        "explain_zh": "take it as usual unless the doctor said otherwise。unless 是「除非」。"
+      }
+    ]
+  },
+  {
+    "id": 104,
+    "title": "The appointment moved to Thursday",
+    "category": "health",
+    "difficulty": "easy",
+    "transcript": "Hello, this is the clinic calling about your appointment on Tuesday at two. The doctor has been called away, so we've moved you to Thursday at ten past nine. If that doesn't work, the next one with the same doctor is the following Monday. Please reply either way so we know.",
+    "questions": [
+      {
+        "question": "What was the original appointment?",
+        "options": [
+          "Tuesday at two",
+          "Thursday at nine ten",
+          "Monday at ten",
+          "Tuesday at ten"
+        ],
+        "answer": 0,
+        "explain_zh": "your appointment on Tuesday at two，那是原本的時間。"
+      },
+      {
+        "question": "What is the new time?",
+        "options": [
+          "Nine o'clock",
+          "Ten past nine",
+          "Ten o'clock",
+          "Two o'clock"
+        ],
+        "answer": 1,
+        "explain_zh": "ten past nine 是九點十分；past 是「過」。"
+      },
+      {
+        "question": "What if the new time doesn't suit you?",
+        "options": [
+          "Come in without an appointment",
+          "Take the following Monday",
+          "See a different doctor on Tuesday",
+          "Call back next month"
+        ],
+        "answer": 1,
+        "explain_zh": "the next one with the same doctor is the following Monday。the following Monday 是「下週一」。"
+      }
+    ]
+  },
+  {
+    "id": 105,
+    "title": "Ankle sprain, not a break",
+    "category": "health",
+    "difficulty": "hard",
+    "transcript": "The X-ray came back clear, so nothing is broken. It's a sprain, which means the ligament is stretched, and that can hurt more than a small fracture for the first few days. Keep it up when you're sitting, ice it for fifteen minutes at a time, and try to put a little weight on it from tomorrow.",
+    "questions": [
+      {
+        "question": "What did the X-ray show?",
+        "options": [
+          "A small fracture",
+          "Nothing broken",
+          "A torn muscle",
+          "The results are not back yet"
+        ],
+        "answer": 1,
+        "explain_zh": "came back clear 是「檢查結果乾淨、沒問題」，所以 nothing is broken。"
+      },
+      {
+        "question": "How long should you ice it each time?",
+        "options": [
+          "Five minutes",
+          "Fifteen minutes",
+          "Half an hour",
+          "As long as possible"
+        ],
+        "answer": 1,
+        "explain_zh": "ice it for fifteen minutes at a time。at a time 是「每次」。"
+      },
+      {
+        "question": "What should you do from tomorrow?",
+        "options": [
+          "Rest it completely",
+          "Put a little weight on it",
+          "Start running again",
+          "Wrap it tightly all day"
+        ],
+        "answer": 1,
+        "explain_zh": "put a little weight on it 是「開始稍微踩一點重量」，不是完全不動。"
+      }
+    ]
+  },
+  {
+    "id": 106,
+    "title": "Booking a dentist for a filling",
+    "category": "health",
+    "difficulty": "easy",
+    "transcript": "We can fit you in on Wednesday at four for the filling. It takes about forty minutes and you shouldn't eat for an hour afterwards because of the numbing. If you're in pain before then, we keep two emergency slots each morning, so call at eight thirty.",
+    "questions": [
+      {
+        "question": "How long will the filling take?",
+        "options": [
+          "Twenty minutes",
+          "Forty minutes",
+          "An hour",
+          "Two hours"
+        ],
+        "answer": 1,
+        "explain_zh": "It takes about forty minutes。fit someone in 是「排得進去」。"
+      },
+      {
+        "question": "Why shouldn't you eat afterwards?",
+        "options": [
+          "Because of the numbing",
+          "Because the filling is soft",
+          "Because of the medication",
+          "Because you might feel sick"
+        ],
+        "answer": 0,
+        "explain_zh": "because of the numbing —— 麻藥還沒退，容易咬到自己。"
+      },
+      {
+        "question": "What should you do if you're in pain before Wednesday?",
+        "options": [
+          "Go to the hospital",
+          "Wait for the appointment",
+          "Call at eight thirty for an emergency slot",
+          "Take stronger painkillers"
+        ],
+        "answer": 2,
+        "explain_zh": "we keep two emergency slots each morning, so call at eight thirty。slot 是「時段」。"
+      }
+    ]
+  },
+  {
+    "id": 107,
+    "title": "Bring your own bottle to the gym",
+    "category": "health",
+    "difficulty": "easy",
+    "transcript": "The induction takes about half an hour and someone walks you round the machines. Bring a towel, that's actually a rule, and a bottle because the fountain is being fixed this month. The classes are free with your membership but you have to book them on the app, and they fill up two days ahead.",
+    "questions": [
+      {
+        "question": "How long is the induction?",
+        "options": [
+          "Fifteen minutes",
+          "About half an hour",
+          "An hour",
+          "Two hours"
+        ],
+        "answer": 1,
+        "explain_zh": "The induction takes about half an hour。induction 是「新手導覽、入門說明」。"
+      },
+      {
+        "question": "Why should you bring a bottle?",
+        "options": [
+          "It is a rule",
+          "The fountain is being fixed",
+          "The water is not clean",
+          "They sell them at the desk"
+        ],
+        "answer": 1,
+        "explain_zh": "the fountain is being fixed this month —— 飲水機在修。毛巾才是規定（that's actually a rule）。"
+      },
+      {
+        "question": "What is true about the classes?",
+        "options": [
+          "They cost extra",
+          "You just turn up",
+          "They are free but must be booked",
+          "They are only for new members"
+        ],
+        "answer": 2,
+        "explain_zh": "free with your membership but you have to book them on the app。fill up 是「額滿」。"
+      }
+    ]
+  },
+  {
+    "id": 108,
+    "title": "Physio twice a week",
+    "category": "health",
+    "difficulty": "hard",
+    "transcript": "I'd like to see you twice a week for the first fortnight, then drop to once a week if the range of movement improves. The exercises matter more than what we do here, honestly, so ten minutes every morning. A bit of aching afterwards is normal, sharp pain isn't, and that's the line to watch.",
+    "questions": [
+      {
+        "question": "How often at the start?",
+        "options": [
+          "Once a week",
+          "Twice a week",
+          "Every day",
+          "Once a fortnight"
+        ],
+        "answer": 1,
+        "explain_zh": "twice a week for the first fortnight。fortnight 是「兩週」。"
+      },
+      {
+        "question": "What does the physiotherapist say matters most?",
+        "options": [
+          "The sessions in the clinic",
+          "The exercises at home",
+          "Resting completely",
+          "Taking the medication"
+        ],
+        "answer": 1,
+        "explain_zh": "The exercises matter more than what we do here —— 家裡的運動比在診所做的重要。"
+      },
+      {
+        "question": "Which feeling is a warning sign?",
+        "options": [
+          "A bit of aching",
+          "Sharp pain",
+          "Stiffness in the morning",
+          "Feeling tired"
+        ],
+        "answer": 1,
+        "explain_zh": "A bit of aching… is normal, sharp pain isn't。that's the line to watch 是「那是要注意的分界」。"
+      }
+    ]
+  },
+  {
+    "id": 109,
+    "title": "Flu jab at the pharmacy",
+    "category": "health",
+    "difficulty": "easy",
+    "transcript": "You don't need an appointment for the flu jab here, just come in before four. Your arm might ache for a day or two, and some people feel a bit off, but it won't give you flu. If you've had a fever this week, wait until you're over it.",
+    "questions": [
+      {
+        "question": "Do you need an appointment?",
+        "options": [
+          "No, just come in before four",
+          "Yes, book on the app",
+          "Yes, call the day before",
+          "Only at weekends"
+        ],
+        "answer": 0,
+        "explain_zh": "You don't need an appointment… just come in before four。jab 是英式口語的「打針」。"
+      },
+      {
+        "question": "What is a normal reaction?",
+        "options": [
+          "Getting flu",
+          "An aching arm for a day or two",
+          "A rash on the face",
+          "Losing your voice"
+        ],
+        "answer": 1,
+        "explain_zh": "Your arm might ache for a day or two；feel a bit off 是「有點不舒服」。"
+      },
+      {
+        "question": "Who should wait?",
+        "options": [
+          "Anyone over sixty",
+          "People who had a fever this week",
+          "People who had it last year",
+          "Nobody needs to wait"
+        ],
+        "answer": 1,
+        "explain_zh": "If you've had a fever this week, wait until you're over it。be over it 是「好了、康復了」。"
+      }
+    ]
+  },
+  {
+    "id": 110,
+    "title": "Sick note for work",
+    "category": "health",
+    "difficulty": "medium",
+    "transcript": "For the first week you can self-certify, so you just tell your employer yourself. After seven days you need a note from us, and there's no charge for that one. If your employer wants a letter for anything else, that's a private letter and there is a fee.",
+    "questions": [
+      {
+        "question": "What can you do for the first week?",
+        "options": [
+          "Nothing, you need a note immediately",
+          "Self-certify",
+          "Ask a pharmacist",
+          "Send an email to the clinic"
+        ],
+        "answer": 1,
+        "explain_zh": "self-certify 是「自己申報」，不必先拿到醫師的證明。"
+      },
+      {
+        "question": "When do you need a note from the clinic?",
+        "options": [
+          "From day one",
+          "After three days",
+          "After seven days",
+          "Only if you are in hospital"
+        ],
+        "answer": 2,
+        "explain_zh": "After seven days you need a note from us —— 第七天之後才需要診所開證明，前七天自己申報就好。"
+      },
+      {
+        "question": "Which letter costs money?",
+        "options": [
+          "The sick note after seven days",
+          "A private letter for something else",
+          "Both letters",
+          "Neither letter"
+        ],
+        "answer": 1,
+        "explain_zh": "that's a private letter and there is a fee；七天後的病假證明是 no charge（免費）。"
+      }
+    ]
+  },
+  {
+    "id": 111,
+    "title": "Repeat prescription online",
+    "category": "health",
+    "difficulty": "medium",
+    "transcript": "You can order the repeat online, but leave three working days because it goes to the doctor first and then to the pharmacy. The one you're on now needs a review in April, so after that they won't renew it until you've been in. Order the inhaler separately, that one isn't on the repeat list.",
+    "questions": [
+      {
+        "question": "How long should you allow for a repeat prescription?",
+        "options": [
+          "The same day",
+          "One working day",
+          "Three working days",
+          "Two weeks"
+        ],
+        "answer": 2,
+        "explain_zh": "leave three working days —— leave 在這裡是「預留時間」。"
+      },
+      {
+        "question": "What happens after April?",
+        "options": [
+          "The price goes up",
+          "They won't renew it until you've been in",
+          "The dose doubles",
+          "You can order more at once"
+        ],
+        "answer": 1,
+        "explain_zh": "needs a review in April… won't renew it until you've been in。been in 是「進來看過診」。"
+      },
+      {
+        "question": "What is special about the inhaler?",
+        "options": [
+          "It must be ordered separately",
+          "It is free",
+          "It comes from the hospital",
+          "It needs a review too"
+        ],
+        "answer": 0,
+        "explain_zh": "這一項不在 repeat list（可重複領藥的清單）上，要另外下單，不會跟著其他藥一起來。"
+      }
+    ]
+  },
+  {
+    "id": 112,
+    "title": "Essay deadline extended",
+    "category": "school",
+    "difficulty": "easy",
+    "transcript": "Quick announcement about the essay. The deadline has moved from Friday to the following Wednesday at midday, because the reading list went up late. The word count is the same, two thousand words, and the late penalty is still five percent a day after the new deadline.",
+    "questions": [
+      {
+        "question": "What is the new deadline?",
+        "options": [
+          "Friday at midday",
+          "Wednesday at midday",
+          "Wednesday at midnight",
+          "The following Friday"
+        ],
+        "answer": 1,
+        "explain_zh": "moved from Friday to the following Wednesday at midday。midday 是中午十二點，不是午夜。"
+      },
+      {
+        "question": "Why was it moved?",
+        "options": [
+          "Students asked for more time",
+          "The reading list went up late",
+          "The lecturer was away",
+          "The library was closed"
+        ],
+        "answer": 1,
+        "explain_zh": "because the reading list went up late。go up 在這裡是「被公布、上架」。"
+      },
+      {
+        "question": "What has not changed?",
+        "options": [
+          "The word count and the late penalty",
+          "The topic",
+          "The submission website",
+          "The reading list"
+        ],
+        "answer": 0,
+        "explain_zh": "The word count is the same… the late penalty is still five percent a day，兩件事都沒變。"
+      }
+    ]
+  },
+  {
+    "id": 113,
+    "title": "Library books on short loan",
+    "category": "school",
+    "difficulty": "medium",
+    "transcript": "The ones with the red sticker are short loan, so it's three days rather than three weeks, and they can't be renewed if someone else has requested them. You can read them in the library as long as you like though. Fines are ten cents a day, but they only start after a week.",
+    "questions": [
+      {
+        "question": "How long can you keep a red sticker book?",
+        "options": [
+          "One day",
+          "Three days",
+          "One week",
+          "Three weeks"
+        ],
+        "answer": 1,
+        "explain_zh": "short loan, so it's three days rather than three weeks。short loan 是「短期借閱」。"
+      },
+      {
+        "question": "When can't you renew a book?",
+        "options": [
+          "If someone else has requested it",
+          "If it has a red sticker",
+          "During exam week",
+          "If you have a fine"
+        ],
+        "answer": 0,
+        "explain_zh": "can't be renewed if someone else has requested them。renew 是「續借」。"
+      },
+      {
+        "question": "When do fines start?",
+        "options": [
+          "Immediately",
+          "After three days",
+          "After a week",
+          "There are no fines"
+        ],
+        "answer": 2,
+        "explain_zh": "they only start after a week —— 逾期第一週不罰，之後每天十分。"
+      }
+    ]
+  },
+  {
+    "id": 114,
+    "title": "Office hours moved online",
+    "category": "school",
+    "difficulty": "easy",
+    "transcript": "My office hours are Tuesday two to four, but this week they're online because I'm at a conference. The link is on the course page, and you don't need to book, just join and wait. If nobody's there in the first ten minutes I'll leave, so come early rather than late.",
+    "questions": [
+      {
+        "question": "When are the office hours?",
+        "options": [
+          "Monday two to four",
+          "Tuesday two to four",
+          "Tuesday ten to twelve",
+          "Thursday afternoon"
+        ],
+        "answer": 1,
+        "explain_zh": "My office hours are Tuesday two to four。office hours 是老師的「開放諮詢時間」。"
+      },
+      {
+        "question": "Why are they online this week?",
+        "options": [
+          "The room is being used",
+          "The lecturer is at a conference",
+          "There are too many students",
+          "The building is closed"
+        ],
+        "answer": 1,
+        "explain_zh": "because I'm at a conference，人在外面開會。"
+      },
+      {
+        "question": "What should you do to attend?",
+        "options": [
+          "Book a slot by email",
+          "Just join the link and wait",
+          "Send your question in advance",
+          "Ask in the lecture instead"
+        ],
+        "answer": 1,
+        "explain_zh": "you don't need to book, just join and wait，而且要早點到（come early rather than late）。"
+      }
+    ]
+  },
+  {
+    "id": 115,
+    "title": "Referencing style for the report",
+    "category": "school",
+    "difficulty": "hard",
+    "transcript": "Use the author and date in the text, not footnotes, and put the full details in one list at the end. Page numbers are only needed when you quote directly. If you can't find a date, put no date in brackets rather than guessing the year, and don't leave it blank.",
+    "questions": [
+      {
+        "question": "How should sources appear in the text?",
+        "options": [
+          "As footnotes at the bottom",
+          "As author and date",
+          "As numbers in square brackets",
+          "Only at the end of the report"
+        ],
+        "answer": 1,
+        "explain_zh": "Use the author and date in the text, not footnotes —— 內文用作者與年份，不用腳註。"
+      },
+      {
+        "question": "When do you need page numbers?",
+        "options": [
+          "Always",
+          "Only when you quote directly",
+          "Only for books",
+          "Never"
+        ],
+        "answer": 1,
+        "explain_zh": "only needed when you quote directly。quote directly 是「直接引用原文」。"
+      },
+      {
+        "question": "What should you do if a source has no date?",
+        "options": [
+          "Guess the year",
+          "Leave it blank",
+          "Write no date in brackets",
+          "Leave the source out"
+        ],
+        "answer": 2,
+        "explain_zh": "put no date in brackets rather than guessing —— 寧可標明「無日期」也不要猜。"
+      }
+    ]
+  },
+  {
+    "id": 116,
+    "title": "Feedback on the first draft",
+    "category": "school",
+    "difficulty": "hard",
+    "transcript": "The argument is there, but it arrives too late. You spend a page and a half summarising other people before you say what you think. Cut most of that, put your position in the first paragraph, and use the space you save to deal with the counterargument, which at the moment you only mention in one line.",
+    "questions": [
+      {
+        "question": "What is the main problem with the draft?",
+        "options": [
+          "The argument appears too late",
+          "There is no argument at all",
+          "It is too short",
+          "The sources are wrong"
+        ],
+        "answer": 0,
+        "explain_zh": "The argument is there, but it arrives too late —— 有論點，但出現得太晚。"
+      },
+      {
+        "question": "What should be in the first paragraph?",
+        "options": [
+          "A summary of other writers",
+          "The student's own position",
+          "The conclusion",
+          "A definition"
+        ],
+        "answer": 1,
+        "explain_zh": "put your position in the first paragraph。position 是「你的立場」。"
+      },
+      {
+        "question": "What needs more space?",
+        "options": [
+          "The summary of other people",
+          "The counterargument",
+          "The introduction",
+          "The reference list"
+        ],
+        "answer": 1,
+        "explain_zh": "use the space you save to deal with the counterargument（反面論點），現在只寫了一行。"
+      }
+    ]
+  },
+  {
+    "id": 117,
+    "title": "Choosing between two electives",
+    "category": "school",
+    "difficulty": "medium",
+    "transcript": "They're both on Thursday, so you can only take one. The statistics one is assessed by two tests, and the media one is one long essay plus a presentation. If you hate presenting, that decides it. Places are given out on Monday and the statistics one usually goes first.",
+    "questions": [
+      {
+        "question": "Why can you only take one?",
+        "options": [
+          "They cost too much",
+          "They are both on Thursday",
+          "They are for different years",
+          "The second one is full"
+        ],
+        "answer": 1,
+        "explain_zh": "They're both on Thursday，時間衝堂。"
+      },
+      {
+        "question": "How is the media course assessed?",
+        "options": [
+          "Two tests",
+          "One long essay plus a presentation",
+          "A group project",
+          "An exam only"
+        ],
+        "answer": 1,
+        "explain_zh": "the media one is one long essay plus a presentation。assess 是「評分、評量」。"
+      },
+      {
+        "question": "Which course fills up faster?",
+        "options": [
+          "The media one",
+          "The statistics one",
+          "They fill at the same rate",
+          "Neither is popular"
+        ],
+        "answer": 1,
+        "explain_zh": "the statistics one usually goes first。go first 在這裡是「先被選滿」。"
+      }
+    ]
+  },
+  {
+    "id": 118,
+    "title": "Group project split three ways",
+    "category": "school",
+    "difficulty": "medium",
+    "transcript": "So there are three of us and three parts, and I'd rather we each take one and swap for proofreading at the end. I can do the data section because I've got the software already. Whoever does the introduction should write it last, honestly, it's much easier once the rest exists.",
+    "questions": [
+      {
+        "question": "How does the speaker want to divide the work?",
+        "options": [
+          "Everyone writes everything",
+          "One part each, then proofread each other's",
+          "Two people write, one presents",
+          "They will decide later"
+        ],
+        "answer": 1,
+        "explain_zh": "we each take one and swap for proofreading at the end。swap 是「互換」。"
+      },
+      {
+        "question": "Which part does the speaker want?",
+        "options": [
+          "The introduction",
+          "The conclusion",
+          "The data section",
+          "The presentation"
+        ],
+        "answer": 2,
+        "explain_zh": "他說 I can do the data section，因為軟體他已經有了（I've got the software already）。"
+      },
+      {
+        "question": "What is the advice about the introduction?",
+        "options": [
+          "Write it first",
+          "Write it last",
+          "Skip it",
+          "Let the lecturer see it early"
+        ],
+        "answer": 1,
+        "explain_zh": "should write it last… much easier once the rest exists —— 其他部分寫好了再寫前言比較好寫。"
+      }
+    ]
+  },
+  {
+    "id": 119,
+    "title": "Exam is open book",
+    "category": "school",
+    "difficulty": "medium",
+    "transcript": "It's open book, which people always think means easy, and it doesn't. You can bring the textbook and your own notes on paper, but no laptops and nothing shared during the exam. There are four questions and you answer three, and they're all worth the same.",
+    "questions": [
+      {
+        "question": "What can you bring?",
+        "options": [
+          "A laptop",
+          "The textbook and paper notes",
+          "Nothing at all",
+          "Only the textbook"
+        ],
+        "answer": 1,
+        "explain_zh": "可以帶 the textbook 與紙本筆記，但明確說了 no laptops —— 筆電不行。"
+      },
+      {
+        "question": "How many questions do you answer?",
+        "options": [
+          "Two",
+          "Three",
+          "Four",
+          "All of them"
+        ],
+        "answer": 1,
+        "explain_zh": "four questions and you answer three —— 四題選三題作答。"
+      },
+      {
+        "question": "What does the lecturer say about open book exams?",
+        "options": [
+          "They are easier",
+          "People wrongly assume they are easy",
+          "They take less time",
+          "They have fewer questions"
+        ],
+        "answer": 1,
+        "explain_zh": "people always think means easy, and it doesn't —— 老師刻意提醒這個誤解。"
+      }
+    ]
+  },
+  {
+    "id": 120,
+    "title": "Enrolling in the evening class",
+    "category": "school",
+    "difficulty": "easy",
+    "transcript": "The Tuesday evening class runs for ten weeks and there are four places left. It's sixty dollars, or forty if you're a student, and you pay at the first session rather than now. Bring something to write with, everything else is provided.",
+    "questions": [
+      {
+        "question": "How long is the course?",
+        "options": [
+          "Four weeks",
+          "Eight weeks",
+          "Ten weeks",
+          "A whole term"
+        ],
+        "answer": 2,
+        "explain_zh": "runs for ten weeks。run 在課程的語境是「持續、開課」。"
+      },
+      {
+        "question": "How much does a student pay?",
+        "options": [
+          "Forty",
+          "Sixty",
+          "Nothing",
+          "Ten"
+        ],
+        "answer": 0,
+        "explain_zh": "sixty dollars, or forty if you're a student，學生價是四十。"
+      },
+      {
+        "question": "When do you pay?",
+        "options": [
+          "Now, to reserve a place",
+          "At the first session",
+          "At the end of the course",
+          "Every week"
+        ],
+        "answer": 1,
+        "explain_zh": "第一堂課才付（at the first session），現在不用先繳。"
+      }
+    ]
+  },
+  {
+    "id": 121,
+    "title": "Lab safety before you start",
+    "category": "school",
+    "difficulty": "medium",
+    "transcript": "Two things before anyone touches anything. Goggles stay on the whole time, not pushed up on your head, and long hair gets tied back. If you spill something, don't wipe it up yourself, tell me and step away. The nearest eyewash station is by the door you came in through.",
+    "questions": [
+      {
+        "question": "What is the rule about goggles?",
+        "options": [
+          "Wear them only when heating things",
+          "Keep them on the whole time",
+          "Push them up when writing",
+          "They are optional"
+        ],
+        "answer": 1,
+        "explain_zh": "護目鏡全程都要戴著，而且不能推到頭上（not pushed up on your head）。"
+      },
+      {
+        "question": "What should you do if you spill something?",
+        "options": [
+          "Wipe it up quickly",
+          "Tell the teacher and step away",
+          "Put paper over it",
+          "Open the window"
+        ],
+        "answer": 1,
+        "explain_zh": "don't wipe it up yourself, tell me and step away。step away 是「退開」。"
+      },
+      {
+        "question": "Where is the eyewash station?",
+        "options": [
+          "By the door you came in through",
+          "Next to the sink",
+          "At the front of the room",
+          "In the corridor"
+        ],
+        "answer": 0,
+        "explain_zh": "by the door you came in through —— 就在你們進來的那個門邊。"
+      }
+    ]
+  },
+  {
+    "id": 122,
+    "title": "Two rounds and a task",
+    "category": "interview",
+    "difficulty": "easy",
+    "transcript": "So the process is two conversations and a short task. The first one is thirty minutes with me, mostly about your background. Then there's a take home task, about two hours of work, and finally a longer chat with the team. We aim to get back to people within a week at each stage.",
+    "questions": [
+      {
+        "question": "How long is the first conversation?",
+        "options": [
+          "Fifteen minutes",
+          "Thirty minutes",
+          "An hour",
+          "Two hours"
+        ],
+        "answer": 1,
+        "explain_zh": "第一關是 thirty minutes with me，三十分鐘，主要問經歷。"
+      },
+      {
+        "question": "What is the task like?",
+        "options": [
+          "A written test in the office",
+          "About two hours of work at home",
+          "A presentation to the team",
+          "A whole day of work"
+        ],
+        "answer": 1,
+        "explain_zh": "take home task 是「帶回家做的作業」，這裡說大約要花兩小時。"
+      },
+      {
+        "question": "How quickly do they reply?",
+        "options": [
+          "The same day",
+          "Within a week",
+          "Within a month",
+          "They do not say"
+        ],
+        "answer": 1,
+        "explain_zh": "within a week at each stage —— 每一關都盡量一週內回覆。"
+      }
+    ]
+  },
+  {
+    "id": 123,
+    "title": "Salary range for the role",
+    "category": "interview",
+    "difficulty": "medium",
+    "transcript": "The range for this level is fifty to sixty, and where you land in it depends on experience rather than negotiation, so I'd rather be straight about that. There's a review after six months, and the bonus is company wide, usually about one month's salary but it isn't guaranteed.",
+    "questions": [
+      {
+        "question": "What decides where you sit in the range?",
+        "options": [
+          "How well you negotiate",
+          "Your experience",
+          "The team you join",
+          "The start date"
+        ],
+        "answer": 1,
+        "explain_zh": "depends on experience rather than negotiation —— 看經歷，不是看談判。"
+      },
+      {
+        "question": "When is the first review?",
+        "options": [
+          "After three months",
+          "After six months",
+          "After a year",
+          "There is no review"
+        ],
+        "answer": 1,
+        "explain_zh": "There's a review after six months。review 在這裡是「薪資或表現的檢視」。"
+      },
+      {
+        "question": "What does she say about the bonus?",
+        "options": [
+          "It is guaranteed every year",
+          "It is about one month's salary but not guaranteed",
+          "Only managers get it",
+          "It replaces the pay review"
+        ],
+        "answer": 1,
+        "explain_zh": "usually about one month's salary but it isn't guaranteed，不保證一定發。"
+      }
+    ]
+  },
+  {
+    "id": 124,
+    "title": "Why did you leave that job",
+    "category": "interview",
+    "difficulty": "hard",
+    "transcript": "I left because the team was restructured and my role moved away from the work I wanted to do. I stayed for four months after the change to hand things over properly, and I'd do that again. What I'm looking for now is somewhere the same person owns a problem from start to finish.",
+    "questions": [
+      {
+        "question": "Why did the candidate leave?",
+        "options": [
+          "The pay was too low",
+          "The role moved away from the work he wanted",
+          "He was asked to leave",
+          "The company closed"
+        ],
+        "answer": 1,
+        "explain_zh": "my role moved away from the work I wanted to do —— 職務內容跟他想做的事越來越遠。"
+      },
+      {
+        "question": "What did he do after the change?",
+        "options": [
+          "Left immediately",
+          "Stayed four months to hand over",
+          "Moved to another team",
+          "Took unpaid leave"
+        ],
+        "answer": 1,
+        "explain_zh": "stayed for four months… to hand things over properly。hand over 是「交接」。"
+      },
+      {
+        "question": "What is he looking for now?",
+        "options": [
+          "A bigger salary",
+          "A shorter commute",
+          "Owning a problem from start to finish",
+          "A management position"
+        ],
+        "answer": 2,
+        "explain_zh": "the same person owns a problem from start to finish —— 想要能從頭負責到尾的工作方式。"
+      }
+    ]
+  },
+  {
+    "id": 125,
+    "title": "Tell me about a mistake",
+    "category": "interview",
+    "difficulty": "hard",
+    "transcript": "I shipped a change on a Friday afternoon without telling support, and they spent Monday morning answering questions they had no answers to. Nothing broke, but that was luck. Now I write the support note before I write the code, and if I can't explain the change in three lines it usually means I don't understand it yet.",
+    "questions": [
+      {
+        "question": "What was the mistake?",
+        "options": [
+          "He broke the website",
+          "He shipped without telling the support team",
+          "He missed a deadline",
+          "He deleted some data"
+        ],
+        "answer": 1,
+        "explain_zh": "shipped a change… without telling support。ship 在工作語境是「把東西上線、發布」。"
+      },
+      {
+        "question": "What was the consequence?",
+        "options": [
+          "Support could not answer customers",
+          "The site went down",
+          "A customer left",
+          "He was given a warning"
+        ],
+        "answer": 0,
+        "explain_zh": "answering questions they had no answers to —— 客服被問了卻答不出來。"
+      },
+      {
+        "question": "What does he do differently now?",
+        "options": [
+          "He only ships on Mondays",
+          "He asks a manager first",
+          "He writes the support note before the code",
+          "He tests everything twice"
+        ],
+        "answer": 2,
+        "explain_zh": "I write the support note before I write the code，順序反過來，而且用三行講不清楚就代表自己還沒懂。"
+      }
+    ]
+  },
+  {
+    "id": 126,
+    "title": "Notice period and start date",
+    "category": "interview",
+    "difficulty": "easy",
+    "transcript": "My notice is one month, and I've got about a week of holiday left that I'd rather take than be paid for. So realistically I could start five weeks from an offer. If that's too late for you, I can ask about leaving earlier, but I'd rather not leave them in a mess.",
+    "questions": [
+      {
+        "question": "How long is the notice period?",
+        "options": [
+          "One week",
+          "Two weeks",
+          "One month",
+          "Three months"
+        ],
+        "answer": 2,
+        "explain_zh": "My notice is one month。notice (period) 是「離職預告期」。"
+      },
+      {
+        "question": "How soon could he start?",
+        "options": [
+          "Immediately",
+          "In two weeks",
+          "In five weeks",
+          "In three months"
+        ],
+        "answer": 2,
+        "explain_zh": "一個月預告加上一週假，所以 five weeks from an offer。"
+      },
+      {
+        "question": "What is his attitude to leaving earlier?",
+        "options": [
+          "He will ask, but doesn't want to leave a mess",
+          "He refuses completely",
+          "He will leave next week",
+          "He wants to be paid for the holiday instead"
+        ],
+        "answer": 0,
+        "explain_zh": "I can ask… but I'd rather not leave them in a mess，願意問但不想把爛攤子丟給前公司。"
+      }
+    ]
+  },
+  {
+    "id": 127,
+    "title": "Question about the team",
+    "category": "interview",
+    "difficulty": "medium",
+    "transcript": "You asked what a normal week looks like. There's a planning session on Monday, one demo on Thursday, and the rest is fairly unstructured. Two people are remote in another time zone, so we keep the shared meetings before three. Most decisions get written down rather than settled in a room.",
+    "questions": [
+      {
+        "question": "What happens on Thursday?",
+        "options": [
+          "Planning",
+          "A demo",
+          "One to one meetings",
+          "Nothing is scheduled"
+        ],
+        "answer": 1,
+        "explain_zh": "one demo on Thursday；planning 是週一。"
+      },
+      {
+        "question": "Why are shared meetings before three?",
+        "options": [
+          "The office closes early",
+          "Two people are in another time zone",
+          "The rooms are booked later",
+          "The manager leaves at three"
+        ],
+        "answer": 1,
+        "explain_zh": "Two people are remote in another time zone —— 為了配合時差。"
+      },
+      {
+        "question": "How are most decisions made?",
+        "options": [
+          "Written down",
+          "Settled in meetings",
+          "By the manager alone",
+          "By a vote"
+        ],
+        "answer": 0,
+        "explain_zh": "written down rather than settled in a room，多半用文字記錄而不是開會拍板。"
+      }
+    ]
+  },
+  {
+    "id": 128,
+    "title": "Reference check call",
+    "category": "interview",
+    "difficulty": "medium",
+    "transcript": "We'd need two references, one of them a line manager, and we only contact them after you've accepted, not before. If your current employer doesn't know you're looking, that's completely normal and we won't approach them until you say so. The checks usually take three or four days.",
+    "questions": [
+      {
+        "question": "How many references are needed?",
+        "options": [
+          "One",
+          "Two",
+          "Three",
+          "It depends on the role"
+        ],
+        "answer": 1,
+        "explain_zh": "two references, one of them a line manager。line manager 是「直屬主管」。"
+      },
+      {
+        "question": "When are references contacted?",
+        "options": [
+          "Before the first interview",
+          "After you accept the offer",
+          "During the second interview",
+          "Only if there is a problem"
+        ],
+        "answer": 1,
+        "explain_zh": "only contact them after you've accepted, not before —— 接受了才會聯絡。"
+      },
+      {
+        "question": "What if your current employer doesn't know?",
+        "options": [
+          "The offer will be withdrawn",
+          "They will be contacted anyway",
+          "That is normal and they will wait for you",
+          "You must tell them that week"
+        ],
+        "answer": 2,
+        "explain_zh": "that's completely normal and we won't approach them until you say so，會等你同意。"
+      }
+    ]
+  },
+  {
+    "id": 129,
+    "title": "Presentation for the final round",
+    "category": "interview",
+    "difficulty": "medium",
+    "transcript": "For the last stage we'd like a fifteen minute presentation, then fifteen minutes of questions. Pick any project you've worked on, it doesn't have to be a success, and slides are optional. Four of us will be there and two will join from home. Send anything you want on screen the day before.",
+    "questions": [
+      {
+        "question": "How long should the presentation be?",
+        "options": [
+          "Ten minutes",
+          "Fifteen minutes",
+          "Half an hour",
+          "As long as you need"
+        ],
+        "answer": 1,
+        "explain_zh": "a fifteen minute presentation, then fifteen minutes of questions，簡報十五分鐘、問答十五分鐘。"
+      },
+      {
+        "question": "What can the project be?",
+        "options": [
+          "Only a successful one",
+          "Any project, success or not",
+          "Something from this company",
+          "A team project only"
+        ],
+        "answer": 1,
+        "explain_zh": "it doesn't have to be a success —— 不成功的專案也可以講。"
+      },
+      {
+        "question": "What should you send the day before?",
+        "options": [
+          "Your references",
+          "Anything you want on screen",
+          "A written summary",
+          "Nothing"
+        ],
+        "answer": 1,
+        "explain_zh": "Send anything you want on screen the day before，要投影的東西前一天先寄。"
+      }
+    ]
   }
 ]

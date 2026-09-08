@@ -14,6 +14,7 @@ import {
   reviewIntervalHours,
   dueFactor,
   pickSentence,
+  shuffleOptions,
   trendPoints,
   DUE_MIN,
   DUE_MAX,
@@ -526,4 +527,73 @@ test('pickSentence：沒傳 weak 時行為跟以前一樣（關掉加權的路�
   const counts = { a: 0, b: 0 };
   for (let i = 0; i < 2000; i += 1) counts[pickSentence(pool, { now: NOW }).id] += 1;
   assert.ok(counts.a > 800 && counts.b > 800, `應該接近等機率：${JSON.stringify(counts)}`);
+});
+
+// ─── 選項洗牌（聽力題）──────────────────────────────────────────────────
+//
+// 為什麼要測：洗牌本身很簡單，錯法卻很難發現 —— 正解沒跟著搬的話，
+// 症狀是「明明選對卻說我錯」，而且只有一部分題目會這樣。
+
+/** 固定順序的假亂數：每次都回同一串，測試才不會偶發紅。 */
+const fakeRandom = (...values) => {
+  let i = 0;
+  return () => values[i++ % values.length];
+};
+
+test('洗牌之後正解跟著搬到新的位置', () => {
+  const q = { question: 'Q', options: ['A', 'B', 'C', 'D'], answer: 1 };
+  // random 一律回 0 → Fisher-Yates 每一步都跟第 0 個交換
+  const out = shuffleOptions(q, () => 0);
+
+  assert.equal(out.options.length, 4);
+  assert.deepEqual([...out.options].sort(), ['A', 'B', 'C', 'D']);
+  assert.equal(out.options[out.answer], 'B', '正解的文字要還是 B');
+});
+
+test('每一種亂數走法下，正解指的都是同一個選項', () => {
+  const q = { question: 'Q', options: ['w', 'x', 'y', 'z'], answer: 2 };
+  for (const r of [() => 0, () => 0.999, fakeRandom(0.5, 0, 0.9), fakeRandom(0.25, 0.75)]) {
+    const out = shuffleOptions(q, r);
+    assert.equal(out.options[out.answer], 'y');
+  }
+});
+
+test('不改動傳進來的那一題', () => {
+  // 洗牌是在「拿到這一組」的時候做的，如果它就地改掉原本的物件，
+  // 下一次抽到同一組時洗的是已經洗過的 —— 而且 items 陣列會被污染
+  const q = { question: 'Q', options: ['A', 'B', 'C', 'D'], answer: 0 };
+  shuffleOptions(q, () => 0.5);
+  assert.deepEqual(q.options, ['A', 'B', 'C', 'D']);
+  assert.equal(q.answer, 0);
+});
+
+test('選項少於兩個就原樣回傳，不會炸', () => {
+  const one = { options: ['only'], answer: 0 };
+  assert.equal(shuffleOptions(one, () => 0), one);
+  assert.equal(shuffleOptions({}, () => 0).options, undefined);
+});
+
+test('answer 壞掉時不要把它變成 -1', () => {
+  // -1 的話「對答案」會永遠說你答錯，比維持原來的壞值更難查
+  const out = shuffleOptions({ options: ['A', 'B'], answer: 9 }, () => 0);
+  assert.equal(out.answer, 9);
+});
+
+test('洗過幾百次之後，正解落在四個位置的次數差不多', () => {
+  // 這是這個功能真正的目的：不洗的話題庫有 68% 的正解在第二個位置，
+  // 一路按 B 就能對三分之二
+  const q = { options: ['A', 'B', 'C', 'D'], answer: 1 };
+  const counts = [0, 0, 0, 0];
+  // 固定種子的 LCG —— 用真的 Math.random 會偶發紅
+  let seed = 42;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  for (let i = 0; i < 800; i++) counts[shuffleOptions(q, random).answer] += 1;
+
+  for (const [i, n] of counts.entries()) {
+    assert.ok(n > 800 * 0.15, `位置 ${i} 只出現 ${n} 次（800 次裡）`);
+    assert.ok(n < 800 * 0.35, `位置 ${i} 出現 ${n} 次，太集中了`);
+  }
 });

@@ -1055,6 +1055,26 @@ body {
   margin-top: 0.6rem;
 }
 
+/* 收起來的金鑰設定（設定 → AI 金鑰與模型）。填一次就不再看的東西，
+   攤開來只會擋住上面「現在走哪個模型」那兩行 */
+.keys {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--text-muted) 4%, transparent);
+}
+.keys[open] { padding-bottom: 0.85rem; }
+.keys__summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  list-style-position: inside;
+}
+.keys__summary:hover { color: var(--text); }
+.keys[open] .keys__summary { margin-bottom: 0.6rem; }
+.keys .field:last-child { margin-bottom: 0; }
+
 /* ─── 情境對話 ─────────────────────────────────────────────────────────── */
 .dlg__setting {
   margin: 0 0 0.5rem;

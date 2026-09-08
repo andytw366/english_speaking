@@ -50,8 +50,12 @@ let serverError = '';
 // 這兩個旗標只是為了不要讓別人看到一張按下去就 403 的表單。
 let isOwner = false;
 let knowWhoIAm = false;
-let saveState = '';
-let narrationSaveState = '';
+// 每一區自己的「儲存中…／已儲存／⚠️」訊息。共用一個的話，存了 Azure 金鑰
+// 之後那句「已儲存」會出現在 Gemini 那一區底下
+let saveStates = {};
+// 哪幾區的摺疊是打開的。**mount 時算一次**（沒設定的展開），之後跟著使用者
+// 自己的開關走 —— 每次 render 重算的話，存完一次就會被收起來
+let openSections = {};
 let quotaSaveState = '';
 let backupState = '';
 let syncState = '';
@@ -66,8 +70,7 @@ export async function mount(container) {
   isOwner = user?.owner === true;
   // 上一次進來的訊息不要留到下一次 —— 「✅ 已儲存」掛在一張還沒動過的表單上
   // 很容易讓人以為剛剛那次操作有存到
-  saveState = '';
-  narrationSaveState = '';
+  saveStates = {};
   quotaSaveState = '';
 
   // 不是擁有者就不要打這個端點 —— 伺服器會回 403，而那個 403 會在
@@ -82,6 +85,16 @@ export async function mount(container) {
       serverError = '讀不到伺服器設定，請確認後端還在執行。';
     }
   }
+
+  // 三組金鑰的摺疊：**沒設定的展開、設定好的收起來**。
+  //
+  // 只在這裡算一次。每次 render 都重算的話，存完一次金鑰那一區就會自己收起來
+  // —— 而使用者接下來多半正要改同一區的另一格（例如剛存完 Azure 金鑰要填區域）。
+  openSections = {
+    gemini: !serverSettings?.GEMINI_API_KEY?.configured,
+    endpoint: !serverSettings?.NARRATION_MODEL?.value,
+    azure: !serverSettings?.AZURE_SPEECH_KEY?.configured,
+  };
 
   // model 清單拿不到不是致命錯誤 —— 收起選單，讓後端用它的預設值就好
   try {
@@ -112,11 +125,11 @@ function render() {
   // 這些卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
   // 單欄排下來 1440×900 要捲三個螢幕才看得完
   // 排法是「先講這台機器會做什麼，再講它拿什麼做的，最後才是我的資料」：
-  //   AI 四張排在一起（功能 → 金鑰 → 模型 → 上限）—— 它們原本散在三個地方，
-  //   而使用者要調整的時候，四件事幾乎一定是一起看的
+  //   AI 三張排在一起（功能 → 金鑰與模型 → 上限）—— 它們原本散在三個地方，
+  //   而使用者要調整的時候，這幾件事幾乎一定是一起看的
   //   接著是練習本身（目標、偏好、語音），最後是帳號與資料
   append(grid(root),
-    aiCard(), isOwner && keysCard(), isOwner && modelCard(), quotaCard(),
+    aiCard(), modelCard(), quotaCard(),
     goalCard(), practiceCard(), voiceCard(), syncCard(), dataCard());
 }
 
@@ -168,7 +181,7 @@ function aiStatusLine() {
   const ai = caps?.aiReview ?? null;
   if (!ai) return h('p', { class: 'hint' }, '（讀不到伺服器狀態，無法確認現在接得到哪個模型。）');
 
-  const where = isOwner ? '下面的「講評與修正用的模型」' : '伺服器的設定（要擁有者的帳號才改得動）';
+  const where = isOwner ? '下面的「AI 金鑰與模型」' : '伺服器的設定（要擁有者的帳號才改得動）';
   if (!ai.ready) {
     return h('p', { class: 'hint hint--warn' },
       `⚠️ 現在沒有可以呼叫的模型（${ai.problem}）—— 上面選「自動」也不會有東西出現。` +
@@ -178,17 +191,32 @@ function aiStatusLine() {
     `目前由 ${ai.label}${ai.model ? ` 的 ${ai.model}` : ''} 產生（要換請看${where}）。`);
 }
 
-// ─── AI 金鑰 ─────────────────────────────────────────────────────────────
+// ─── AI 金鑰與模型：一張卡，重要的在上面，細節收在摺疊裡 ─────────────────
 //
-// 這張卡**只有擁有者看得到內容**（第一個註冊的帳號）。以前這裡擋的是
+// 為什麼合成一張：金鑰與 model 原本是兩張卡，但它們回答的是**同一個問題** ——
+// 「這台伺服器拿什麼在做 AI」。分兩張的代價是：換一個模型要在兩張卡之間來回
+// （來源在這張、Gemini 的 model 在那張），而「填了金鑰卻沒生效」時也看不出
+// 是哪一張的問題。
+//
+// 卡內的順序是**按「多久會動一次」排的**：
+//   1. 來源與 model —— 換模型是會反覆調的事（想快一點、想省一點）
+//   2. 現在真的接得到什麼 —— 改完馬上要確認的那一行
+//   3. 三組金鑰，各自收在摺疊裡 —— 填一次就不再看，攤開來只是擋住上面兩件事
+//
+// 摺疊的預設狀態是「**沒設定的展開、設定好的收起來**」：全新安裝時三組都攤開
+// （有事要做），設好之後自動變乾淨。使用者手動開關過的狀態會記住到離開設定頁，
+// 不然存完一次金鑰就被收起來，接著想改區域又要再點開。
+//
+// 這張卡**只有擁有者填得動**（第一個註冊的帳號）。以前這裡擋的是
 // 「請求是不是從 localhost 來的」，走 Docker／網域時一律 403 —— 手機上設不了，
 // 只能 ssh 進伺服器編輯 .env 再重啟。有帳號之後那一關換成
 // 「要登入 + 要是擁有者」，所以現在手機上也設得了。詳見 server/settings.js。
-function keysCard() {
+function modelCard() {
   const card = h('div', { class: 'card' },
-    h('p', { class: 'card__title' }, '🔑 AI 金鑰'),
+    h('p', { class: 'card__title' }, '🧠 AI 金鑰與模型'),
     h('p', { class: 'hint' },
-      '這些是選用的 —— 不填也能正常使用單字卡、聽力與中翻英，跟讀也還是可以錄音比對。'),
+      '上面三個 AI 功能都走這裡設的模型。金鑰是選用的 —— 不填也能正常使用單字卡、' +
+      '聽力、中翻英與情境對話（少的是 AI 那幾段），跟讀也還是可以錄音比對。'),
   );
 
   // 別人的帳號：不給看也不給改，但要看得到「現在到底有沒有設定」——
@@ -196,7 +224,7 @@ function keysCard() {
   if (knowWhoIAm && !isOwner) {
     append(card,
       h('p', { class: 'hint' },
-        '金鑰由擁有者（這台伺服器上第一個註冊的帳號）設定 —— 這個帳號看不到也改不了。'),
+        '金鑰與模型由擁有者（這台伺服器上第一個註冊的帳號）設定 —— 這個帳號看不到也改不了。'),
       serverStatusLine(),
     );
     return card;
@@ -207,7 +235,6 @@ function keysCard() {
       '現在讀不到登入狀態（可能是離線），所以看不到金鑰設定。連上線之後重新整理就會出現。'));
     return card;
   }
-
   if (serverError) {
     append(card, h('div', { class: 'banner banner--error' }, serverError));
     return card;
@@ -217,10 +244,135 @@ function keysCard() {
     return card;
   }
 
-  const azureKey = serverSettings.AZURE_SPEECH_KEY;
-  const gemini = serverSettings.GEMINI_API_KEY;
+  const provider = serverSettings.NARRATION_PROVIDER.value;
 
   append(card,
+    // ── 1. 最上面：走哪一條路 ──────────────────────────────────────────
+    //
+    // 用 chip 而不是下拉：只有四個值，而下拉要多按一下才看得到自己有哪些選擇
+    // （跟設定頁其他地方同一條規則，見 lib/fields.js）。
+    // 按下去**直接存**，因為它是單一個值、沒有東西要一起填
+    chipField('來源', [
+      ['', '自動'],
+      ['gemini', 'Gemini'],
+      ['openai', 'OpenAI 相容端點'],
+      ['local', '不呼叫模型'],
+    ], provider, saveProvider, {
+      hint: PROVIDER_HINT[provider] ?? PROVIDER_HINT[''],
+      extra: saveStates.provider
+        ? h('p', { class: `hint ${saveTone(saveStates.provider)}` }, saveStates.provider)
+        : null,
+    }),
+
+    // 走 Gemini 時用哪個 model。這是**這台裝置的偏好**（存在 localStorage），
+    // 但它跟上面那一排回答的是同一個問題「要用哪個模型」——
+    // 放在別張卡上，換模型的人一定會漏掉其中一個。
+    //
+    // 來源不是 Gemini 時**照樣顯示**，只是說清楚它現在沒有作用：
+    // 控制項在切換來源時消失不見，會讓人以為設定被吃掉了
+    models.length > 0 && selectField(
+      '走 Gemini 時用哪個 model',
+      'gemini-model',
+      models.map((m) => [m.id, m.label ?? m.id]),
+      getSettings().geminiModel,
+      (value) => { updateSettings({ geminiModel: value }); render(); },
+      {
+        note: (models.find((m) => m.id === getSettings().geminiModel)?.note ?? '') +
+          '　這是這台裝置的選擇（清單寫死在後端，送上來的值也會再驗一次）。' +
+          (provider === 'openai' || provider === 'local'
+            ? `　目前的來源不是 Gemini，所以這一格${provider === 'local' ? '沒有作用' : '要等來源切回 Gemini 才有作用'}。`
+            : ''),
+      },
+    ),
+
+    // ── 2. 改完馬上要確認的那一行 ──────────────────────────────────────
+    serverStatusLine(),
+
+    // ── 3. 金鑰：填一次就不再看的東西，收起來 ──────────────────────────
+    keySection('gemini', 'Gemini 金鑰', geminiSection()),
+    keySection('endpoint', 'OpenAI 相容端點（Hugging Face／Groq／Ollama）', endpointSection()),
+    keySection('azure', 'Azure Speech（跟讀的發音評分）', azureSection()),
+
+    h('p', { class: 'hint' },
+      '金鑰存了立刻生效，不用重啟。它們寫在伺服器的資料目錄裡' +
+      '（DATA_DIR/settings.env，權限 600），不會存在瀏覽器裡，也不會完整回傳到前端' +
+      '—— 上面只看得到末四碼。留空表示不變更；要清除請輸入一個空格再儲存。'),
+  );
+  return card;
+}
+
+/** 每一種來源選了會怎樣。**每個值各一句** —— 那正是按下去之前想知道的事。 */
+const PROVIDER_HINT = {
+  '': '有 Gemini 金鑰就用 Gemini，否則看下面的端點設定齊了沒。',
+  gemini: '用 Gemini（要有 Gemini 金鑰）。品質穩，但講評那一段實測幾秒到十幾秒。',
+  openai: '用下面設定的端點。這是「想更快」的那條路 —— HF 的 Inference Providers、' +
+    'Groq、或自己機器上的 Ollama，實測一兩秒。',
+  local: '完全不呼叫模型：跟讀退回本地摘要，而 AI 修正沒有替代品可以退 —— 那兩個模式的修正會停在「不能用」。',
+};
+
+/**
+ * 一組收起來的金鑰設定。
+ *
+ * 開關狀態記在 `openSections` 而不是每次 render 重算，理由見 `modelCard()` ——
+ * 存完一次就被收起來的話，接著想改同一區的另一格又要再點一次。
+ */
+function keySection(id, title, body) {
+  return h('details', {
+    class: 'field keys',
+    open: openSections[id] === true,
+    ontoggle: (e) => { openSections[id] = e.currentTarget.open; },
+  },
+    h('summary', { class: 'keys__summary' }, title),
+    body,
+  );
+}
+
+function geminiSection() {
+  const gemini = serverSettings.GEMINI_API_KEY;
+  return h('div', {},
+    textField('Gemini API 金鑰', 'gemini-key', {
+      type: 'password',
+      placeholder: gemini.configured ? `目前已設定（${gemini.preview}）` : '尚未設定',
+      note: '到 https://aistudio.google.com/apikey 產生一組。' +
+        '沒有 Azure 金鑰時，跟讀的分數也會由 Gemini 給（主觀分數）。',
+    }),
+    saveRow('gemini', '儲存 Gemini 金鑰', saveGemini),
+  );
+}
+
+function endpointSection() {
+  const key = serverSettings.NARRATION_API_KEY;
+  return h('div', {},
+    textField('端點 base URL', 'narration-base-url', {
+      type: 'text',
+      value: serverSettings.NARRATION_BASE_URL.value,
+      placeholder: 'https://router.huggingface.co/v1',
+      note: '填到 /v1 就好，/chat/completions 那一段伺服器會自己接。' +
+        'Hugging Face 要用 router.huggingface.co（api-inference 那個舊端點有冷啟動，會更慢）。',
+    }),
+    textField('端點金鑰', 'narration-key', {
+      type: 'password',
+      placeholder: key.configured ? `目前已設定（${key.preview}）` : '尚未設定',
+      note: '供應商給的 token。Ollama 這種本機端點隨便填一個非空字串就行。',
+    }),
+    textField('model', 'narration-model', {
+      type: 'text',
+      value: serverSettings.NARRATION_MODEL.value,
+      placeholder: '照供應商列的 id 完整填',
+      note: 'HF 的 router 可以在後面加「:供應商」指定要轉給誰（例如 :groq）。',
+    }),
+    saveRow('endpoint', '儲存端點設定', saveEndpoint),
+    h('p', { class: 'hint' },
+      '三格要一起齊才會生效。這條路失敗不會自動改打 Gemini —— 會退回本地摘要，' +
+      '而上面那行「目前」就會寫出缺什麼或哪裡不通。'),
+  );
+}
+
+function azureSection() {
+  const azureKey = serverSettings.AZURE_SPEECH_KEY;
+  return h('div', {},
+    h('p', { class: 'hint' },
+      'Azure 只給跟讀的發音評分（逐字、逐音素的客觀分數），跟上面三個 AI 功能無關。'),
     textField('Azure Speech 金鑰', 'azure-key', {
       type: 'password',
       placeholder: azureKey.configured ? `目前已設定（${azureKey.preview}）` : '尚未設定',
@@ -232,26 +384,16 @@ function keysCard() {
       placeholder: '例如 eastasia',
       note: '必須跟建立資源時選的區域一致，填錯會認證失敗。',
     }),
-    textField('Gemini API 金鑰', 'gemini-key', {
-      type: 'password',
-      placeholder: gemini.configured ? `目前已設定（${gemini.preview}）` : '尚未設定',
-      note: '選用。有的話會把 Azure 的分數寫成中文教練建議；沒有就用本地摘要。',
-    }),
-    h('div', { class: 'row' },
-      h('button', { class: 'btn btn--primary', onclick: saveKeys }, '儲存金鑰'),
-      saveState && h('span', { class: `hint ${saveTone(saveState)}` }, saveState),
-    ),
-    h('p', { class: 'hint' },
-      '存了立刻生效，不用重啟。金鑰寫在伺服器的資料目錄裡（DATA_DIR/settings.env，權限 600），' +
-      '不會存在瀏覽器裡，也不會完整回傳到前端 —— 上面只看得到末四碼。'),
-    h('p', { class: 'hint' },
-      '留空表示不變更；要清除某個金鑰請輸入一個空格再儲存。'),
-    h('p', { class: 'hint' },
-      '只有你（擁有者）改得動：其他帳號連讀都會被伺服器擋掉。' +
-      '如果 .env 裡也有同一個變數，這裡存的值會蓋掉它。'),
-    serverStatusLine(),
+    saveRow('azure', '儲存 Azure 金鑰', saveAzure),
   );
-  return card;
+}
+
+/** 儲存按鈕 + 那一區自己的訊息。三區各一組 —— 共用一個的話，訊息會出現在錯的地方。 */
+function saveRow(id, label, onclick) {
+  return h('div', { class: 'row' },
+    h('button', { class: 'btn btn--primary', onclick }, label),
+    saveStates[id] && h('span', { class: `hint ${saveTone(saveStates[id])}` }, saveStates[id]),
+  );
 }
 
 /**
@@ -275,86 +417,6 @@ function serverStatusLine() {
   const bad = !caps.azureConfigured && !caps.geminiConfigured;
   return h('p', { class: `hint ${bad ? 'hint--warn' : ''}` },
     (bad ? '⚠️ 兩組金鑰都沒設定，送出錄音一定會失敗。目前 —— ' : '目前 ') + parts.join('，'));
-}
-
-// ─── 講評與修正用的模型 ──────────────────────────────────────────────────
-//
-// **上面那三個 AI 功能全部走這一條路**（跟讀的中文講評、情境對話與中翻英的
-// AI 修正）。所以這張卡的標題不叫「講評端點」了 —— 那個名字只講到三分之一，
-// 而使用者會以為換這裡只影響跟讀。
-//
-// 為什麼值得放進設定頁：設定好 Azure 之後，實際練起來唯一有感的等待就是這一段
-// （分數一兩秒，Gemini 幾秒到十幾秒）。換成任何 OpenAI 相容的端點就會快很多，
-// 而換的動作原本只能編輯 .env 再重啟 —— 手機上根本做不了。
-//
-// 四個一起設才會生效，缺一個會退回本地摘要。這張卡的順序就是照這件事排的。
-function modelCard() {
-  const card = h('div', { class: 'card' },
-    h('p', { class: 'card__title' }, '🧠 講評與修正用的模型'),
-    h('p', { class: 'hint' },
-      '上面三個 AI 功能都走這一條路。可以指到任何「OpenAI 相容」的 /chat/completions 端點 —— ' +
-      'Hugging Face 的 Inference Providers、Groq、或自己機器上的 Ollama。' +
-      '留空就是用 Gemini。'),
-  );
-
-  if (serverError || !serverSettings) return card;
-
-  const provider = serverSettings.NARRATION_PROVIDER.value;
-  const key = serverSettings.NARRATION_API_KEY;
-
-  append(card,
-    selectField('來源', 'narration-provider', [
-      ['', '自動（有 Gemini 金鑰就用 Gemini）'],
-      ['gemini', 'Gemini'],
-      ['openai', 'OpenAI 相容端點（下面三格）'],
-      ['local', '完全不呼叫模型（跟讀退回本地摘要，AI 修正整個不能用）'],
-    // 沒有 onPick：這一格跟下面三格是一起按「儲存模型設定」送出去的
-    ], provider, null, {
-      note: '選 local 的話 AI 修正沒有替代品可以退 —— 那三個功能都會停在「不能用」。',
-    }),
-    textField('端點 base URL', 'narration-base-url', {
-      type: 'text',
-      value: serverSettings.NARRATION_BASE_URL.value,
-      placeholder: 'https://router.huggingface.co/v1',
-      note: '填到 /v1 就好，/chat/completions 那一段伺服器會自己接。' +
-        'Hugging Face 要用 router.huggingface.co（api-inference 那個舊端點有冷啟動，會更慢）。',
-    }),
-    textField('端點金鑰', 'narration-key', {
-      type: 'password',
-      placeholder: key.configured ? `目前已設定（${key.preview}）` : '尚未設定',
-      note: '供應商給的 token。Ollama 這種本機端點隨便填一個非空字串就行。',
-    }),
-    textField('model', 'narration-model', {
-      type: 'text',
-      value: serverSettings.NARRATION_MODEL.value,
-      placeholder: '照供應商列的 id 完整填',
-      note: 'HF 的 router 可以在後面加「:供應商」指定要轉給誰（例如 :groq）。',
-    }),
-    h('div', { class: 'row' },
-      h('button', { class: 'btn btn--primary', onclick: saveNarration }, '儲存模型設定'),
-      narrationSaveState &&
-        h('span', { class: `hint ${saveTone(narrationSaveState)}` }, narrationSaveState),
-    ),
-    h('p', { class: 'hint' },
-      '存了立刻生效。這條路失敗不會自動改打 Gemini —— 會退回本地摘要，' +
-      '而上面那行「目前」就會寫出缺什麼或哪裡不通。'),
-
-    // Gemini 的 model 是**這台裝置的偏好**（存在 localStorage，不是伺服器），
-    // 但它跟上面那四格回答的是同一個問題「要用哪個模型」——
-    // 放在兩張不同的卡上，換模型的人一定會漏掉其中一個
-    models.length > 0 && selectField(
-      '走 Gemini 時用哪個 model',
-      'gemini-model',
-      models.map((m) => [m.id, m.label ?? m.id]),
-      getSettings().geminiModel,
-      (value) => { updateSettings({ geminiModel: value }); render(); },
-      {
-        note: (models.find((m) => m.id === getSettings().geminiModel)?.note ?? '') +
-          '　這是這台裝置的選擇（清單寫死在後端，送上來的值也會再驗一次）。',
-      },
-    ),
-  );
-  return card;
 }
 
 // ─── 每天的呼叫上限 ──────────────────────────────────────────────────────
@@ -461,58 +523,71 @@ function saveTone(state) {
   return '';   // 「儲存中…」「沒有變更」是中性訊息，不要標成錯誤
 }
 
-async function saveKeys() {
+/**
+ * 三個儲存動作，一區一個。
+ *
+ * 為什麼不是一顆「全部儲存」：三區各自獨立（Azure 跟講評模型完全無關），
+ * 而合成一顆的話「已儲存」出現時，使用者不知道剛剛到底送出了哪幾個欄位 ——
+ * 尤其金鑰欄是密碼欄，畫面上看不出它有沒有被動到。
+ *
+ * 每一區的規則都一樣：**金鑰欄空字串 = 不變更**（要清除得輸入一個空格），
+ * 看得到目前值的欄位則是「跟目前不一樣才送」—— 那樣清空一格才有辦法表達
+ * 「把它清掉」。
+ */
+async function saveAzure() {
   const get = (id) => root?.querySelector(`#${id}`)?.value ?? '';
   const payload = {};
 
-  const azureKey = get('azure-key');
-  const azureRegion = get('azure-region');
-  const geminiKey = get('gemini-key');
-
-  // 空字串代表「不變更」；使用者輸入空白鍵才是「清除」
-  if (azureKey !== '') payload.AZURE_SPEECH_KEY = azureKey.trim();
-  if (geminiKey !== '') payload.GEMINI_API_KEY = geminiKey.trim();
-  if (azureRegion !== (serverSettings?.AZURE_SPEECH_REGION.value ?? '')) {
-    payload.AZURE_SPEECH_REGION = azureRegion.trim();
+  const key = get('azure-key');
+  if (key !== '') payload.AZURE_SPEECH_KEY = key.trim();
+  const region = get('azure-region');
+  if (region !== (serverSettings?.AZURE_SPEECH_REGION.value ?? '')) {
+    payload.AZURE_SPEECH_REGION = region.trim();
   }
-
-  if (Object.keys(payload).length === 0) {
-    saveState = '沒有變更';
-    return render();
-  }
-
-  saveState = '儲存中…';
-  render();
-  saveState = await postSettings(payload);
-  render();
+  return saveSection('azure', payload);
 }
 
-async function saveNarration() {
+async function saveGemini() {
+  const key = root?.querySelector('#gemini-key')?.value ?? '';
+  return saveSection('gemini', key === '' ? {} : { GEMINI_API_KEY: key.trim() });
+}
+
+async function saveEndpoint() {
   const get = (id) => root?.querySelector(`#${id}`)?.value ?? '';
   const payload = {};
 
-  // 金鑰跟上面一樣是「空字串 = 不變更」；其餘三個是看得到目前值的欄位，
-  // 所以用「跟目前不一樣才送」——那樣清空一個欄位才有辦法表達「清掉它」
   const key = get('narration-key');
   if (key !== '') payload.NARRATION_API_KEY = key.trim();
 
   for (const [id, envKey] of [
-    ['narration-provider', 'NARRATION_PROVIDER'],
     ['narration-base-url', 'NARRATION_BASE_URL'],
     ['narration-model', 'NARRATION_MODEL'],
   ]) {
     const value = get(id).trim();
     if (value !== (serverSettings?.[envKey].value ?? '')) payload[envKey] = value;
   }
+  return saveSection('endpoint', payload);
+}
 
+/**
+ * 「來源」那一排 chip 按下去就直接存。
+ *
+ * 它跟金鑰不一樣：只有一個值、沒有東西要一起填，所以沒有理由再按一次儲存
+ * （設定頁其他的 chip 也都是按了就生效，見 lib/fields.js）。
+ */
+async function saveProvider(value) {
+  if (value === (serverSettings?.NARRATION_PROVIDER.value ?? '')) return;
+  return saveSection('provider', { NARRATION_PROVIDER: value });
+}
+
+async function saveSection(id, payload) {
   if (Object.keys(payload).length === 0) {
-    narrationSaveState = '沒有變更';
+    saveStates[id] = '沒有變更';
     return render();
   }
-
-  narrationSaveState = '儲存中…';
+  saveStates[id] = '儲存中…';
   render();
-  narrationSaveState = await postSettings(payload);
+  saveStates[id] = await postSettings(payload);
   render();
 }
 

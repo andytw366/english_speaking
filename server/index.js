@@ -400,7 +400,7 @@ app.post('/api/answer-review', async (req, res) => {
       ok: false,
       reason: 'no_key',
       message: `AI 修正需要一個能呼叫的模型，但${availability.problem}。` +
-        '請到「設定」的「講評端點」補上（要擁有者的帳號）。',
+        '請到「設定」的「AI 金鑰與模型」補上（要擁有者的帳號）。',
     });
   }
 

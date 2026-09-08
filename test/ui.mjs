@@ -489,23 +489,51 @@ check('切回自動也存得回去', (await page.evaluate(() =>
 // 現在是「要登入 + 要是擁有者」。測試帳號是這台伺服器上第一個帳號，
 // 所以它就是擁有者 —— 這幾條會失敗的話，第一個要懷疑的是伺服器的 DATA_DIR
 // 不乾淨（uitest 變成第二個帳號，那它就不是擁有者了）。
-check('擁有者看得到金鑰欄位', (await page.locator('#azure-key').count()) === 1);
-check('看得到講評端點那張卡', (await page.locator('#narration-base-url').count()) === 1);
-check('講評來源四個選項都在', (await page.locator('#narration-provider option').count()) === 4);
-check('金鑰卡寫出「現在」用的是哪一條路',
-  (await page.locator('.card', { hasText: 'API 金鑰' }).textContent()).includes('目前'));
+// 金鑰與模型現在是**同一張卡**：上面是「來源」與 model，三組金鑰收在摺疊裡。
+// 用「裡面有那個欄位的卡」來抓，不要用 hasText —— 上面那張「AI 功能」的說明
+// 文字裡也寫著「AI 金鑰與模型」（指路用），hasText 會同時抓到兩張（踩過兩次了）
+const modelCard = page.locator('.card', { has: page.locator('#azure-key') });
+check('金鑰與模型在同一張卡上', (await modelCard.count()) === 1
+  && (await modelCard.locator('#narration-base-url').count()) === 1
+  && (await modelCard.locator('#gemini-model').count()) === 1);
+check('來源四個選項都在（chip，不是下拉）',
+  (await modelCard.locator('.field', { hasText: '來源' }).locator('.togglechip').count()) === 4);
+check('卡上寫出「現在」用的是哪一條路',
+  (await modelCard.textContent()).includes('目前'));
+
+// 摺疊：三組金鑰各一個 <details>。**沒設定的預設展開、設定好的收起來** ——
+// 這台測試伺服器沒有 Azure 也沒有 Gemini 金鑰，所以那兩個是開的
+const sections = modelCard.locator('details.keys');
+check('三組金鑰各收在一個摺疊裡', (await sections.count()) === 3,
+  (await sections.locator('summary').allTextContents()).join('／'));
+check('沒設定的那幾組預設是展開的',
+  await sections.filter({ hasText: 'Azure' }).first().evaluate((el) => el.open));
+
+// 這一區的初始狀態要看伺服器有沒有設定（設定好的預設收起來），
+// 所以測的是「點一下會翻面、再點一下翻回來」而不是某一個固定狀態
+const endpointSection = sections.filter({ hasText: 'OpenAI 相容端點' }).first();
+const isOpen = () => endpointSection.evaluate((el) => el.open);
+const openedAtFirst = await isOpen();
+await endpointSection.locator('summary').click();
+await page.waitForTimeout(150);
+check('點標題會開合', (await isOpen()) === !openedAtFirst);
+await endpointSection.locator('summary').click();
+await page.waitForTimeout(150);
+check('再點一次翻回來', (await isOpen()) === openedAtFirst);
+
+// 攤開來之後裡面的欄位才填得了（下面真的要存一次）
+if (!(await isOpen())) {
+  await endpointSection.locator('summary').click();
+  await page.waitForTimeout(150);
+}
+check('打開之後裡面的欄位就填得了', await page.locator('#narration-base-url').isVisible());
 
 // 真的存一次 —— 這是這一版唯一重要的事，「按鈕在」不算。
 // 存完再清掉，不要把值留在開發／CI 的伺服器上
-// 用「裡面有那個欄位的卡」來抓，不要用 hasText —— 練習偏好那張卡的說明文字
-// 裡也寫著「講評端點」，hasText 會同時抓到兩張（踩過）
-const narrationCard = page.locator('.card', { has: page.locator('#narration-base-url') });
-
-/** 按「儲存模型設定」，等畫面真的說存好了。等訊息而不是睡 600 毫秒 —— 睡會 flaky。 */
 async function saveNarrationModel(value) {
   await page.locator('#narration-model').fill(value);
-  await page.locator('button', { hasText: '儲存模型設定' }).click();
-  return narrationCard.getByText('已儲存').first()
+  await page.locator('button', { hasText: '儲存端點設定' }).click();
+  return endpointSection.getByText('已儲存').first()
     .waitFor({ timeout: 5000 }).then(() => true, () => false);
 }
 

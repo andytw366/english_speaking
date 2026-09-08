@@ -19,6 +19,7 @@ import {
   CATEGORIES, DIFFICULTIES, TYPES, firstWords, mergeIntoExisting, norm, sift,
 } from '../scripts/generate-content.mjs';
 import { CATEGORY_LABEL, DIFFICULTY_ORDER } from '../public/lib/labels.js';
+import { grade, tokens } from '../public/lib/grade.js';
 
 const DIR = path.join(import.meta.dirname, '..', 'content');
 const load = (name) => JSON.parse(fs.readFileSync(path.join(DIR, name), 'utf8'));
@@ -302,19 +303,21 @@ test('情境對話：每一段都有 2～5 句你的台詞', () => {
 });
 
 test('聽力與情境對話涵蓋的情境數不能變少', () => {
-  // 生成器原本只認得四個情境，所以餐飲、購物、健康、學習曾經都是 0。
-  // 聽力已經補齊八個；對話還在補，所以兩邊的門檻不一樣。
-  // **這條釘的是「不能再變少」** —— 對話補完之後把 4 改成 8。
+  // 生成器原本只認得四個情境，所以餐飲、購物、健康、學習曾經都是 0
+  // （設定頁那八顆按鈕照樣點得下去，點了會靜靜退回全部題目，所以沒人發現）。
+  // 兩邊都補齊八個了，**這條釘的是「不能再變少」**。
   const covered = (file) => new Set(load(file).map((x) => x.category)).size;
   assert.ok(covered('listening.json') >= 8, `聽力只涵蓋 ${covered('listening.json')} 個情境`);
-  assert.ok(covered('dialogues.json') >= 4, `對話只涵蓋 ${covered('dialogues.json')} 個情境`);
+  assert.ok(covered('dialogues.json') >= 8, `對話只涵蓋 ${covered('dialogues.json')} 個情境`);
 
   // 每個情境至少要有 5 筆才算「這個情境練得起來」——
   // 只有一兩筆的話，設定頁篩了它就是同一題一直重複
-  for (const [c, n] of Object.entries(
-    load('listening.json').reduce((acc, x) => ({ ...acc, [x.category]: (acc[x.category] ?? 0) + 1 }), {})
-  )) {
-    assert.ok(n >= 5, `聽力的「${c}」只有 ${n} 組`);
+  for (const file of ['listening.json', 'dialogues.json']) {
+    for (const [c, n] of Object.entries(
+      load(file).reduce((acc, x) => ({ ...acc, [x.category]: (acc[x.category] ?? 0) + 1 }), {})
+    )) {
+      assert.ok(n >= 5, `${file} 的「${c}」只有 ${n} 筆`);
+    }
   }
 
   // 情境本身一定要是 App 認得的那八個，不然設定頁篩不到它
@@ -347,4 +350,55 @@ test('本來就沒有內容時從 1 開始', () => {
 test('壞掉的 id 不會讓後面全部變成 NaN', () => {
   const merged = mergeIntoExisting([{ id: 'x', title: 'a' }, { id: 3, title: 'b' }], [{ title: 'c' }]);
   assert.equal(merged[2].id, 4);
+});
+
+// ─── keywords 要對得上每一種「可接受的說法」───────────────────────────────
+
+/** 有幾個 accept 變體裡少了自己那一輪的 keywords（用 grade() 的 tokens 語意）。 */
+function keywordMismatches(dialogues) {
+  const misses = [];
+  for (const item of dialogues) {
+    for (const turn of item.turns.filter((t) => t.speaker === 'you')) {
+      for (const variant of turn.accept ?? []) {
+        const got = new Set(tokens(variant));
+        const missing = (turn.keywords ?? []).filter((k) => !tokens(k).every((w) => got.has(w)));
+        if (missing.length) misses.push({ id: item.id, variant, missing });
+      }
+    }
+  }
+  return misses;
+}
+
+/** 目前的欠債。**只能往下降，不能往上加**（下面那條測試就是為此存在）。 */
+const KEYWORD_DEBT = 132;
+
+test('keywords 對不上 accept 的數量不能再變多', () => {
+  // 為什麼這是問題：`grade()` 先比對 accept 完全相符（那會判「完全正確」），
+  // 但**照著 accept[1] 的意思改寫一下**就只剩 keywords 那條路 ——
+  // 而 keywords 只保證在 answer 裡找得到。所以使用者寫出一個畫面上列為
+  // 「其他說法」的變化型，卻被判「再想想」。中翻英那邊的手寫題目踩過同一個坑
+  // （見 TODO 的「內容」那一段）。
+  //
+  // 既有的 61 段有 132 個這種變體，一筆一筆看才修得好（要換 keywords 還是換說法
+  // 是內容判斷），所以這裡先用**棘輪**釘住：新加的內容不准再往上加。
+  const misses = keywordMismatches(load('dialogues.json'));
+  assert.ok(
+    misses.length <= KEYWORD_DEBT,
+    `變成 ${misses.length} 個（上限 ${KEYWORD_DEBT}）。新加的那幾筆：` +
+      misses.slice(-3).map((m) => `#${m.id} 缺 ${m.missing.join('/')}`).join('；')
+  );
+});
+
+test('每一個 accept 自己送進 grade() 都要判成「完全正確」', () => {
+  // 這是使用者看得到的承諾：畫面上列出來的「其他說法」照著寫一定要對。
+  // 完全相符那條路走的是 normalize()，所以這條實際上釘的是
+  // 「accept 裡沒有前後空白、全形標點之類會讓比對失敗的髒東西」
+  for (const item of load('dialogues.json')) {
+    for (const turn of item.turns.filter((t) => t.speaker === 'you')) {
+      for (const variant of turn.accept ?? []) {
+        const level = grade(turn, variant).level;
+        assert.equal(level, 'exact', `#${item.id}「${variant}」判成 ${level}`);
+      }
+    }
+  }
 });

@@ -28,7 +28,7 @@
 | 📱 PWA | 加得到主畫面、斷線也打得開 | 完成 |
 | 🎧 聽力 | 129 組 / 366 題（八個情境）＋每日進度（**照題組算，不是照題數**） | 完成 |
 | ✍️ 中翻英 | **2,159 題**（填空 161 / 整句 1,998）＋每日進度 | 完成 |
-| 💬 情境對話 | 61 段 / 427 句台詞＋每日進度 | 完成 |
+| 💬 情境對話 | 93 段 / 651 句台詞（八個情境）＋每日進度 | 完成 |
 | 🗣️ 跟讀 | 2,041 句 / 8 種情境，Azure 逐音素評分 + 間隔重複 + 弱點音加權 + 連續天數 | 完成 |
 | ⚙️ 設定 | 金鑰、中文講評開關、model、練習範圍、語音、學習資料、**跨裝置同步** | 完成 |
 | 🔐 帳號 | 全部 `/api` 都要登入；進度存在伺服器上，**跨裝置自動合併**（手動整包覆蓋留著當逃生門） | 完成 |
@@ -257,54 +257,39 @@ merge 拒收、`importState()` 要把寫入通知關掉不然同步會餵自己�
 **使用者說在他本機測過可以動，但這裡沒有證據，不要假設它一定沒問題。**
 `npm run test:e2e` 的【3】【5】就是為它寫的，有金鑰時在本機跑。
 
-**3-b. 內容量** —— 中翻英做完了（279 → 2,159 題），**聽力 81 組 / 226 題、
-對話 61 段還沒動**，照每天練的量兩三週就會開始重複（單字 10,040、跟讀 2,041 撐得久）。
+**3-b. 內容量** —— ✅ **這一輪補完了。**
 
-中翻英能離線補是因為 Tatoeba 給的本來就是中英句對，剛好就是這個模式要的東西；
-聽力要逐字稿、對話要整段對白，語料裡沒有，只能用 `scripts/generate-content.mjs`
-生成 —— **那需要 `GEMINI_API_KEY`**，所以真正的生成在你手上跑。
+| 模式 | 之前 | 現在 |
+|---|---|---|
+| 中翻英 | 279 題 | 2,159 題（腳本從 Tatoeba 匯入） |
+| 聽力 | 81 組 / 226 題，**四個情境** | 129 組 / 366 題，**八個情境**（最少 10 組） |
+| 情境對話 | 61 段，**四個情境** | 93 段 / 651 句，**八個情境**（最少 8 段） |
 
-> **先看現況再決定要補哪裡**（`--plan` 不呼叫 API、不需要金鑰）：
->
-> ```bash
-> node scripts/generate-content.mjs listening --plan
-> node scripts/generate-content.mjs dialogue  --plan
-> ```
+原本餐飲、購物、健康、學習在聽力與對話裡各 0 筆 —— 因為
+`scripts/generate-content.mjs` 自己寫死了四個情境，而不是用 App 那八個。
+設定頁那八顆按鈕照樣點得下去，點了會**靜靜退回全部題目**
+（`listening.js` 的 `if (items.length === 0) items = raw`），所以一直沒被發現。
 
-**這兩份資料只涵蓋四個情境**：日常對話、旅遊、職場、面試。
-**餐飲、購物、健康、學習各 0 筆** —— 因為生成器原本自己寫死了四個情境
-（現在改成跟 App 同一份，`public/lib/labels.js` 的 `CATEGORY_LABEL`）。
-句庫與中翻英是腳本匯入的、八個情境都有，所以只有這兩個模式有洞。
-設定頁那八顆情境按鈕照樣點得下去，點了會**靜靜退回全部題目**
-（`listening.js` 的 `if (items.length === 0) items = raw`），所以沒人發現。
+補的方式：**沒有金鑰，所以那 80 筆是手寫的**，但一樣走同一道門 ——
+`--from <file>` 讀一批寫好的 JSON（不呼叫 API），照樣過 validate、去重、接 id。
+那道門退掉了 6 筆「解析只是把英文原句抄一遍加中文句號」，正是下面「內容」
+那一段記著反覆犯的錯。
 
-補到跟現有最多的那個情境一樣多，聽力還缺 127 筆、對話還缺 75 筆。建議的順序
-（一個情境一次，跑完看退件原因再決定下一個）：
+還想再加的話：
 
 ```bash
-# 先看一批的品質再決定要不要寫進去
-node scripts/generate-content.mjs listening --count 5 --category food --dry-run
-
-node scripts/generate-content.mjs listening --count 26 --category food
-node scripts/generate-content.mjs listening --count 26 --category shopping
-node scripts/generate-content.mjs listening --count 26 --category health
-node scripts/generate-content.mjs listening --count 26 --category school
-node scripts/generate-content.mjs dialogue  --count 17 --category food
-# …其餘照 --plan 印出來的清單
-
-npm test        # 資料測試會把新內容一起驗一次
+node scripts/generate-content.mjs listening --plan     # 現況、缺哪些情境、建議指令
+node scripts/generate-content.mjs dialogue  --plan
+# 有金鑰時：
+node scripts/generate-content.mjs listening --count 10 --category travel
+# 沒金鑰、自己寫好一批：
+node scripts/generate-content.mjs listening --from batch.json --dry-run
 ```
 
-不指定 `--category` 的話**每一批都補目前最少的那個情境**（`scarcest()`）——
-照順序輪的話，0 筆的那個情境要等好幾批才輪得到一次。
-
 一定要跑過那支腳本的驗證，別手寫繞過去（見下面「內容」那一段的雷）。
-驗收規則本身有測試（`test/content-generation.test.js`，25 條）：壞資料要被退掉、
-重複要擋掉、**現有的 81 組與 61 段都要過得了同一套規則**（規則跟資料分家的話，
-下一批寫進來的東西會比現有的差，而沒有人會發現）。
-
-補完之後記得把 `content-generation.test.js` 最後那條「目前各涵蓋幾個情境」的
-數字從 4 調上去（八個情境都有就是 8）。
+驗收規則本身有測試（`test/content-generation.test.js`，27 條）：壞資料要被退掉、
+重複要擋掉、**現有的每一筆都要過得了同一套規則**、每個情境至少 5 筆、
+以及 keywords 對不上 accept 的數量不准再往上加（既有欠債 132 個，見下面）。
 
 **3-c. 公開部署的門禁** —— 沒帳號密碼、沒 rate limit。後端拿著兩組金鑰，
 公開網址等於任何人都能一直送錄音上來燒配額。只在 VPN／區網用就不急。
@@ -759,6 +744,17 @@ SNI 不能放 IP、Freenom 已死…）這裡不重複，只列**改程式碼時
 - **近似重複要擋，但不能拿開場白當鍵。** 對話的開場白是公式化的：「寄包裹」與
   「郵局寄掛號」都以 "Next please. What can I do for you?" 開頭，那是兩段不同的對話。
   對話用「標題 + 情境描述」，聽力用「標題 + 逐字稿前 12 個字」。
+- **`keywords` 只保證在 `answer` 裡找得到，不保證在其他 `accept` 裡也找得到。**
+  `grade()` 先比對 accept 完全相符（判「完全正確」），但**照著 accept[1] 改寫一下**
+  就只剩 keywords 那條路 —— 使用者寫出畫面上列為「其他說法」的變化型，卻被判
+  「再想想」。既有的 61 段有 132 個這種變體（新加的 32 段是 0 個），
+  `content-generation.test.js` 用棘輪釘住「不准再往上加」。
+  寫新內容時的做法：**keywords 挑兩邊 accept 都有的字**，而且注意單複數
+  （socket / sockets 在 `tokens()` 眼裡是兩個字）與 thanks / thank you。
+- **聽力的正解位置會不自覺地集中。** 366 題原本有 68% 的正解在第二個位置，
+  自己新寫的 48 組也有 59% —— 所以選項改成在 `pick()` 的時候洗牌
+  （`lib/practice.js` 的 `shuffleOptions()`）。寫題目時不必刻意分散，
+  但**別把洗牌拿掉**。
 - ECDICT 的原始資料很髒：釋義是簡體、音標混用非 IPA 字元（`ә` 是西里爾字母、
   `^` 其實是 `ɡ`、`\` 是 `ɜ`）。清理邏輯在 `scripts/build-vocabulary.mjs`，改之前先讀註解。
 - **OpenCC 的簡繁一對多會轉錯。** 簡體「发」對應正體的「發」與「髮」，靠詞組判斷；

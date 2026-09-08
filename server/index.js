@@ -7,7 +7,7 @@ import express from 'express';
 import multer from 'multer';
 
 import {
-  getPronunciationFeedback, GeminiError, hasApiKey,
+  getPronunciationFeedback, GeminiError, hasApiKey, isAllowedModel,
   resetClient as resetGeminiClient, MODELS, defaultModel,
 } from './gemini.js';
 // 匯入時改名：這個檔案裡已經有一個 `narrate` —— 那是「使用者要不要講評」的布林值。
@@ -15,6 +15,7 @@ import {
 // `narrate is not a function`，只有真的送一次錄音才會發現。
 import { narrate as generateNarration, narrationProvider, modelAvailability } from './narrator.js';
 import { parseReviewRequest, reviewDialogueAnswer } from './coach.js';
+import { limitsFromEnv, judgeCall, usageKey, describeBlock } from './quota.js';
 import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { localSummary, wantsNarration } from './narration.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
@@ -109,11 +110,21 @@ function capabilities() {
     // local 那條路的 ready 是 true（本地摘要永遠可用），但 AI 修正沒有本地
     // 替代品，local 對它就是不能用。推導在 narrator.js，只有那一份
     aiReview: modelAvailability(),
+    // 每天的呼叫上限（所有模式一起算）。設定頁要顯示「今天用了幾次 / 上限」，
+    // 而上限是伺服器的設定 —— 前端沒有第二份
+    quota: limitsFromEnv(),
   };
 }
 
-app.get('/api/capabilities', (req, res) => {
-  res.json(capabilities());
+app.get('/api/capabilities', async (req, res, next) => {
+  try {
+    // 「今天用了幾次」是**這個帳號**的，所以只有這個端點帶得上（capabilities()
+    // 本身是整台機器共用的那一份，存完金鑰的回應也在用）
+    const usage = await store.readUsage(req.user.id, today());
+    res.json({ ...capabilities(), usage });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // 可選的 Gemini model。前端的選單從這裡拿，送上來的值也會在 gemini.js 用
@@ -222,6 +233,79 @@ function handleSettingsError(err, res) {
   });
 }
 
+// ─── 每天的呼叫上限 ──────────────────────────────────────────────────────
+//
+// 規則是純函式（`server/quota.js`），計數的落地在 `server/store.js`，
+// 這裡只有「把兩者接起來」與「哪些呼叫要記」。
+//
+// **哪些呼叫要記：每一個要花錢的。** Azure 的發音評估、跟讀的中文講評、
+// 情境對話的 AI 修正，全部記在同一個人的同一個計數裡（所以上限是所有模式
+// 加在一起算的），但**各自的模型還可以有自己的上限**（見 quota.js 開頭）。
+
+/** 計數的格子。用伺服器的本地時區 —— 使用者跟伺服器通常在同一個時區。 */
+function today(now = new Date()) {
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * 這一次呼叫走哪個模型。
+ *
+ * 為什麼不能直接用 `modelAvailability().model`：Gemini 那條路的 model 是
+ * **每次請求可以換的**（前端的選單），而次數要記在真正被呼叫的那一個上，
+ * 不然「這個模型今天還剩幾次」永遠是錯的。白名單在 gemini.js 也會驗一次，
+ * 這裡先套用同一條規則，讓計數跟實際呼叫的是同一個 model。
+ */
+function callTarget(requestedModel) {
+  const availability = modelAvailability();
+  const model = availability.id === 'gemini'
+    ? (requestedModel && isAllowedModel(requestedModel) ? requestedModel : defaultModel())
+    : availability.model;
+  return { ...availability, model };
+}
+
+/**
+ * 花掉一次額度。**放行才會加一** —— 判斷與加一在 store 的同一個獨佔區段裡做
+ * （理由見 `store.spendUsage()`）。
+ *
+ * @param {object} req 要有 req.user（所有 /api 都過了 authGate）
+ * @param {{provider: string, model?: string}} target
+ * @returns {Promise<object>} judgeCall 的結果 + `usage`（記完的計數）+ `key`
+ */
+async function spendQuota(req, { provider, model }) {
+  const key = usageKey({ provider, model });
+  const limits = limitsFromEnv();
+  const verdict = await store.spendUsage(req.user.id, key, {
+    day: today(),
+    judge: (usage) => judgeCall({ usage, key, provider, limits }),
+  });
+  if (!verdict.allowed) {
+    console.warn(
+      `[quota] ${req.user.username} 今天的額度用完了（${verdict.reason === 'total'
+        ? `總量 ${verdict.total}/${verdict.totalLimit}`
+        : `${key} ${verdict.used}/${verdict.limit}`}），這次沒有呼叫`
+    );
+    return { ...verdict, key };
+  }
+
+  // 「還剩幾次」要用**扣完之後**的數字重算。judgeCall 拿到的是扣之前的計數，
+  // 直接回它的 remaining 的話，畫面上第一次呼叫完會寫「還可以呼叫 3 次」
+  // —— 而其實只剩 2 次
+  const after = judgeCall({ usage: verdict.usage, key, provider, limits });
+  return { ...verdict, remaining: after.remaining, key };
+}
+
+/** 回給前端的額度資訊。畫面上要寫「今天還剩幾次」，而剩幾次只有伺服器知道。 */
+function quotaInfo(verdict) {
+  return {
+    remaining: verdict.remaining,
+    total: verdict.usage?.total ?? verdict.total,
+    totalLimit: verdict.totalLimit,
+    limit: verdict.limit,
+  };
+}
+
 /**
  * 情境對話的 AI 修正：收一句使用者寫的英文，回「更自然的說法 + 為什麼」。
  *
@@ -253,6 +337,18 @@ app.post('/api/dialogue-review', async (req, res) => {
 
   // model 只有 Gemini 那條路吃得到，白名單在 gemini.js 再驗一次
   const model = typeof req.body?.model === 'string' ? req.body.model.trim() || undefined : undefined;
+  const target = callTarget(model);
+
+  // 額度**在呼叫之前**扣。扣完再呼叫的話，額度用完的那一次還是花了錢
+  const quota = await spendQuota(req, target);
+  if (!quota.allowed) {
+    return res.json({
+      ok: false,
+      reason: 'quota',
+      message: describeBlock(quota, { what: 'AI 修正' }),
+      quota: quotaInfo(quota),
+    });
+  }
 
   const startedAt = Date.now();
   const review = await reviewDialogueAnswer(parsed.task, { model });
@@ -269,10 +365,21 @@ app.post('/api/dialogue-review', async (req, res) => {
       reason: 'failed',
       message: '這次的 AI 修正沒有回來。本地批改與參考答案不受影響，' +
         '可以直接繼續練；一直失敗的話請看伺服器 console。',
+      // 失敗的那一次**已經扣掉額度了** —— 呼叫真的發生過（可能是超時、
+      // 可能是回來的東西整理不出來），錢照樣花了。畫面上寫得出剩幾次，
+      // 才不會出現「一直重試卻不知道額度在減少」
+      quota: quotaInfo(quota),
     });
   }
 
-  res.json({ ok: true, review, label: availability.label, model: availability.model, ms });
+  res.json({
+    ok: true,
+    review,
+    label: availability.label,
+    model: target.model,
+    ms,
+    quota: quotaInfo(quota),
+  });
 });
 
 app.post(
@@ -351,6 +458,18 @@ app.post(
     try {
       // ─── 主要路徑：Azure 做客觀評估，Gemini 只負責把數字講成人話 ───
       if (hasAzureConfig()) {
+        // 評估本身也要扣額度：它跟講評一樣是花錢的呼叫，而上限是所有模式、
+        // 所有服務加在一起算的（見 quota.js 開頭）。這一關過不了就整個請求
+        // 回 429 —— 沒有分數的話這次錄音什麼都做不了，退回本地摘要沒有意義
+        const azureQuota = await spendQuota(req, { provider: 'azure' });
+        if (!azureQuota.allowed) {
+          return res.status(429).json({
+            error: 'quota_exceeded',
+            message: describeBlock(azureQuota, { what: '發音評分' }),
+            quota: quotaInfo(azureQuota),
+          });
+        }
+
         const assessment = await assessPronunciation({
           audioBuffer: req.file.buffer,
           referenceText: sentence,
@@ -362,15 +481,25 @@ app.post(
         let narrationMs = null;
         let narrationReason = null;
 
+        let narrationQuota = null;
+
         if (!narrate) {
           narrationReason = 'disabled';
         } else {
-          const narrationStartedAt = Date.now();
-          narration = await generateNarration(assessment, { model });
-          narrationMs = Date.now() - narrationStartedAt;
-          // narrate() 對「沒設定」與「呼叫失敗」都回 null，但這兩件事
-          // 該給使用者看的說明不一樣，所以在這裡分開。
-          if (!narration) narrationReason = narrationProvider().ready ? 'failed' : 'no_key';
+          // 講評的額度是分開扣的（它是第二次呼叫、而且常常是另一個服務）。
+          // 額度不夠時**不讓整個請求失敗** —— 分數已經拿到了，這裡退回本地摘要
+          // 就好，跟「沒設定金鑰」與「這次沒回來」一樣是一種缺席
+          narrationQuota = await spendQuota(req, callTarget(model));
+          if (!narrationQuota.allowed) {
+            narrationReason = 'quota';
+          } else {
+            const narrationStartedAt = Date.now();
+            narration = await generateNarration(assessment, { model });
+            narrationMs = Date.now() - narrationStartedAt;
+            // narrate() 對「沒設定」與「呼叫失敗」都回 null，但這兩件事
+            // 該給使用者看的說明不一樣，所以在這裡分開。
+            if (!narration) narrationReason = narrationProvider().ready ? 'failed' : 'no_key';
+          }
         }
 
         console.log(
@@ -393,10 +522,22 @@ app.post(
           // 回傳實際等了多久，讓「值不值得等」這件事在畫面上看得到，
           // 而不是只有「感覺很慢」。
           narrationMs,
+          quota: quotaInfo(narrationQuota ?? azureQuota),
         });
       }
 
       // ─── 沒設定 Azure 時的退路：純 Gemini（主觀分數）───
+      //
+      // 這條路上分數就是模型給的，所以額度不夠時沒有東西可以退 —— 回 429
+      const geminiQuota = await spendQuota(req, { provider: 'gemini', model: model || defaultModel() });
+      if (!geminiQuota.allowed) {
+        return res.status(429).json({
+          error: 'quota_exceeded',
+          message: describeBlock(geminiQuota, { what: '發音評分' }),
+          quota: quotaInfo(geminiQuota),
+        });
+      }
+
       const result = await getPronunciationFeedback({
         audioBuffer: req.file.buffer,
         mimeType: req.file.mimetype?.startsWith('audio/') ? req.file.mimetype : 'audio/wav',
@@ -411,6 +552,7 @@ app.post(
         ...result,
         narrationSource: 'gemini',
         narrationReason: narrate ? null : 'gemini_scores',
+        quota: quotaInfo(geminiQuota),
       });
     } catch (err) {
       if (err instanceof AzureError || err instanceof GeminiError) {

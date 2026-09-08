@@ -114,7 +114,7 @@ export function cleanNarration(raw) {
 }
 
 /** 講評缺席的原因。會回給前端，決定畫面上那行小字怎麼寫。 */
-export const NARRATION_REASONS = ['disabled', 'no_key', 'failed', 'gemini_scores'];
+export const NARRATION_REASONS = ['disabled', 'no_key', 'failed', 'gemini_scores', 'quota'];
 
 /**
  * 前端送上來的 narrate 欄位要不要呼叫 Gemini 講評。
@@ -151,6 +151,8 @@ const CLOSING = {
   no_key: '•（伺服器設定好講評用的模型之後，這裡會換成更具體的中文教練建議）',
   failed: '•（這次的講評沒有回來，已改用本地摘要。分數不受影響，' +
     '可以直接繼續練；一直失敗的話請看伺服器 console。）',
+  quota: '•（今天的 AI 呼叫次數用完了，這段改用本地摘要。分數不受影響，' +
+    '明天會重新計算；要調整上限請看「設定 → 每天的呼叫上限」。）',
 };
 
 /**

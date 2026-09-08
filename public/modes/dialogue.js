@@ -7,8 +7,9 @@ import { filterBySettings, getSettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, normalize, RESULT_HEAD } from '../lib/grade.js';
 import {
-  aiReviewAvailability, requestDialogueReview, VERDICT_HEAD,
+  aiReviewAvailability, requestDialogueReview, quotaNote, VERDICT_HEAD,
 } from '../lib/ai-review.js';
+import { getReviews, saveReview, reviewKey } from '../lib/storage.js';
 import { Recorder, isSupported as recSupported, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
 
 export const meta = { id: 'dialogue', label: '情境對話', icon: '💬' };
@@ -212,6 +213,9 @@ function transcriptCard() {
       );
     } else {
       const said = scores[countUserTurnsBefore(i)];
+      // 存下來的 AI 修正也放回對話記錄裡。存了卻沒有地方看得到的話，
+      // 那份資料對使用者不存在 —— 而它是花錢換來的
+      const stored = said?.input ? storedReviewFor(i, said.input) : null;
       append(card, 
         h('div', { class: 'bubble bubble--you' },
           h('span', { class: 'bubble__who' }, current.your_role_zh),
@@ -219,11 +223,21 @@ function transcriptCard() {
           said && said.level !== 'exact' && said.level !== 'close'
             ? h('p', { class: 'bubble__ref' }, `參考：${turn.answer}`)
             : null,
+          stored?.corrected && normalize(stored.corrected) !== normalize(said.input)
+            ? h('p', { class: 'bubble__ref' }, `🤖 更自然：${stored.corrected}`)
+            : null,
         ),
       );
     }
   });
   return card;
+}
+
+/** 對話記錄裡第 index 句台詞存下來的修正（句子要對得上，理由見 cachedReview）。 */
+function storedReviewFor(index, input) {
+  const stored = getReviews()[reviewKey(current.id, index)];
+  if (!stored || normalize(stored.input ?? '') !== normalize(input)) return null;
+  return stored;
 }
 
 function countUserTurnsBefore(index) {
@@ -371,9 +385,10 @@ function reviewBlock() {
       // 前面加上機器人：這一行講的是 AI 修正的事，而它前面就是教材的參考答案 ——
       // 沒有記號的話看起來像在說剛才那次作答出了什麼問題
       h('p', { class: 'hint hint--warn' }, `🤖 ${review.message}`),
-      // 沒設定模型時不給「再要一次」—— 按幾次都會是同一個結果
-      review.reason !== 'no_key' && h('button', { class: 'btn btn--ghost', onclick: askAi },
-        '🤖 再要一次'),
+      // 沒設定模型、或今天的次數用完了都不給「再要一次」——
+      // 按幾次都會是同一個結果，而其中一種還會讓人以為是自己按得不夠多
+      !['no_key', 'quota'].includes(review.reason)
+        && h('button', { class: 'btn btn--ghost', onclick: askAi }, '🤖 再要一次'),
     );
     return box;
   }
@@ -399,7 +414,7 @@ function reviewBlock() {
 }
 
 /** 修正回來之後長什麼樣。 */
-function reviewResult({ data, label, ms }) {
+function reviewResult({ data, label, ms, quota, cached }) {
   const [title, tone] = VERDICT_HEAD[data.verdict] ?? VERDICT_HEAD.minor;
   const box = h('div', { class: `airev__box airev__box--${tone}` },
     h('p', { class: 'airev__title' }, title),
@@ -428,9 +443,14 @@ function reviewResult({ data, label, ms }) {
   }
 
   append(box, h('p', { class: 'airev__by' },
-    `由 ${label ?? '伺服器設定的模型'} 產生` +
+    `由 ${label || '伺服器設定的模型'} 產生` +
     (typeof ms === 'number' ? `，等了 ${(ms / 1000).toFixed(1)} 秒` : '') +
+    // 從快取拿的要講出來：不然「這次怎麼是瞬間出現」看起來像沒有真的問過
+    (cached ? '（這一句你之前已經問過了，直接拿存下來的，沒有再呼叫一次）' : '') +
     '。這是模型的意見，跟上面教材的參考答案不一樣是正常的。'));
+
+  const note = quotaNote(quota);
+  if (note) append(box, h('p', { class: 'airev__by' }, note));
 
   return box;
 }
@@ -478,11 +498,29 @@ function check() {
   // 記錄這一輪的結果（再試一次會覆蓋掉同一格）
   scores[countUserTurnsBefore(step)] = { input, level: result.level };
   resetReview();
+
+  // 同一句話已經要過修正的話直接拿舊的 —— **不再付一次錢**。
+  // 「再試一次」按下去、答案一個字都沒改是很常見的動作，而每一次都是一次呼叫
+  const cached = cachedReview(input);
+  if (cached) review = { state: 'done', data: cached, label: cached.label, cached: true };
+
   render();
 
   // 本地批改先出現（免費、瞬間），AI 修正才去要 —— 順序反過來的話，
   // 整張結果卡要等模型回來才看得到，而那幾秒裡使用者什麼都沒有
-  if (getSettings().dialogueAiReview !== false) askAi();
+  if (!cached && getSettings().dialogueAiReview !== false) askAi();
+}
+
+/**
+ * 這一句以前要過修正嗎（同一段對話、同一句台詞、**而且寫的是同一句話**）。
+ *
+ * 第三個條件是重點：句子改過之後，舊的那份講的是另一句話，
+ * 拿出來會變成「AI 說的跟我寫的對不上」——比沒有修正更糟。
+ */
+function cachedReview(input) {
+  const stored = getReviews()[reviewKey(current.id, step)];
+  if (!stored || normalize(stored.input ?? '') !== normalize(input)) return null;
+  return stored;
 }
 
 /**
@@ -517,8 +555,20 @@ function askAi() {
     // 對不上 token 就是「這已經不是剛才那一句了」—— 直接丟掉
     if (token !== reviewToken || !root) return;
     review = out.ok
-      ? { state: 'done', data: out.review, label: out.label, ms: out.ms }
-      : { state: 'error', reason: out.reason, message: out.message };
+      ? { state: 'done', data: out.review, label: out.label, ms: out.ms, quota: out.quota }
+      : { state: 'error', reason: out.reason, message: out.message, quota: out.quota };
+
+    // 存起來：重新整理不會消失，而且同一句話不會再付第二次錢。
+    // 存的是**當時寫的句子**加上修正 —— 比對句子是快取能不能用的唯一依據
+    if (out.ok) {
+      saveReview(reviewKey(current.id, step), {
+        input,
+        corrected: out.review.corrected ?? null,
+        verdict: out.review.verdict,
+        notes: out.review.notes ?? [],
+        label: out.label ?? '',
+      });
+    }
     render();
   });
 }

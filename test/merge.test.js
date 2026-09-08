@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  mergeActivity, mergeDayNumbers, mergeHistory, mergeSettings, mergeSrs, mergeState,
+  mergeActivity, mergeDayNumbers, mergeHistory, mergeReviews, mergeSettings, mergeSrs, mergeState,
 } from '../public/lib/merge.js';
 
 /** 兩個性質一起驗。每一種資料都跑一次。 */
@@ -242,6 +242,63 @@ test('srsVersion 取大的（搬家版本只會往前）', () => {
   assert.equal(mergeState({ srsVersion: 2 }, {}).srsVersion, 2);
 });
 
+// ─── reviews：情境對話的 AI 修正 ─────────────────────────────────────────
+
+test('AI 修正：兩台裝置練過的段落合起來，不是整包取一邊', () => {
+  // 每一筆都是一次花錢的呼叫。整包取新的那一邊會把另一台練過的丟掉，
+  // 而丟掉的代價是下次練到那一段時再付一次錢
+  const phone = {
+    reviews: {
+      '1:1': { input: 'I want a latte', corrected: 'Can I get a latte?', at: '2026-09-06T01:00:00.000Z' },
+    },
+  };
+  const desk = {
+    reviews: {
+      '7:3': { input: 'Where is toilet', corrected: 'Where is the restroom?', at: '2026-09-06T02:00:00.000Z' },
+    },
+  };
+
+  const merged = assertWellBehaved(phone, desk, 'AI 修正');
+  assert.deepEqual(Object.keys(merged.reviews).sort(), ['1:1', '7:3']);
+});
+
+test('AI 修正：同一格取比較新的那一次', () => {
+  // 使用者改了句子再問一次，舊的那份講的是另一句話 —— 留著會對不上
+  const older = {
+    reviews: { '1:1': { input: 'I want latte', corrected: 'A latte, please.', at: '2026-09-06T01:00:00.000Z' } },
+  };
+  const newer = {
+    reviews: { '1:1': { input: 'I want a latte to go', corrected: 'Can I get a latte to go?', at: '2026-09-07T01:00:00.000Z' } },
+  };
+
+  const merged = assertWellBehaved(older, newer, 'AI 修正（同一格）');
+  assert.equal(merged.reviews['1:1'].input, 'I want a latte to go');
+});
+
+test('AI 修正：超過上限時兩邊丟掉的是同一批', () => {
+  // 排序只比 at 的話，時間一樣的幾筆會維持進來的順序 —— 那取決於哪一邊先合
+  const make = (offset) => Object.fromEntries(
+    Array.from({ length: 150 }, (_, i) => [
+      `d${offset}:${i}`,
+      { input: `line ${i}`, corrected: 'x', at: '2026-09-06T00:00:00.000Z' },
+    ])
+  );
+  const a = { reviews: make(1) };
+  const b = { reviews: make(2) };
+
+  const merged = assertWellBehaved(a, b, 'AI 修正（超過上限）');
+  assert.equal(Object.keys(merged.reviews).length, 200);
+});
+
+test('AI 修正：只有一邊有的時候原樣帶過去', () => {
+  const only = { reviews: { '1:1': { input: 'hi', at: '2026-09-06T00:00:00.000Z' } } };
+  assert.deepEqual(mergeReviews(only.reviews, undefined), only.reviews);
+  assert.deepEqual(mergeReviews(undefined, only.reviews), only.reviews);
+  assert.equal(mergeReviews(undefined, undefined), undefined);
+  // 壞掉的形狀（陣列、字串）不能讓合併爆掉
+  assert.deepEqual(mergeReviews(['x'], only.reviews), only.reviews);
+});
+
 test('隨機的兩台裝置操作序列都滿足冪等與交換律', () => {
   // 上面每一條都是舉例；這一條負責掃邊界。
   // 失敗的話會印出那一組資料，可以直接拿去寫成一條新的測試
@@ -283,6 +340,17 @@ test('隨機的兩台裝置操作序列都滿足冪等與交換律', () => {
           ttsRate: Number(rnd().toFixed(2)),
           ...(rnd() < 0.8 ? { updatedAt: Math.floor(rnd() * 1000) } : {}),
         };
+      }
+      if (rnd() < 0.5) {
+        state.reviews = {};
+        for (let i = 0; i < Math.floor(rnd() * 4); i++) {
+          state.reviews[`${1 + Math.floor(rnd() * 3)}:${Math.floor(rnd() * 5)}`] = {
+            input: pick(['I want a latte', 'Where is toilet', 'How much']),
+            corrected: pick(['Can I get a latte?', 'Where is the restroom?', null]),
+            verdict: pick(['ok', 'minor', 'major']),
+            at: `2026-09-0${1 + Math.floor(rnd() * 9)}T0${Math.floor(rnd() * 10)}:00:00.000Z`,
+          };
+        }
       }
       if (rnd() < 0.5) {
         state.history = Array.from({ length: Math.floor(rnd() * 4) }, () => ({

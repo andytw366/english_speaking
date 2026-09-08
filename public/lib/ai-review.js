@@ -69,8 +69,10 @@ export async function requestDialogueReview(task) {
     if (!body?.ok) {
       return {
         ok: false,
-        reason: body?.reason === 'no_key' ? 'no_key' : 'failed',
+        // quota 是「今天的次數用完了」—— 跟 failed 分開，因為再按一次也沒有用
+        reason: ['no_key', 'quota'].includes(body?.reason) ? body.reason : 'failed',
         message: body?.message ?? 'AI 修正這次沒有回來。',
+        quota: body?.quota ?? null,
       };
     }
     return body;
@@ -88,6 +90,21 @@ export async function requestDialogueReview(task) {
  * 判定的三級要怎麼顯示。伺服器只回 `ok` / `minor` / `major` 三個字 ——
  * 中文與顏色是畫面的事，寫在前端。
  */
+/**
+ * 「今天還剩幾次」那一行。剩很多的時候不寫 —— 每一句都提醒剩幾次，
+ * 會把一個安全網變成一個計時器。
+ *
+ * @param {{remaining: number|null}|null|undefined} quota 伺服器回來的額度資訊
+ */
+export function quotaNote(quota) {
+  const left = quota?.remaining;
+  if (typeof left !== 'number') return '';   // 沒有設上限
+  if (left > 20) return '';
+  return left > 0
+    ? `今天還可以呼叫 ${left} 次（所有模式一起算）。`
+    : '今天的呼叫次數已經用完了。';
+}
+
 export const VERDICT_HEAD = {
   ok: ['🤖 AI：這樣說可以', 'ok'],
   minor: ['🤖 AI：可以更自然', 'close'],

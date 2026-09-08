@@ -994,6 +994,18 @@ if (await answerBox.count()) {
     afterCheck.replace(/\s+/g, ' ').replace(/^.*(?=🤖)/, '').slice(0, 60));
 }
 
+// 每天的呼叫上限：**每個帳號都要看得到今天用了幾次**。
+// 看不到數字的話，「今天的 AI 修正怎麼不見了」是額度用完、金鑰壞了、還是
+// 網路不通，三件事的畫面幾乎一樣 —— 使用者完全無從判斷
+await seed({ mode: 'settings' });
+await page.waitForSelector('.card', { hasText: '每天的呼叫上限' });
+const quotaText = await viewText();
+check('設定頁寫得出今天用了幾次', /今天已經用了 \d+ 次/.test(quotaText),
+  quotaText.match(/今天已經用了[^。]{0,30}/)?.[0] ?? '');
+check('上限說明講清楚是所有模式一起算', quotaText.includes('所有模式加在一起算'));
+check('學習資料算得出 AI 修正有幾筆', /AI 修正：\d+ 筆/.test(quotaText),
+  quotaText.match(/AI 修正：\d+ 筆/)?.[0] ?? '');
+
 // 清除每日紀錄（連續天數唯一清得掉的地方）
 await seed({ mode: 'settings', activity: { vocabulary: { '2026-09-04': 20, '2026-09-05': 12 } } });
 await page.waitForSelector('.card', { hasText: '學習資料' });

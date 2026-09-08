@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { PROVIDERS } from './narrator.js';
+import { parseLimit, parseLimits } from './quota.js';
 
 // 從瀏覽器設定 API 金鑰。
 //
@@ -43,6 +44,11 @@ const MANAGED_KEYS = [
   'NARRATION_BASE_URL',
   'NARRATION_API_KEY',
   'NARRATION_MODEL',
+  // 每天的呼叫上限（所有模式一起算）。跟金鑰放同一條路是刻意的 ——
+  // 它跟金鑰一樣是「會花錢的設定」，而且改它的時機正是「發現花太兇」的時候，
+  // 那時候人多半在手機上，不會想 ssh 進伺服器改 .env
+  'AI_DAILY_LIMIT',
+  'AI_DAILY_LIMITS',
 ];
 
 /** 值的長度上限。正常的金鑰不到 200 字元，這只是別讓人塞一整個檔案進來。 */
@@ -117,6 +123,9 @@ export function readSettings() {
     NARRATION_BASE_URL: plain(process.env.NARRATION_BASE_URL),
     NARRATION_API_KEY: mask(process.env.NARRATION_API_KEY?.trim()),
     NARRATION_MODEL: plain(process.env.NARRATION_MODEL),
+    // 呼叫上限不是機密，而且「現在的上限是多少」正是使用者要在畫面上看到的東西
+    AI_DAILY_LIMIT: plain(process.env.AI_DAILY_LIMIT),
+    AI_DAILY_LIMITS: plain(process.env.AI_DAILY_LIMITS),
   };
 }
 
@@ -149,6 +158,19 @@ export function valueProblem(key, value) {
 
   if (key === 'NARRATION_PROVIDER' && !PROVIDERS.includes(v)) {
     return `講評來源只能填 ${PROVIDERS.join(' / ')}，留空表示自動判斷。`;
+  }
+
+  if (key === 'AI_DAILY_LIMIT' && parseLimit(v) === undefined) {
+    return '每天的呼叫上限要填一個數字（例如 200），或填 off 表示不限制。留空是用預設值。';
+  }
+
+  if (key === 'AI_DAILY_LIMITS') {
+    // 空的結果代表「一條都沒看懂」——parseLimits 對看不懂的項目是略過，
+    // 所以打錯字的症狀會是「存好了，但上限沒有變」。在這裡就講清楚
+    if (Object.keys(parseLimits(v)).length === 0) {
+      return '逐模型的上限要寫成「model=次數」，多個用分號隔開，' +
+        '例如 gemini=50; openai/gpt-oss-120b:groq=500。次數可以填 off 表示不限制。';
+    }
   }
 
   if (key === 'NARRATION_BASE_URL') {

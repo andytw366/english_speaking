@@ -9,7 +9,7 @@ import {
 } from '../lib/sync.js';
 import {
   resetSrs, clearHistory, getHistory, getSrsState, exportState, importState,
-  clearActivity, getActivity, activityDays,
+  clearActivity, getActivity, activityDays, getReviews, clearReviews,
 } from '../lib/storage.js';
 import {
   buildBackup, parseBackup, backupSummary, summaryText, backupFilename,
@@ -46,6 +46,7 @@ let isOwner = false;
 let knowWhoIAm = false;
 let saveState = '';
 let narrationSaveState = '';
+let quotaSaveState = '';
 let backupState = '';
 let syncState = '';
 let root = null;
@@ -61,6 +62,7 @@ export async function mount(container) {
   // 很容易讓人以為剛剛那次操作有存到
   saveState = '';
   narrationSaveState = '';
+  quotaSaveState = '';
 
   // 不是擁有者就不要打這個端點 —— 伺服器會回 403，而那個 403 會在
   // console 裡變成一條紅字，看起來像壞了。
@@ -104,7 +106,7 @@ function render() {
   // 這些卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
   // 單欄排下來 1440×900 要捲三個螢幕才看得完
   append(grid(root),
-    apiCard(), isOwner && narrationCard(), goalCard(), practiceCard(),
+    apiCard(), isOwner && narrationCard(), quotaCard(), goalCard(), practiceCard(),
     voiceCard(), syncCard(), dataCard());
 }
 
@@ -271,6 +273,99 @@ function narrationCard() {
   return card;
 }
 
+// ─── 每天的呼叫上限 ──────────────────────────────────────────────────────
+//
+// 這張卡**每個帳號都看得到**，但只有擁有者改得動。
+//
+// 為什麼別人也要看得到：額度是**共用的一個預算**（所有模式一起算），
+// 而「今天的 AI 修正怎麼不見了」在看不到數字的情況下完全無法自己判斷 ——
+// 那是額度用完了、金鑰壞了、還是網路不通，三件事的畫面幾乎一樣。
+function quotaCard() {
+  const card = h('div', { class: 'card' },
+    h('p', { class: 'card__title' }, '每天的呼叫上限'),
+    h('p', { class: 'hint' },
+      '所有模式加在一起算 —— 跟讀的發音評分與中文講評、情境對話的 AI 修正，' +
+      '全部記在同一個計數裡。這是唯一擋得住「按錯一直重試把配額燒光」的東西。'),
+    usageLine(),
+  );
+
+  if (!isOwner) {
+    append(card, h('p', { class: 'hint' },
+      '上限由擁有者（第一個註冊的帳號）設定 —— 這個帳號改不了，但上面的數字是你自己今天用掉的。'));
+    return card;
+  }
+  if (serverError || !serverSettings) return card;
+
+  append(card,
+    field('每天最多幾次（全部模式）', 'quota-total', {
+      type: 'text',
+      value: serverSettings.AI_DAILY_LIMIT?.value ?? '',
+      placeholder: '留空 = 預設 200；填 off = 不限制',
+      note: '扣的時機是「呼叫之前」—— 所以就算模型沒回來，那一次也算用掉了（錢真的花了）。',
+    }),
+    field('個別模型的上限（選填）', 'quota-per-model', {
+      type: 'text',
+      value: serverSettings.AI_DAILY_LIMITS?.value ?? '',
+      placeholder: 'gemini=50; openai/gpt-oss-120b:groq=500; azure=off',
+      note: '寫成「model=次數」，多個用分號隔開。' +
+        '只寫供應商名稱（gemini / openai / azure）的話，那條路的所有 model 都算同一個上限。' +
+        '總量與這裡的上限「兩道都要過」，任一個滿了就擋。',
+    }),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn--primary', onclick: saveQuota }, '儲存上限'),
+      quotaSaveState &&
+        h('span', { class: `hint ${saveTone(quotaSaveState)}` }, quotaSaveState),
+    ),
+  );
+  return card;
+}
+
+/** 今天用了幾次 / 上限。`caps.usage` 是這個帳號的，`caps.quota` 是伺服器的設定。 */
+function usageLine() {
+  const usage = caps?.usage;
+  const limit = caps?.quota?.total ?? null;
+  if (!usage) {
+    return h('p', { class: 'hint' }, '（讀不到今天的用量，連上線之後重新整理就會出現。）');
+  }
+
+  const byKey = Object.entries(usage.byKey ?? {})
+    .filter(([, n]) => Number(n) > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, n]) => `${key} ${n}`)
+    .join('・');
+
+  return h('div', {},
+    h('p', { class: 'field__label' },
+      `今天已經用了 ${usage.total} 次` + (limit === null ? '（沒有上限）' : ` / 上限 ${limit} 次`)),
+    byKey && h('p', { class: 'hint' }, `分別是：${byKey}`),
+    h('p', { class: 'hint' }, '每天從 0 開始（伺服器的日期），數字存在伺服器上 —— ' +
+      '換裝置或清除瀏覽器資料都不會重新計算。'),
+  );
+}
+
+async function saveQuota() {
+  const get = (id) => root?.querySelector(`#${id}`)?.value ?? '';
+  const payload = {};
+
+  for (const [id, envKey] of [
+    ['quota-total', 'AI_DAILY_LIMIT'],
+    ['quota-per-model', 'AI_DAILY_LIMITS'],
+  ]) {
+    const value = get(id).trim();
+    if (value !== (serverSettings?.[envKey]?.value ?? '')) payload[envKey] = value;
+  }
+
+  if (Object.keys(payload).length === 0) {
+    quotaSaveState = '沒有變更';
+    return render();
+  }
+
+  quotaSaveState = '儲存中…';
+  render();
+  quotaSaveState = await postSettings(payload);
+  render();
+}
+
 function saveTone(state) {
   if (state.startsWith('✅')) return 'hint--ok';
   if (state.startsWith('⚠️')) return 'hint--error';
@@ -358,7 +453,9 @@ async function postSettings(payload) {
     // 後端連同「現在有什麼能力」一起回來（跟 /api/capabilities 同一份）——
     // 存完之後「目前」那一行要馬上對，不然使用者會以為沒生效而重複儲存。
     // 前端自己推的話就會有第二份規則（Azure 要 key 和 region 都有才算）
-    if (body.capabilities) caps = body.capabilities;
+    // usage（這個帳號今天用了幾次）不在 capabilities() 裡 —— 那一份是整台機器共用的。
+    // 不留著的話，存完上限之後上面那行用量會變成「讀不到」
+    if (body.capabilities) caps = { ...body.capabilities, usage: caps?.usage };
     // 情境對話那邊自己快取了一份「AI 修正能不能用」（同一次載入只問一趟）。
     // 不丟掉的話，剛剛才設好金鑰卻要重新整理才會通 —— 而那看起來就是沒生效
     forgetAiReviewAvailability();
@@ -797,11 +894,13 @@ function dataCard() {
     PRACTICE_MODES.flatMap((m) => [...activityDays(activity, m.id)])
   ).size;
 
+  const reviewCount = Object.keys(getReviews()).length;
+
   return h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '學習資料'),
     h('p', { class: 'hint' },
       `單字卡進度：${srsCount} 張有紀錄　|　跟讀紀錄：${historyCount} 筆　|　` +
-      `每日紀錄：${activeDays} 天。` +
+      `每日紀錄：${activeDays} 天　|　AI 修正：${reviewCount} 筆。` +
       '這些都存在這個瀏覽器的 localStorage，換瀏覽器或清除瀏覽資料就會消失。'),
 
     // 備份放在清除按鈕的**上面**：這一區最危險的三顆按鈕就在下面，
@@ -817,7 +916,7 @@ function dataCard() {
       backupState && h('span', { class: 'hint' }, backupState),
     ),
     h('p', { class: 'hint' },
-      '備份是一個 JSON 檔，包含複習進度、每日紀錄、跟讀紀錄與偏好設定（不含金鑰）。' +
+      '備份是一個 JSON 檔，包含複習進度、每日紀錄、跟讀紀錄、AI 修正紀錄與偏好設定（不含金鑰）。' +
       '換瀏覽器、換電腦、或清除瀏覽資料之前先下載一份 —— 這些東西重建不出來。'),
 
     h('div', { class: 'row' },
@@ -836,6 +935,16 @@ function dataCard() {
           '確定要清除每日紀錄嗎？連續天數會歸零。（複習進度與跟讀成績不受影響）',
           () => { clearActivity(); render(); }),
       }, '清除每日紀錄'),
+      // 清掉它的代價要講清楚：這份紀錄同時是「同一句話不要再付一次錢」的快取，
+      // 清掉之後練到同一句台詞會重新呼叫一次模型
+      reviewCount > 0 && h('button', {
+        class: 'btn',
+        onclick: () => confirmThen(
+          `確定要清除 ${reviewCount} 筆 AI 修正紀錄嗎？\n\n` +
+          '它同時是「同一句話不要再呼叫一次」的快取 —— 清掉之後，' +
+          '練到同一句台詞會重新花一次額度。',
+          () => { clearReviews(); render(); }),
+      }, '清除 AI 修正紀錄'),
       h('button', {
         class: 'btn',
         onclick: () => confirmThen('確定要把所有偏好設定恢復成預設值嗎？（不影響金鑰）',

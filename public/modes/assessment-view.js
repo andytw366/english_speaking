@@ -212,6 +212,7 @@ const NARRATION_NOTE = {
   no_key: '（上面的講評由本地摘要產生 —— 伺服器還沒設定講評用的模型。）',
   failed: '（這次的講評沒有回來，已改用本地摘要。分數不受影響。）',
   gemini_scores: '（沒有設定 Azure 時分數本身就是 Gemini 給的，所以關掉講評不會變快。）',
+  quota: '（今天的 AI 呼叫次數用完了，上面是本地摘要。分數不受影響；上限在「設定 → 每天的呼叫上限」。）',
 };
 
 function narrationNote(data) {

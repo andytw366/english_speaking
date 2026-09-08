@@ -120,6 +120,7 @@ export function modelAvailability() {
 
   if (provider.id === 'local') {
     return {
+      id: 'local',
       ready: false,
       label: provider.label,
       model: '',
@@ -127,6 +128,9 @@ export function modelAvailability() {
     };
   }
   return {
+    // id 是給每日呼叫上限用的（`server/quota.js`）—— 次數記在「哪個模型」上，
+    // 而 Gemini 那條路的 model 是每次請求可以換的，所以要知道現在走的是哪一條
+    id: provider.id,
     ready: provider.ready,
     label: provider.label,
     model: provider.model,

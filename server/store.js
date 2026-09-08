@@ -99,6 +99,19 @@ export function createStore(dir) {
       return (await this.listUsers()).length;
     },
 
+    /**
+     * 擁有者 —— 第一個註冊的帳號。金鑰設定只有他能改（見 server/settings.js）。
+     *
+     * `role` 是註冊時寫進去的，但**舊的 users.json 沒有這個欄位**
+     * （帳號是在這個功能之前建的），所以找不到 role 時退回「清單裡的第一個」
+     * —— 那就是最早註冊的那一個。少了這條退路的話，既有的部署升級之後
+     * 會變成「沒有人是擁有者」，誰都改不了金鑰。
+     */
+    async owner() {
+      const users = await this.listUsers();
+      return users.find((u) => u.role === 'owner') ?? users[0] ?? null;
+    },
+
     async createUser(username, passwordHash) {
       return exclusive(async () => {
         const users = (await readJson(usersFile, { users: [] })).users ?? [];
@@ -110,6 +123,9 @@ export function createStore(dir) {
           id: crypto.randomUUID(),
           username: String(username).trim(),
           passwordHash,
+          // 第一個帳號就是擁有者。寫進檔案而不是每次算「誰最早」——
+          // 之後刪掉某個帳號時，剩下的人不會莫名其妙變成擁有者
+          role: users.length === 0 ? 'owner' : 'member',
           createdAt: new Date().toISOString(),
         };
         await writeJson(usersFile, { users: [...users, user] });

@@ -1,8 +1,15 @@
 # CI：跑得起來的都跑，需要金鑰的一律不跑。
 #
-# 這裡刻意**不跑** test/e2e.mjs —— 那支要 GEMINI_API_KEY，而且會吃免費層配額。
-# 把它掛進 CI 的話，每一個 push 都在燒別人的配額，額度用完時 CI 會紅得莫名其妙。
-# e2e 留給人在本機手動跑（見 README 的「瀏覽器端對端測試」）。
+# **不設任何金鑰**，所以 e2e 的【3】【5】（真的送錄音去評分）會自己跳過 ——
+# 這是刻意的：把有金鑰的 e2e 掛進 CI 等於每個 push 都在燒免費層配額，
+# 額度用完時 CI 會紅得莫名其妙。要驗那兩段請在本機跑（見 README）。
+#
+# 為什麼還是要把 e2e 掛上來：不需要金鑰的【1】【2】【4】（錄音 → 轉 16 kHz WAV →
+# 無人聲把關）是**沒有別的測試涵蓋得到**的一段。而且沒掛 CI 的測試會安靜地腐爛 ——
+# 帳號上線之後這支漏了登入，就這樣一直跑不動，期間「分頁有六個」還變成了七個，
+# 完全沒人發現。
+#
+# test/layout.mjs 沒掛：那支沒有斷言（是尺，不是測試），永遠不會紅。
 
 name: CI
 
@@ -68,4 +75,41 @@ jobs:
         with:
           name: ui-screenshots
           path: screenshots/
+          if-no-files-found: ignore
+
+  e2e:
+    name: 端對端（錄音那條路，不用金鑰）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: 啟動伺服器
+        run: |
+          # 乾淨的 DATA_DIR：測試會建一個 uitest 帳號，而「第一個帳號」才建得起來
+          export DATA_DIR="$RUNNER_TEMP/userdata-e2e"
+          npm start &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then
+              echo "伺服器已就緒"; exit 0
+            fi
+            sleep 1
+          done
+          echo "伺服器 30 秒內沒有起來"; exit 1
+
+      # 不帶任何金鑰 → 【3】【5】自己跳過，【1】【2】【4】照跑（真的錄音、真的轉檔）
+      - run: npm run test:e2e
+        env:
+          SHOTS: screenshots-e2e
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: screenshots-e2e/
           if-no-files-found: ignore

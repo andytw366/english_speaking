@@ -172,6 +172,9 @@ test('只有 health 與 auth 不用登入', () => {
   assert.equal(isPublicPath('/api/vocabulary/index.json'), false);
   assert.equal(isPublicPath('/api/sync'), false);
   assert.equal(isPublicPath('/api/settings'), false);
+  // 「有沒有設定金鑰、講評走哪個端點」是這台機器的部署細節。
+  // /api/health 只回「活著沒有」，那些搬到這個要登入的端點
+  assert.equal(isPublicPath('/api/capabilities'), false);
   // 這一個是真的會花錢的
   assert.equal(isPublicPath('/api/pronunciation-feedback'), false);
   // 別讓開頭像 health 的路徑漏過去

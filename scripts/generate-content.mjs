@@ -4,12 +4,17 @@
  * App 執行時仍然只讀靜態檔 —— 不會在使用者按下按鈕時呼叫 AI。
  *
  * 用法：
+ *   node scripts/generate-content.mjs listening   --plan            # 現況與建議，不呼叫 API
+ *   node scripts/generate-content.mjs listening   --from batch.json # 收一批現成的，不呼叫 API
  *   node scripts/generate-content.mjs listening   --count 20
  *   node scripts/generate-content.mjs translation --count 40
- *   node scripts/generate-content.mjs dialogue    --count 10 --category work
+ *   node scripts/generate-content.mjs dialogue    --count 10 --category food
  *   node scripts/generate-content.mjs listening   --count 5 --dry-run
  *
- * 需要 .env 裡的 GEMINI_API_KEY。--dry-run 只印出結果不寫檔。
+ * 需要 .env 裡的 GEMINI_API_KEY（`--plan` 不用）。--dry-run 只印出結果不寫檔。
+ *
+ * 不指定 --category 時，**每一批都補目前最少的那個情境**（見 scarcest()）——
+ * 照順序輪的話，最缺的情境要等好幾批才輪得到一次。
  *
  * 每一筆都會通過與現有內容相同的結構檢查，不合格的直接丟掉並回報原因 ——
  * 寧可少幾題，也不要把壞資料寫進題庫。
@@ -20,25 +25,46 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
+// 情境與難度**跟 App 用同一份**（`public/lib/labels.js`）。
+//
+// 這裡原本自己寫死四個（work / daily / travel / interview），結果是
+// **聽力與情境對話永遠生不出另外四個情境** —— 餐飲、購物、健康、學習
+// 各 0 組，而設定頁那八顆情境按鈕照樣點得下去（點了會靜靜退回全部題目，
+// 見 listening.js 的 `if (items.length === 0) items = raw`）。
+// 句庫與中翻英是腳本匯入的、八個情境都有，所以只有這兩個模式有洞。
+import { CATEGORY_LABEL, DIFFICULTY_ORDER } from '../public/lib/labels.js';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: path.join(ROOT, '.env'), quiet: true });
 
 const MODEL = 'gemini-3.6-flash';
 const BATCH = 5;                 // 一次請求產幾筆；太多會讓品質下降
-const CATEGORIES = ['work', 'daily', 'travel', 'interview'];
-const DIFFICULTIES = ['easy', 'medium', 'hard'];
+const CATEGORIES = Object.keys(CATEGORY_LABEL);
+const DIFFICULTIES = [...DIFFICULTY_ORDER];
 
 const [type, ...rest] = process.argv.slice(2);
 const argOf = (n, d) => { const i = rest.indexOf(n); return i >= 0 && rest[i + 1] ? rest[i + 1] : d; };
 const COUNT = Number(argOf('--count', 10));
 const ONLY_CATEGORY = argOf('--category', '');
 const DRY_RUN = rest.includes('--dry-run');
+// --plan 只看現況、不呼叫 API，所以**不需要金鑰**：先知道要補哪些情境、
+// 分幾批跑，再決定要不要真的花那些呼叫
+const PLAN_ONLY = rest.includes('--plan');
+// --from：收一批**已經寫好的** JSON，不呼叫 API（所以也不需要金鑰）。
+//
+// 為什麼要有這條路：內容不一定是這支腳本當場叫模型生的 —— 手寫的、別的模型
+// 寫的、上一次 --dry-run 印出來改過的，都是同一種東西。而它們**一樣要過同一道門**
+// （validate + 去重 + 接 id），不然「別手寫繞過驗證」這條規矩就只是寫在 TODO 裡而已。
+const FROM_FILE = argOf('--from', '');
 
 // ─── 各類型的 schema、提示詞與驗證 ───────────────────────────────────────
 const TYPES = {
   listening: {
     file: 'listening.json',
-    dedupeBy: (x) => x.title.toLowerCase(),
+    // **兩個鍵**：標題，以及逐字稿的前 12 個字。
+    // 只看標題的話，同一段內容換個標題就進得來 —— 而重跑幾批之後，
+    // 模型本來就很容易再寫出幾乎一樣的獨白（「機場報到」寫十次都很像）。
+    dedupeKeys: (x) => [`title:${norm(x.title)}`, `script:${firstWords(x.transcript, 12)}`],
     schema: {
       type: 'object',
       properties: {
@@ -109,7 +135,7 @@ const TYPES = {
 
   translation: {
     file: 'translation.json',
-    dedupeBy: (x) => x.zh,
+    dedupeKeys: (x) => [`zh:${norm(x.zh)}`],
     schema: {
       type: 'object',
       properties: {
@@ -177,7 +203,12 @@ type = "sentence"（整句翻譯）：
 
   dialogue: {
     file: 'dialogues.json',
-    dedupeBy: (x) => x.title,
+    // 標題 + 情境描述。
+    //
+    // **不要用第一句對白當鍵** —— 開場白是公式化的：現有的 61 段裡，
+    // 「寄包裹」與「郵局寄掛號」都以 "Next please. What can I do for you?" 開頭，
+    // 但那是兩段完全不同的對話。情境描述才是「這段在演什麼」。
+    dedupeKeys: (x) => [`title:${norm(x.title)}`, `set:${norm(x.setting_zh)}`],
     schema: {
       type: 'object',
       properties: {
@@ -265,6 +296,56 @@ speaker = "you" 的回合要：
   },
 };
 
+/**
+ * 一批產出裡哪些收得下來。**這是題庫的守門員** ——
+ * 壞資料寫進 content/ 之後就會出現在使用者眼前（而且是靜悄悄的：
+ * 一題四個選項少一個、解析是英文原句抄一遍，都不會有任何錯誤訊息）。
+ *
+ * 抽成純函式是為了測得到：真的呼叫模型要金鑰、要配額，而且回來的東西每次不一樣，
+ * 所以驗收規則不能只靠「跑一次看看」。`test/content-generation.test.js` 餵假資料進來。
+ *
+ * `seen` **會被就地更新**（收下的鍵加進去），所以同一批裡的重複也擋得掉 ——
+ * 模型在同一次回應裡寫出兩段幾乎一樣的東西是常態。
+ *
+ * @param {object} spec TYPES 裡的一項
+ * @param {Array<object>} items 模型這一批回的東西
+ * @param {Set<string>} seen 已經見過的 dedupe 鍵
+ * @param {number} limit 最多收幾筆（還差幾筆就只收幾筆）
+ * @returns {{accepted: Array<object>, rejected: Array<{item: object, problem: string}>}}
+ */
+export function sift(spec, items, seen, limit = Infinity) {
+  const accepted = [];
+  const rejected = [];
+
+  for (const item of items ?? []) {
+    if (accepted.length >= limit) break;
+
+    const problem = spec.validate(item);
+    if (problem) { rejected.push({ item, problem }); continue; }
+
+    const keys = spec.dedupeKeys(item);
+    if (keys.some((k) => seen.has(k))) {
+      rejected.push({ item, problem: '與現有內容重複' });
+      continue;
+    }
+
+    for (const k of keys) seen.add(k);
+    accepted.push(item);
+  }
+
+  return { accepted, rejected };
+}
+
+/** 比對用的正規化：大小寫、空白與標點都不算差別。 */
+function norm(s) {
+  return String(s ?? '').toLowerCase().replace(/[\s\p{P}]+/gu, ' ').trim();
+}
+
+/** 前 n 個字（正規化過）。近似重複的判斷靠它。 */
+function firstWords(s, n) {
+  return norm(s).split(' ').slice(0, n).join(' ');
+}
+
 function hasChinese(s) { return /[一-鿿]/.test(String(s ?? '')); }
 // 目的是擋掉「把英文原句抄一遍」這種等於沒解析的內容。
 // 門檻不能太高 —— 「grab a coffee 比 buy a coffee 自然。」只有 3 個中文字，
@@ -272,7 +353,7 @@ function hasChinese(s) { return /[一-鿿]/.test(String(s ?? '')); }
 function hasEnoughChinese(s) { return (String(s ?? '').match(/[一-鿿]/g) ?? []).length >= 2; }
 
 // 驗證邏輯要能單獨測試，所以匯出，並且只有直接執行時才跑主流程
-export { TYPES, hasChinese, hasEnoughChinese };
+export { TYPES, CATEGORIES, DIFFICULTIES, hasChinese, hasEnoughChinese, norm, firstWords };
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (!isMain) { /* 被 import 時不執行下面的流程 */ }
@@ -281,28 +362,62 @@ else await main();
 async function main() {
 const spec = TYPES[type];
 if (!spec) {
-  console.error(`用法：node scripts/generate-content.mjs <${Object.keys(TYPES).join('|')}> [--count N] [--category X] [--dry-run]`);
-  process.exit(1);
-}
-if (!process.env.GEMINI_API_KEY?.trim()) {
-  console.error('找不到 GEMINI_API_KEY。請在專案根目錄的 .env 填入金鑰，或用設定頁填。');
+  console.error(
+    `用法：node scripts/generate-content.mjs <${Object.keys(TYPES).join('|')}>` +
+    ' [--plan] [--count N] [--category X] [--dry-run]'
+  );
   process.exit(1);
 }
 
 const target = path.join(ROOT, 'content', spec.file);
 const existing = JSON.parse(fs.readFileSync(target, 'utf8'));
-const seen = new Set(existing.map(spec.dedupeBy));
-console.log(`現有 ${existing.length} 筆，目標再產生 ${COUNT} 筆。\n`);
 
-const ai = new GoogleGenAI({});
+// --plan 先跑：它不呼叫 API，所以**金鑰的檢查要在它後面** ——
+// 「要補哪些情境」是決定要不要花那些呼叫之前就該看得到的東西
+if (PLAN_ONLY) {
+  printPlan(type, spec, existing);
+  process.exit(0);
+}
+
+if (!FROM_FILE && !process.env.GEMINI_API_KEY?.trim()) {
+  console.error('找不到 GEMINI_API_KEY。請在專案根目錄的 .env 填入金鑰，或用設定頁填。');
+  process.exit(1);
+}
+
+// 多個鍵（標題、逐字稿開頭…）都算「見過了」，見各 type 的 dedupeKeys
+const seen = new Set(existing.flatMap(spec.dedupeKeys));
+const tally = countByCategory(existing);
+console.log(FROM_FILE
+  ? `現有 ${existing.length} 筆。`
+  : `現有 ${existing.length} 筆，目標再產生 ${COUNT} 筆。`);
+console.log(`目前的情境分佈：${describeTally(tally)}\n`);
+
 const accepted = [];
 const rejected = [];
+
+if (FROM_FILE) {
+  const raw = JSON.parse(fs.readFileSync(path.resolve(FROM_FILE), 'utf8'));
+  const items = Array.isArray(raw) ? raw : raw.items ?? [];
+  console.log(`從 ${FROM_FILE} 讀到 ${items.length} 筆。`);
+
+  const batch = sift(spec, items, seen);
+  accepted.push(...batch.accepted);
+  rejected.push(...batch.rejected);
+  for (const item of batch.accepted) tally[item.category] = (tally[item.category] ?? 0) + 1;
+} else {
+  await generate();
+}
+
+async function generate() {
+const ai = new GoogleGenAI({});
 let round = 0;
 
 while (accepted.length < COUNT && round < Math.ceil(COUNT / BATCH) + 3) {
   round++;
   const want = Math.min(BATCH, COUNT - accepted.length);
-  const cat = ONLY_CATEGORY || CATEGORIES[round % CATEGORIES.length];
+  // **每一批都補目前最少的那個情境**（含這一輪已經收下的）。
+  // 照順序輪的話，0 組的那個情境要等好幾批才輪得到一次，而那正是要補的
+  const cat = ONLY_CATEGORY || scarcest(tally);
   process.stdout.write(`第 ${round} 批（${cat}，${want} 筆）… `);
 
   let items;
@@ -318,18 +433,14 @@ while (accepted.length < COUNT && round < Math.ceil(COUNT / BATCH) + 3) {
     continue;
   }
 
-  let ok = 0;
-  for (const item of items) {
-    const problem = spec.validate(item);
-    if (problem) { rejected.push({ item, problem }); continue; }
-    const key = spec.dedupeBy(item);
-    if (seen.has(key)) { rejected.push({ item, problem: '與現有內容重複' }); continue; }
-    seen.add(key);
+  const batch = sift(spec, items, seen, COUNT - accepted.length);
+  for (const item of batch.accepted) {
     accepted.push(item);
-    ok++;
-    if (accepted.length >= COUNT) break;
+    tally[item.category] = (tally[item.category] ?? 0) + 1;
   }
-  console.log(`收下 ${ok} / ${items.length}（累計 ${accepted.length}/${COUNT}）`);
+  rejected.push(...batch.rejected);
+  console.log(`收下 ${batch.accepted.length} / ${items.length}（累計 ${accepted.length}/${COUNT}）`);
+}
 }
 
 console.log(`\n通過 ${accepted.length} 筆，退掉 ${rejected.length} 筆。`);
@@ -340,9 +451,25 @@ if (rejected.length) {
   for (const [reason, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
     console.log(`  ${n}×  ${reason}`);
   }
+  // --from 的來源是一個改得動的檔案，所以要指得出是哪一筆 ——
+  // 只給一句「3× 選項重複」的話，還要自己一筆一筆找
+  if (FROM_FILE) {
+    console.log('被退掉的是：');
+    for (const r of rejected) {
+      console.log(`  「${r.item?.title ?? r.item?.zh ?? '(無標題)'}」→ ${r.problem}`);
+    }
+  }
 }
 
-if (accepted.length === 0) { console.log('\n沒有可寫入的內容。'); process.exit(0); }
+if (accepted.length === 0) {
+  // 「一筆都沒收下」有兩種原因，處理方式完全不同：
+  //   呼叫失敗 → 金鑰、配額或網路的問題，重跑就好（exit 1，腳本串起來時看得出來）
+  //   全被退件 → 是內容品質的問題，重跑只會再燒一次配額，要先看退件原因
+  console.log(rejected.length === 0
+    ? `\n沒有可寫入的內容 —— ${FROM_FILE ? '那個檔案裡沒有東西。' : '每一批呼叫都失敗了（金鑰、配額或網路）。'}`
+    : '\n沒有可寫入的內容 —— 每一筆都被退件了。先看上面的退件原因。');
+  process.exit(1);
+}
 
 if (DRY_RUN) {
   console.log('\n--dry-run：以下是產生的內容，未寫入檔案\n');
@@ -350,8 +477,82 @@ if (DRY_RUN) {
   process.exit(0);
 }
 
-let nextId = Math.max(0, ...existing.map((x) => Number(x.id) || 0)) + 1;
-const merged = [...existing, ...accepted.map((x) => ({ id: nextId++, ...x }))];
+const merged = mergeIntoExisting(existing, accepted);
 fs.writeFileSync(target, JSON.stringify(merged, null, 2) + '\n');
 console.log(`\n已寫入 ${spec.file}：${existing.length} → ${merged.length} 筆。`);
+console.log(`情境分佈：${describeTally(countByCategory(merged))}`);
+console.log('接下來：npm test（資料測試會把新內容一起驗一次）。');
+}
+
+/**
+ * 把收下來的東西接在現有內容後面，並補上 id。
+ *
+ * **id 一定要接在現有的最大值後面**，不是 `existing.length + 1` ——
+ * 中間刪過幾筆的話那樣會撞號，而撞號的症狀是「練習紀錄指到別的題目」
+ * （紀錄存的是 id）。純函式，`test/content-generation.test.js` 釘住。
+ */
+export function mergeIntoExisting(existing, accepted) {
+  let nextId = Math.max(0, ...existing.map((x) => Number(x.id) || 0)) + 1;
+  // id 放在最前面，讀 JSON 的人一眼看得到是第幾筆
+  return [...existing, ...accepted.map((x) => ({ id: nextId++, ...x }))];
+}
+
+// ─── 現況與建議（--plan）─────────────────────────────────────────────────
+
+function countByCategory(items) {
+  const tally = Object.fromEntries(CATEGORIES.map((c) => [c, 0]));
+  for (const x of items) tally[x.category] = (tally[x.category] ?? 0) + 1;
+  return tally;
+}
+
+function describeTally(tally) {
+  return Object.entries(tally).map(([c, n]) => `${CATEGORY_LABEL[c] ?? c} ${n}`).join('・');
+}
+
+/** 目前最少的情境。同樣少的話照 CATEGORIES 的順序 —— 要可重現。 */
+function scarcest(tally) {
+  return CATEGORIES.reduce((a, b) => ((tally[b] ?? 0) < (tally[a] ?? 0) ? b : a), CATEGORIES[0]);
+}
+
+/**
+ * 印出「現在有什麼、還缺什麼、要跑幾批」。**不呼叫 API**。
+ *
+ * 為什麼值得有：生成是要花錢也要花時間的（一批 5 筆，重跑幾輪），
+ * 而「哪個情境是 0」這種事看檔案才看得出來 —— 用猜的就會補在已經很多的地方。
+ */
+function printPlan(kind, spec, existing) {
+  const tally = countByCategory(existing);
+  const per = Object.values(tally);
+  const most = Math.max(...per);
+  const target = Number(argOf('--target', String(most)));
+
+  console.log(`\n${spec.file}：現有 ${existing.length} 筆`);
+  if (kind === 'listening') {
+    const qs = existing.reduce((n, x) => n + (x.questions?.length ?? 0), 0);
+    console.log(`（${qs} 題，平均一組 ${(qs / Math.max(1, existing.length)).toFixed(1)} 題）`);
+  }
+  console.log(`情境分佈：${describeTally(tally)}`);
+  console.log(`難度分佈：${DIFFICULTIES.map((d) =>
+    `${d} ${existing.filter((x) => x.difficulty === d).length}`).join('・')}`);
+
+  const gaps = CATEGORIES.filter((c) => tally[c] < target)
+    .map((c) => ({ c, need: target - tally[c] }))
+    .sort((a, b) => b.need - a.need);
+
+  if (gaps.length === 0) {
+    console.log(`\n八個情境都到 ${target} 筆了，不必補。`);
+    return;
+  }
+
+  console.log(`\n補到每個情境 ${target} 筆的話還缺 ${gaps.reduce((n, g) => n + g.need, 0)} 筆：`);
+  for (const { c, need } of gaps) {
+    console.log(`  ${(CATEGORY_LABEL[c] ?? c).padEnd(5, '　')} 還缺 ${String(need).padStart(3)} 筆` +
+      `  →  node scripts/generate-content.mjs ${kind} --count ${need} --category ${c}`);
+  }
+  console.log(
+    '\n一批 5 筆，退件會自動重試（上限 = 批數 + 3）。建議一個情境一次跑，' +
+    '跑完看退件原因再決定下一個。\n' +
+    '不指定 --category 就會自動每批補最少的那個情境。\n' +
+    '先加 --dry-run 看一批的品質，覺得可以再真的寫進去。'
+  );
 }

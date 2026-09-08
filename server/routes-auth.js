@@ -49,7 +49,14 @@ export function createAuthRoutes(store, { inviteCode = '' } = {}) {
     secure: isSecureRequest(req),
   });
 
-  const publicUser = (user) => ({ username: user.username, createdAt: user.createdAt });
+  // `owner`：這個帳號是不是擁有者（第一個註冊的）。前端用它決定設定頁的
+  // 金鑰卡片要不要給改 —— 伺服器端另外還有一道（server/settings.js 的
+  // assertOwner），這個欄位只是為了不要讓別人看到一張按下去就 403 的表單。
+  const publicUser = (user, owner) => ({
+    username: user.username,
+    createdAt: user.createdAt,
+    owner: Boolean(owner) && owner.id === user.id,
+  });
 
   // ─── 註冊 ──────────────────────────────────────────────────────────────
   //
@@ -81,7 +88,7 @@ export function createAuthRoutes(store, { inviteCode = '' } = {}) {
       const user = await store.createUser(username, await hashPassword(password));
       const { token, expiresAt } = await store.createSession(user.id);
       res.setHeader('Set-Cookie', cookieFor(req, token, expiresAt));
-      res.status(201).json({ user: publicUser(user) });
+      res.status(201).json({ user: publicUser(user, await store.owner()) });
     } catch (err) {
       next(err);
     }
@@ -114,7 +121,7 @@ export function createAuthRoutes(store, { inviteCode = '' } = {}) {
       gate.succeed(key);
       const { token, expiresAt } = await store.createSession(user.id);
       res.setHeader('Set-Cookie', cookieFor(req, token, expiresAt));
-      res.json({ user: publicUser(user) });
+      res.json({ user: publicUser(user, await store.owner()) });
     } catch (err) {
       next(err);
     }
@@ -144,7 +151,7 @@ export function createAuthRoutes(store, { inviteCode = '' } = {}) {
           firstRun: (await store.userCount()) === 0,
         });
       }
-      res.json({ user: publicUser(user) });
+      res.json({ user: publicUser(user, await store.owner()) });
     } catch (err) {
       next(err);
     }

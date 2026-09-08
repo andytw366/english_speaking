@@ -14,8 +14,8 @@ import path from 'node:path';
 
 import { TIERS, TIER_IDS, tierFor } from '../scripts/vocab-levels.js';
 import {
-  migrateSrs, tierProgress, addActivity, activityCount, activityDays, activityToday,
-  buildActivity, ACTIVITY_DAY_LIMIT, MODE_IDS,
+  boxBreakdown, migrateSrs, tierProgress, addActivity, activityCount, activityDays,
+  activityToday, buildActivity, ACTIVITY_DAY_LIMIT, MODE_IDS,
 } from '../public/lib/storage.js';
 import { streakFromDays, dayKey } from '../public/lib/practice.js';
 import { todayNote } from '../public/lib/today-card.js';
@@ -415,4 +415,118 @@ test('鼓勵的話裡不出現威脅 —— 用罰的推人回來只會讓人不
   for (const line of lines) {
     assert.doesNotMatch(line, /斷|沒了|快要|失去/, line);
   }
+});
+
+// ─── 複習盒（哪些字在哪個盒子）────────────────────────────────────────────
+//
+// 這一段釘的是「畫面上那份清單跟側欄那四個數字說的是同一件事」。
+// 對不起來的症狀很難查：畫面寫「已熟練 12」，但盒子裡只數得出 11 個，
+// 而兩邊都沒有錯誤訊息。
+
+// NOW 沿用上面 tierProgress 那一段的固定時間戳（同一個檔案裡兩個「現在」
+// 只會讓人每次都要回去確認是哪一個）
+const DAY = 24 * 60 * 60 * 1000;
+
+/** 造一組卡片與 srs 狀態。box / 幾天後到期 / 答對幾次 都寫在同一個地方。 */
+function deck(entries) {
+  const cards = entries.map(([word], i) => ({ id: i + 1, word, meaning_zh: `${word} 的意思` }));
+  const srs = {};
+  entries.forEach(([, state], i) => {
+    if (state) srs[String(i + 1)] = state;
+  });
+  return { cards, srs };
+}
+
+test('練過的字照盒子分開，沒練過的只算數量', () => {
+  const { cards, srs } = deck([
+    ['alpha', { box: 1, due: NOW - DAY, seen: 3, correct: 1 }],
+    ['bravo', { box: 5, due: NOW + 20 * DAY, seen: 6, correct: 6 }],
+    ['charlie', null],
+    ['delta', null],
+  ]);
+  const view = boxBreakdown(cards, srs, NOW);
+
+  assert.equal(view.total, 4);
+  assert.equal(view.practised, 2);
+  assert.equal(view.fresh, 2);
+  assert.deepEqual(view.boxes.map((b) => b.cards.length), [1, 0, 0, 0, 1]);
+  assert.equal(view.boxes[0].cards[0].card.word, 'alpha');
+  assert.equal(view.boxes[4].cards[0].card.word, 'bravo');
+});
+
+test('到期的算進 due，而且盒子裡標得出來', () => {
+  const { cards, srs } = deck([
+    ['alpha', { box: 2, due: NOW - 1, seen: 2, correct: 1 }],
+    ['bravo', { box: 2, due: NOW + DAY, seen: 2, correct: 2 }],
+  ]);
+  const view = boxBreakdown(cards, srs, NOW);
+
+  assert.equal(view.due, 1);
+  assert.deepEqual(view.boxes[1].cards.map((c) => c.overdue), [true, false]);
+});
+
+test('剛好到期的那一刻算「到期」，不是「還沒」', () => {
+  // buildQueue() 用的是 `s.due <= now`，這裡要一樣 ——
+  // 兩邊不一致的話會出現「清單說還沒到期，但它已經被抽出來考了」
+  const { cards, srs } = deck([['alpha', { box: 3, due: NOW, seen: 1, correct: 1 }]]);
+  assert.equal(boxBreakdown(cards, srs, NOW).boxes[2].cards[0].overdue, true);
+});
+
+test('同一盒裡最快要複習的排前面，同時間的照字母排', () => {
+  // 不定序的話每次重新整理清單就跳一次，看起來像資料在變
+  const { cards, srs } = deck([
+    ['charlie', { box: 2, due: NOW + 5 * DAY, seen: 1, correct: 1 }],
+    ['alpha', { box: 2, due: NOW + DAY, seen: 1, correct: 1 }],
+    ['delta', { box: 2, due: NOW + 5 * DAY, seen: 1, correct: 1 }],
+  ]);
+  const view = boxBreakdown(cards, srs, NOW);
+  assert.deepEqual(view.boxes[1].cards.map((c) => c.card.word), ['alpha', 'charlie', 'delta']);
+});
+
+test('「已熟練」那一盒跟 srsSummary 算的是同一盒', () => {
+  // srsSummary() 的 mastered 是 `box >= BOX_INTERVAL_DAYS.length`（第 5 盒）。
+  // 這裡只有最後一盒 mastered 才是 true —— 兩邊分家的話，
+  // 畫面上「已熟練 12」與盒子裡數出來的字會不一樣，而且不會有人發現
+  const view = boxBreakdown([], {}, NOW);
+  assert.deepEqual(view.boxes.map((b) => b.mastered), [false, false, false, false, true]);
+  assert.deepEqual(view.boxes.map((b) => b.intervalDays), [0, 1, 3, 7, 21]);
+});
+
+test('壞掉的盒號夾回範圍，不是把那張卡丟掉', () => {
+  // 練過的字從清單上消失，比它排錯盒子更難查
+  const { cards, srs } = deck([
+    ['alpha', { box: 99, due: NOW, seen: 1, correct: 1 }],
+    ['bravo', { box: 0, due: NOW, seen: 1, correct: 1 }],
+    ['charlie', { box: null, due: NOW, seen: 1, correct: 1 }],
+  ]);
+  const view = boxBreakdown(cards, srs, NOW);
+
+  assert.equal(view.practised, 3);
+  assert.equal(view.boxes[4].cards[0].card.word, 'alpha');
+  assert.deepEqual(view.boxes[0].cards.map((c) => c.card.word), ['bravo', 'charlie']);
+});
+
+test('別的牌組的進度不會混進來', () => {
+  // srs 是所有牌組共用的一份，而這一頁只列得出「這一級」的字
+  const cards = [{ id: 1, word: 'alpha' }];
+  const srs = { 1: { box: 2, due: NOW, seen: 1, correct: 1 },
+    'curated:1': { box: 3, due: NOW, seen: 1, correct: 1 },
+    'ecdict:9999': { box: 4, due: NOW, seen: 1, correct: 1 } };
+  const view = boxBreakdown(cards, srs, NOW);
+
+  assert.equal(view.practised, 1);
+  assert.equal(view.total, 1);
+  assert.deepEqual(view.boxes.map((b) => b.cards.length), [0, 1, 0, 0, 0]);
+});
+
+test('srsKey 認的是卡片自己的 srsKey（同一個字在兩種牌組共用進度）', () => {
+  const cards = [{ id: 1, word: 'alpha', srsKey: 'ecdict:1' }];
+  const view = boxBreakdown(cards, { 'ecdict:1': { box: 3, due: NOW, seen: 2, correct: 2 } }, NOW);
+  assert.equal(view.boxes[2].cards[0].card.word, 'alpha');
+});
+
+test('空牌組與沒有 srs 都不會炸', () => {
+  assert.equal(boxBreakdown([], {}, NOW).practised, 0);
+  assert.equal(boxBreakdown([], null, NOW).fresh, 0);
+  assert.equal(boxBreakdown(null, null, NOW).total, 0);
 });

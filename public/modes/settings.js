@@ -36,10 +36,15 @@ const DIFFICULTIES = DIFFICULTY_ORDER.map((id) => [id, DIFFICULTY_LABEL[id]]);
 
 let voices = [];
 let models = [];
-let health = null;
+let caps = null;   // /api/capabilities：伺服器現在有沒有金鑰、講評走哪條路
 let serverSettings = null;
 let serverError = '';
+// 金鑰只有擁有者（第一個註冊的帳號）改得動 —— 伺服器端會擋（見 server/settings.js），
+// 這兩個旗標只是為了不要讓別人看到一張按下去就 403 的表單。
+let isOwner = false;
+let knowWhoIAm = false;
 let saveState = '';
+let narrationSaveState = '';
 let backupState = '';
 let syncState = '';
 let root = null;
@@ -48,13 +53,25 @@ export async function mount(container) {
   root = container;
   voices = (await loadVoices()).filter((v) => v.lang?.startsWith('en'));
 
-  try {
-    const res = await fetch('/api/settings');
-    const body = await res.json();
-    if (!res.ok) serverError = body?.message ?? `HTTP ${res.status}`;
-    else serverSettings = body;
-  } catch (err) {
-    serverError = '讀不到伺服器設定，請確認後端還在執行。';
+  const user = getUser();
+  knowWhoIAm = Boolean(user);
+  isOwner = user?.owner === true;
+  // 上一次進來的訊息不要留到下一次 —— 「✅ 已儲存」掛在一張還沒動過的表單上
+  // 很容易讓人以為剛剛那次操作有存到
+  saveState = '';
+  narrationSaveState = '';
+
+  // 不是擁有者就不要打這個端點 —— 伺服器會回 403，而那個 403 會在
+  // console 裡變成一條紅字，看起來像壞了。
+  if (isOwner) {
+    try {
+      const res = await fetch('/api/settings');
+      const body = await res.json();
+      if (!res.ok) serverError = body?.message ?? `HTTP ${res.status}`;
+      else serverSettings = body;
+    } catch (err) {
+      serverError = '讀不到伺服器設定，請確認後端還在執行。';
+    }
   }
 
   // model 清單拿不到不是致命錯誤 —— 收起選單，讓後端用它的預設值就好
@@ -66,13 +83,15 @@ export async function mount(container) {
     models = [];
   }
 
-  // 有沒有設定 Azure 決定「關掉中文講評」到底省不省得到時間 ——
-  // 沒有 Azure 的話分數本身就是 Gemini 給的，關掉講評不會變快。
-  // 這個端點不需要 loopback，反向代理後面也拿得到。
+  // 伺服器現在有什麼能力（有沒有金鑰、講評走哪一條路）。
+  //
+  // 為什麼每個帳號都拿得到而不是只有擁有者：有沒有設定 Azure 決定「關掉中文講評」
+  // 到底省不省得到時間，而跟讀拿不到分數時，這一行是唯一能判斷
+  // 「是伺服器沒設定還是我操作錯了」的地方。
   try {
-    health = await (await fetch('/api/health')).json();
+    caps = await (await fetch('/api/capabilities')).json();
   } catch {
-    health = null;
+    caps = null;
   }
 
   render();
@@ -81,18 +100,42 @@ export async function mount(container) {
 
 function render() {
   if (!root) return;
-  // 五張卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
+  // 這些卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
   // 單欄排下來 1440×900 要捲三個螢幕才看得完
-  append(grid(root), apiCard(), goalCard(), practiceCard(), voiceCard(), syncCard(), dataCard());
+  append(grid(root),
+    apiCard(), isOwner && narrationCard(), goalCard(), practiceCard(),
+    voiceCard(), syncCard(), dataCard());
 }
 
 // ─── API 金鑰 ────────────────────────────────────────────────────────────
+//
+// 這張卡**只有擁有者看得到內容**（第一個註冊的帳號）。以前這裡擋的是
+// 「請求是不是從 localhost 來的」，走 Docker／網域時一律 403 —— 手機上設不了，
+// 只能 ssh 進伺服器編輯 .env 再重啟。有帳號之後那一關換成
+// 「要登入 + 要是擁有者」，所以現在手機上也設得了。詳見 server/settings.js。
 function apiCard() {
   const card = h('div', { class: 'card' },
     h('p', { class: 'card__title' }, 'API 金鑰（發音評分用）'),
     h('p', { class: 'hint' },
       '這些是選用的 —— 不填也能正常使用單字卡、聽力與中翻英，跟讀也還是可以錄音比對。'),
   );
+
+  // 別人的帳號：不給看也不給改，但要看得到「現在到底有沒有設定」——
+  // 不然跟讀拿不到分數時，他無從判斷是伺服器沒設定還是自己操作錯了
+  if (knowWhoIAm && !isOwner) {
+    append(card,
+      h('p', { class: 'hint' },
+        '金鑰由擁有者（這台伺服器上第一個註冊的帳號）設定 —— 這個帳號看不到也改不了。'),
+      serverStatusLine(),
+    );
+    return card;
+  }
+
+  if (!knowWhoIAm) {
+    append(card, h('p', { class: 'hint' },
+      '現在讀不到登入狀態（可能是離線），所以看不到金鑰設定。連上線之後重新整理就會出現。'));
+    return card;
+  }
 
   if (serverError) {
     append(card, h('div', { class: 'banner banner--error' }, serverError));
@@ -106,7 +149,7 @@ function apiCard() {
   const azureKey = serverSettings.AZURE_SPEECH_KEY;
   const gemini = serverSettings.GEMINI_API_KEY;
 
-  append(card, 
+  append(card,
     field('Azure Speech 金鑰', 'azure-key', {
       type: 'password',
       placeholder: azureKey.configured ? `目前已設定（${azureKey.preview}）` : '尚未設定',
@@ -125,21 +168,111 @@ function apiCard() {
     }),
     h('div', { class: 'row' },
       h('button', { class: 'btn btn--primary', onclick: saveKeys }, '儲存金鑰'),
-      saveState && h('span', { class: `hint ${saveTone()}` }, saveState),
+      saveState && h('span', { class: `hint ${saveTone(saveState)}` }, saveState),
     ),
     h('p', { class: 'hint' },
-      '金鑰會寫進伺服器的 .env（權限 600），不會存在瀏覽器裡，也不會完整回傳到前端。' +
+      '存了立刻生效，不用重啟。金鑰寫在伺服器的資料目錄裡（DATA_DIR/settings.env，權限 600），' +
+      '不會存在瀏覽器裡，也不會完整回傳到前端 —— 上面只看得到末四碼。'),
+    h('p', { class: 'hint' },
       '留空表示不變更；要清除某個金鑰請輸入一個空格再儲存。'),
-    h('p', { class: 'hint hint--warn' },
-      '⚠️ 這個設定頁只接受從 localhost 發出的請求。如果之後要把這個 App 部署到網路上，' +
-      '必須先移除 /api/settings 端點 —— 否則任何人都能改你的金鑰。'),
+    h('p', { class: 'hint' },
+      '只有你（擁有者）改得動：其他帳號連讀都會被伺服器擋掉。' +
+      '如果 .env 裡也有同一個變數，這裡存的值會蓋掉它。'),
+    serverStatusLine(),
   );
   return card;
 }
 
-function saveTone() {
-  if (saveState.startsWith('✅')) return 'hint--ok';
-  if (saveState.startsWith('⚠️')) return 'hint--error';
+/**
+ * 現在伺服器實際上有沒有評分能力（讀的是 /api/capabilities，不是這台裝置的設定）。
+ *
+ * 為什麼一定要有這一行：填完金鑰之後「到底生效了沒」是唯一真正想知道的事，
+ * 而「已儲存」只證明檔案寫好了。存完之後 postSettings() 會就地更新它。
+ */
+function serverStatusLine() {
+  if (!caps) {
+    return h('p', { class: 'hint' }, '（讀不到伺服器狀態。）');
+  }
+  const narration = caps.narration;
+  const parts = [
+    `發音評分：${caps.azureConfigured ? 'Azure（客觀分數）' : 'Gemini（主觀分數）'}`,
+    `講評：${narration
+      ? (narration.ready ? `${narration.label}${narration.model ? `（${narration.model}）` : ''}`
+        : `本地摘要（${narration.label} ${narration.problem}）`)
+      : '未知'}`,
+  ];
+  const bad = !caps.azureConfigured && !caps.geminiConfigured;
+  return h('p', { class: `hint ${bad ? 'hint--warn' : ''}` },
+    (bad ? '⚠️ 兩組金鑰都沒設定，送出錄音一定會失敗。目前 —— ' : '目前 ') + parts.join('，'));
+}
+
+// ─── 講評端點（換一個更快的模型）────────────────────────────────────────
+//
+// 為什麼值得放進設定頁：設定好 Azure 之後，實際練起來唯一有感的等待就是講評
+// 那一段（分數一兩秒，Gemini 幾秒到十幾秒）。換成任何 OpenAI 相容的端點就會
+// 快很多，而換的動作原本只能編輯 .env 再重啟 —— 手機上根本做不了。
+//
+// 四個一起設才會生效，缺一個會退回本地摘要。這張卡的順序就是照這件事排的。
+function narrationCard() {
+  const card = h('div', { class: 'card' },
+    h('p', { class: 'card__title' }, '講評端點（選用，換一個更快的模型）'),
+    h('p', { class: 'hint' },
+      '中文講評可以改走任何「OpenAI 相容」的 /chat/completions 端點 —— ' +
+      'Hugging Face 的 Inference Providers、Groq、或自己機器上的 Ollama。' +
+      '留空就是用 Gemini。'),
+  );
+
+  if (serverError || !serverSettings) return card;
+
+  const provider = serverSettings.NARRATION_PROVIDER.value;
+  const key = serverSettings.NARRATION_API_KEY;
+
+  append(card,
+    h('div', { class: 'field' },
+      h('label', { class: 'field__label', for: 'narration-provider' }, '講評來源'),
+      h('select', { class: 'field__input', id: 'narration-provider' },
+        [
+          ['', '自動（有 Gemini 金鑰就用 Gemini）'],
+          ['gemini', 'Gemini'],
+          ['openai', 'OpenAI 相容端點（下面三格）'],
+          ['local', '只用本地摘要（完全不呼叫模型，最快）'],
+        ].map(([value, label]) =>
+          h('option', { value, selected: provider === value || null }, label)),
+      ),
+    ),
+    field('端點 base URL', 'narration-base-url', {
+      type: 'text',
+      value: serverSettings.NARRATION_BASE_URL.value,
+      placeholder: 'https://router.huggingface.co/v1',
+      note: '填到 /v1 就好，/chat/completions 那一段伺服器會自己接。' +
+        'Hugging Face 要用 router.huggingface.co（api-inference 那個舊端點有冷啟動，會更慢）。',
+    }),
+    field('端點金鑰', 'narration-key', {
+      type: 'password',
+      placeholder: key.configured ? `目前已設定（${key.preview}）` : '尚未設定',
+      note: '供應商給的 token。Ollama 這種本機端點隨便填一個非空字串就行。',
+    }),
+    field('model', 'narration-model', {
+      type: 'text',
+      value: serverSettings.NARRATION_MODEL.value,
+      placeholder: '照供應商列的 id 完整填',
+      note: 'HF 的 router 可以在後面加「:供應商」指定要轉給誰（例如 :groq）。',
+    }),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn--primary', onclick: saveNarration }, '儲存講評端點'),
+      narrationSaveState &&
+        h('span', { class: `hint ${saveTone(narrationSaveState)}` }, narrationSaveState),
+    ),
+    h('p', { class: 'hint' },
+      '存了立刻生效。這條路失敗不會自動改打 Gemini —— 會退回本地摘要，' +
+      '而上面那行「目前」就會寫出缺什麼或哪裡不通。'),
+  );
+  return card;
+}
+
+function saveTone(state) {
+  if (state.startsWith('✅')) return 'hint--ok';
+  if (state.startsWith('⚠️')) return 'hint--error';
   return '';   // 「儲存中…」「沒有變更」是中性訊息，不要標成錯誤
 }
 
@@ -176,7 +309,41 @@ async function saveKeys() {
 
   saveState = '儲存中…';
   render();
+  saveState = await postSettings(payload);
+  render();
+}
 
+async function saveNarration() {
+  const get = (id) => root?.querySelector(`#${id}`)?.value ?? '';
+  const payload = {};
+
+  // 金鑰跟上面一樣是「空字串 = 不變更」；其餘三個是看得到目前值的欄位，
+  // 所以用「跟目前不一樣才送」——那樣清空一個欄位才有辦法表達「清掉它」
+  const key = get('narration-key');
+  if (key !== '') payload.NARRATION_API_KEY = key.trim();
+
+  for (const [id, envKey] of [
+    ['narration-provider', 'NARRATION_PROVIDER'],
+    ['narration-base-url', 'NARRATION_BASE_URL'],
+    ['narration-model', 'NARRATION_MODEL'],
+  ]) {
+    const value = get(id).trim();
+    if (value !== (serverSettings?.[envKey].value ?? '')) payload[envKey] = value;
+  }
+
+  if (Object.keys(payload).length === 0) {
+    narrationSaveState = '沒有變更';
+    return render();
+  }
+
+  narrationSaveState = '儲存中…';
+  render();
+  narrationSaveState = await postSettings(payload);
+  render();
+}
+
+/** POST /api/settings，回一句要顯示的話。成功時順手更新畫面上的「目前」那一行。 */
+async function postSettings(payload) {
   try {
     const res = await fetch('/api/settings', {
       method: 'POST',
@@ -184,16 +351,17 @@ async function saveKeys() {
       body: JSON.stringify(payload),
     });
     const body = await res.json();
-    if (!res.ok) {
-      saveState = `⚠️ ${body?.message ?? `HTTP ${res.status}`}`;
-    } else {
-      serverSettings = body.settings;
-      saveState = '✅ 已儲存，立即生效（不用重啟）';
-    }
+    if (!res.ok) return `⚠️ ${body?.message ?? `HTTP ${res.status}`}`;
+
+    serverSettings = body.settings;
+    // 後端連同「現在有什麼能力」一起回來（跟 /api/capabilities 同一份）——
+    // 存完之後「目前」那一行要馬上對，不然使用者會以為沒生效而重複儲存。
+    // 前端自己推的話就會有第二份規則（Azure 要 key 和 region 都有才算）
+    if (body.capabilities) caps = body.capabilities;
+    return '✅ 已儲存，立即生效（不用重啟）';
   } catch (err) {
-    saveState = '⚠️ 連不上伺服器';
+    return '⚠️ 連不上伺服器';
   }
-  render();
 }
 
 // ─── 每日目標 ────────────────────────────────────────────────────────────
@@ -317,12 +485,12 @@ function practiceCard() {
  */
 function narrationField(s) {
   const on = s.geminiNarration !== false;
-  const azure = health?.azureConfigured === true;
+  const azure = caps?.azureConfigured === true;
 
-  // 講評走哪一條路是**伺服器的 .env** 決定的（NARRATION_PROVIDER），不是這裡。
-  // 顯示它的唯一理由：改了 .env 卻沒生效時，「畫面上寫的跟實際跑的一樣」
+  // 講評走哪一條路是**伺服器**決定的（NARRATION_PROVIDER），不是這裡。
+  // 顯示它的唯一理由：改了設定卻沒生效時，「畫面上寫的跟實際跑的一樣」
   // 是使用者自己查得出問題的唯一方式 —— 不然只會覺得「換了還是一樣慢」。
-  const narration = health?.narration ?? null;
+  const narration = caps?.narration ?? null;
 
   return h('div', { class: 'field' },
     h('span', { class: 'field__label' }, '跟讀的中文講評'),
@@ -338,28 +506,34 @@ function narrationField(s) {
         : '送出後直接看分數，講評改用本地摘要（照樣會指出最弱的面向與唸不好的字）。'),
     on && narration && narrationStatus(narration),
     !azure && h('p', { class: 'hint' },
-      health
+      caps
         ? '⚠️ 目前沒有設定 Azure，跟讀的分數本身就是 Gemini 給的 —— ' +
           '這個開關要等設定了 Azure 金鑰才省得到時間。'
         : '（讀不到伺服器狀態，無法判斷目前的評分來源。）'),
   );
 }
 
-/** 講評實際會走哪一條路。這幾行不能改成 App 的設定 —— 它讀的是伺服器狀態。 */
+/**
+ * 講評實際會走哪一條路。**這幾行讀的是伺服器狀態**，不是這台裝置的設定 ——
+ * 上面那個開關只決定「要不要等講評」，走哪一條路是伺服器決定的。
+ *
+ * 擁有者可以在「講評端點」那張卡改；別人只看得到現在的狀態。
+ */
 function narrationStatus(narration) {
+  const where = isOwner ? '上面的「講評端點」那張卡' : '伺服器的設定（要擁有者的帳號才改得動）';
+
   if (narration.id === 'local') {
     return h('p', { class: 'hint' },
-      '目前伺服器設定成只用本地摘要（NARRATION_PROVIDER=local），不會呼叫任何模型。');
+      `目前設定成只用本地摘要（NARRATION_PROVIDER=local），不會呼叫任何模型。要改請看${where}。`);
   }
   if (!narration.ready) {
     return h('p', { class: 'hint hint--warn' },
       `⚠️ 講評設定成走 ${narration.label}，但${narration.problem} —— ` +
-      '現在會退回本地摘要。請到伺服器的 .env 補上再重啟。');
+      `現在會退回本地摘要。請到${where}補上。`);
   }
   if (narration.id === 'openai') {
     return h('p', { class: 'hint' },
-      `講評由 ${narration.label} 的 ${narration.model} 產生` +
-      '（伺服器 .env 的 NARRATION_* 決定，這裡不能改）。');
+      `講評由 ${narration.label} 的 ${narration.model} 產生（要換請看${where}）。`);
   }
   return null;
 }

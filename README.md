@@ -7,9 +7,9 @@
 |---|---|
 | 🏠 今天 | 今天各模式練了多少、連續幾天、有幾個字到期要複習 |
 | 🗂️ 單字卡 | 10,040 字，**自己選難度**（國中 → 高中 → 四級 → 六級 → 檢定 → GRE 六級）＋**每日目標**＋**中英雙向選擇題**，Leitner 盒子制間隔重複 |
-| 🎧 聽力 | 81 組 / 226 題，每日進度與連續天數 |
+| 🎧 聽力 | 129 組 / 366 題（八個情境都有），選項每次隨機排，每日進度與連續天數 |
 | ✍️ 中翻英 | 2,159 題（填空 161 / 整句 1,998），每日進度與連續天數 |
-| 💬 情境對話 | 61 段 / 427 句台詞，角色扮演，每日進度與連續天數 |
+| 💬 情境對話 | 93 段 / 651 句台詞（八個情境都有），角色扮演，每日進度與連續天數 |
 | 🗣️ 跟讀 | 2,041 句，錄音後拿到**逐音素**的發音評估 |
 | ⚙️ 設定 | 金鑰、單字題型與每日單字數、練習範圍、語音、學習資料（含**備份與還原**） |
 
@@ -133,7 +133,7 @@ Gemini 則負責它真正擅長的事：把那堆數字寫成「th 要把舌尖�
   要看得到數字才判斷得出來，不然只會累積成「Gemini 很慢」這種模糊印象。
 
 > **沒設定 Azure 的話這個開關省不到時間** —— 那條路上分數本身就是 Gemini 給的。
-> 設定頁會直接把這件事寫在開關下面（它讀 `/api/health` 的 `azureConfigured`），
+> 設定頁會直接把這件事寫在開關下面（它讀 `/api/capabilities` 的 `azureConfigured`），
 > 講評畫面也會標 `narrationReason: "gemini_scores"`。
 
 ### 換一個更快的講評模型
@@ -186,8 +186,10 @@ NARRATION_MODEL=<到供應商的 model 列表複製一個>
   ` ```markdown ` 圍欄、`- ` 開頭都會被整理掉。
 - **失敗不自動改打 Gemini。** 那會讓「我明明換成快的了，怎麼還是要等十幾秒」
   變成無解的問題。設定的那條路失敗就退回本地摘要，畫面上看得出來。
-- **model 不放進設定頁的選單。** 那個選單是 Gemini 專屬的、是使用者每次練習
+- **model 不放進練習時的那個選單。** 那個選單是 Gemini 專屬的、是使用者每次練習
   可以挑的東西；`NARRATION_MODEL` 是「這台伺服器接到哪個服務」，屬於部署設定。
+  它在設定頁有自己的一張卡（「講評端點」，只有擁有者看得到），跟金鑰同一條路
+  —— 手機上換模型不必 ssh 進伺服器。
 
 **這條路在開發容器裡驗不到真的呼叫**（egress 擋掉 `huggingface.co`、
 `api.groq.com`、`api.openai.com`，跟 Azure 一樣的處境）。已驗過的是：
@@ -222,17 +224,42 @@ curl -s -X POST http://127.0.0.1:3000/api/pronunciation-feedback \
 
 ### 從設定頁填金鑰 —— 安全邊界
 
-設定頁可以直接填金鑰，伺服器會寫進 `.env`（權限 `600`）並立即套用，不用重啟。
-前端永遠拿不到完整金鑰：`GET /api/settings` 只回「是否已設定」與末四碼。
+設定頁的「API 金鑰」與「講評端點」兩張卡可以直接填，存了**立刻生效，不用重啟**。
+可以改的是這七個變數：`AZURE_SPEECH_KEY`、`AZURE_SPEECH_REGION`、`GEMINI_API_KEY`、
+以及講評端點那四個 `NARRATION_*`。前端永遠拿不到完整金鑰：
+`GET /api/settings` 只回「是否已設定」與末四碼（區域、端點、model 不是機密，回完整值）。
 
-**`/api/settings` 只接受來自 loopback（`127.0.0.1` / `::1`）的請求**，其他一律 403。
+門禁有三道，全部都要過：
 
-> ⚠️ 這一關在**反向代理後面的行為要看代理怎麼接**：
-> - 用本專案的 Docker 部署（Caddy 在另一個容器，走 `app:3000`）→ 來源是容器 IP，
->   **會被正確擋掉**，那種情況金鑰請直接寫在 `.env` 裡。
-> - 如果代理跟 App 跑在同一台、而且是 `reverse_proxy localhost:3000` →
->   來源會變成 `127.0.0.1`，**檢查就失效了**，任何連得到代理的人都能寫你的 `.env`。
->   那種部署一定要先移除這兩個端點或加上真正的身分驗證。
+| 關卡 | 擋什麼 | 在哪 |
+|---|---|---|
+| 要登入 | 沒帳號的人 | `authGate`（所有 `/api` 都有） |
+| 要是**擁有者** | 有帳號但不是第一個註冊的那個（邀請碼開放時會有） | `assertOwner()` |
+| `Origin` 要對 | 跨站偽造請求（CSRF） | `authGate`，非 GET 才檢查 |
+
+> **這一關以前是「只放行 loopback」**（`127.0.0.1` / `::1`）。那時候後端零認證，
+> 那是唯一擋得住「路過的人改你的金鑰」的做法，代價是**走 Docker／網域時一律 403**
+> —— 請求從 Caddy 的容器 IP 進來 —— 所以手機上設不了，只能 ssh 進伺服器編輯
+> `.env` 再重啟。有帳號之後那道換成「要登入 + 要是擁有者」，手機上也設得了。
+>
+> 為什麼不能只靠「要登入」：`INVITE_CODE` 開著時家裡其他人也有帳號，
+> 而金鑰是會花錢的東西（Azure 與講評的配額）。
+
+**值存在 `<DATA_DIR>/settings.env`（權限 `600`），不是專案根目錄的 `.env`。** 三個理由：
+
+1. Docker 裡 `/app` 是 root 的，容器跑的是 `node` 使用者 —— 寫 `.env` 會 `EACCES`，
+   而 Docker 正是最需要「從網頁設定」的那種部署；
+2. 就算寫得進去，`docker compose up --build` 一次就沒了。`DATA_DIR` 有掛 volume；
+3. `.env` 是人手寫的（一堆註解），程式不去動它比較不會搞爛。
+
+啟動時先讀 `.env`、再讀 `settings.env`（`override: true`），所以
+**從網頁存的值會蓋掉 `.env` 與 compose 傳進來的環境變數** ——
+反過來的話「在網頁上改了金鑰卻沒有任何反應」，而且畫面上看不出原因。
+伺服器啟動時會把「也讀了 settings.env」印出來，方便對照。
+
+非擁有者的帳號在設定頁看不到金鑰欄位（伺服器端照樣會擋），
+但看得到「現在的發音評分與講評走哪一條路」—— 不然跟讀拿不到分數時，
+他無從判斷是伺服器沒設定還是自己操作錯了。
 
 ---
 
@@ -264,6 +291,14 @@ curl -s -X POST http://127.0.0.1:3000/api/pronunciation-feedback \
 之後預設不再開放註冊（公開網域上開放註冊 = 誰都能來燒你的配額）。
 要再開一個就在 `.env` 設 `INVITE_CODE`，註冊時要填對才放行。
 
+**擁有者跟別人差在哪：只差「能不能改金鑰」**（設定頁的「API 金鑰」與「講評端點」
+兩張卡，見上面「從設定頁填金鑰 —— 安全邊界」）。學習進度、同步、六個模式，
+每個帳號都是各自獨立且完整的。
+
+擁有者是註冊時寫進 `users.json` 的 `role: "owner"`。**這個功能之前建的帳號
+沒有那個欄位**，所以找不到 `role` 時退回「清單裡的第一個」—— 也就是最早註冊的
+那一個。少了這條退路的話，既有的部署升級之後會變成「沒有人是擁有者」，誰都改不了金鑰。
+
 > **沒有密碼重設，也沒有 email。** 自己架的、使用者是自己，
 > 忘記密碼就去改伺服器上的 `users.json`。加 email 等於多一組要顧的憑證
 > 與一條寄信的失敗路徑。
@@ -289,8 +324,9 @@ curl -s -X POST http://127.0.0.1:3000/api/pronunciation-feedback \
 `DATA_DIR`（Docker 裡是 `/data`，本機預設 `./userdata`）：
 
 ```
-users.json              帳號與密碼雜湊
+users.json              帳號與密碼雜湊（第一個帳號帶 role: "owner"）
 sessions.json           session（只存雜湊）
+settings.env            從設定頁存的金鑰（權限 600，會蓋掉 .env）
 u/<userId>.json         學習進度（就是備份檔的那五個鍵）
 u/<userId>.rev-<n>.json 最近 10 個舊版本
 ```
@@ -489,6 +525,25 @@ u/<userId>.rev-<n>.json 最近 10 個舊版本
 > （`lib/quiz.js` 的 `toOption()`），不是畫面上再回頭去字庫裡查 ——
 > pool 是一整級 1,300～2,100 個字，而 `prepareCard()` 之後 `question` 就該是那一題的全部資料。
 
+**「看複習盒」列出哪些字在哪個盒子**（側欄的「看複習盒」）：五個盒子各一張卡，
+寫出間隔（1 天 → 3 天 → 7 天 → 21 天）、字數、幾個到期了，然後是字表 ——
+字、音標、詞性、下次複習（「已到期」／「明天」／「N 天後」）、答對幾次、一顆 🔊，
+以及前 3 個義項。
+
+> **為什麼值得一整頁**：側欄那四個數字（待複習 / 未學過 / 學習中 / 已熟練）回答得了
+> 「我練了多少」，但回答不了「那些是哪些字」—— 而後者才是真正想確認的事
+> （「我到底把 thorough 記住了沒？」）。沒有清單的話，唯一的辦法是等它下次被抽到。
+>
+> - **只列這一級練過的字。** 別級的卡片沒載下來（六個分級檔加起來 3 MB），
+>   `localStorage` 裡只有 `ecdict:1234` 這樣的鍵，湊不出字本身。沒練過的那幾千個字
+>   只給數量 —— 列出來是一面牆而不是資訊。
+> - **一盒最多列 60 個**，多的寫「另有 N 個未顯示」（跟練習紀錄同一個做法）。
+> - **同一盒裡最快要複習的排前面**，同時間的照字母排 —— 不定序的話，
+>   每次重新整理清單就跳一次，看起來像資料在變。
+> - 規則是純函式（`boxBreakdown()`），`vocabulary.test.js` 釘住
+>   **「最後一盒」跟 `srsSummary()` 算的「已熟練」是同一盒** ——
+>   兩邊分家的話畫面會寫「已熟練 20」但盒子裡數不出 20 個，而且沒有錯誤訊息。
+
 **背面的釋義只先給前 4 個義項**，多的收在「看全部 N 個義項」後面。
 
 > **兩個條件要同時成立才截**：義項超過 4 個**而且**整段超過 40 個字。只看義項數的話
@@ -616,6 +671,18 @@ u/<userId>.rev-<n>.json 最近 10 個舊版本
 
 題目與例句都是**開發時寫好的靜態檔**，不做執行期 AI 生成 ——
 執行期少一個失敗點，也不必為了出題付 API 費用。
+
+情境對話的 `keywords`（判「意思對了」用的關鍵字）要挑**每一個 `accept` 說法
+裡都有的字** —— 只在 `answer` 裡找得到的話，使用者寫出畫面上列為「其他說法」的
+變化型會被判「再想想」。既有的 61 段有 132 個這種變體（後來補的 32 段是 0 個），
+`content-generation.test.js` 用棘輪釘住不准再往上加。
+
+**聽力的選項每次抽到題組時會重新排。** 這不是裝飾：題庫裡 366 題原本有
+**68% 的正解都在第二個位置**（寫題目的人會不自覺地把答案放第二個，
+後來補的 48 組自己也有 59%），也就是一路按 B 就能對三分之二 ——
+那不是在練聽力。洗牌的規則在 `lib/practice.js` 的 `shuffleOptions()`（純函式，
+正解會跟著搬），而且「再做一次」會再洗一次 —— 不然重做只是重按同樣的位置。
+單字卡沒有這個問題，它出題的時候就洗過了（`lib/quiz.js`）。
 
 中翻英的自由作答用 `lib/grade.js` 在前端批改（正規化後比對關鍵字與長度），
 不呼叫任何 API。批改分三級：跟 `accept` 裡任何一種說法完全相符是「完全正確」、
@@ -1163,12 +1230,12 @@ english_speaking/
 ├── docker-compose.yml         # App + Caddy（補 HTTPS，手機才能用麥克風）
 ├── docker-compose.duckdns.yml # 憑證改用 Let's Encrypt + DuckDNS 的疊加設定
 ├── Caddyfile / Caddyfile.duckdns
-├── .github/workflows/ci.yml   # 每次 push 跑 npm test 與 npm run test:ui（都不需要金鑰）
+├── .github/workflows/ci.yml   # 每次 push 跑 npm test、test:ui、test:e2e（一律不帶金鑰）
 ├── content/
 │   ├── sentences.json         # 2,041 句練習句：id / text / category / difficulty / focus / zh
-│   ├── listening.json         # 81 組 / 226 題
+│   ├── listening.json         # 129 組 / 366 題
 │   ├── translation.json       # 279 題
-│   ├── dialogues.json         # 61 段 / 427 句台詞
+│   ├── dialogues.json         # 93 段 / 651 句台詞
 │   └── vocabulary/            # index + tier-map + curated + tier-1..6 + band-01..10
 │                               #（同一批 10,000 字的兩種切法，加手寫的精選 40 字）
 ├── data/
@@ -1194,7 +1261,7 @@ english_speaking/
 │   ├── gemini.js              # Gemini：講評 + 沒有 Azure 時的主觀評分、model 白名單
 │   ├── audio.js               # WAV 能量分析，判斷有沒有人聲
 │   ├── narration.js           # 講評開關 + 沒用 Gemini 時的本地摘要（純函式）
-│   └── settings.js            # 從設定頁寫 .env（只接受 loopback）
+│   └── settings.js            # 從設定頁改金鑰（**只有擁有者**，寫 DATA_DIR/settings.env）
 ├── public/
 │   ├── index.html
 │   ├── app.js                 # 應用外殼：模式切換、左側／下方兩份模式列、註冊 sw
@@ -1242,12 +1309,13 @@ english_speaking/
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/api/health` | `{ ok, azureConfigured, geminiConfigured }` |
+| GET | `/api/health` | `{ ok: true }`，**只有這個**。不用登入（Docker 的 healthcheck 沒有 cookie），所以回的東西等於公開的 |
+| GET | `/api/capabilities` | `{ azureConfigured, geminiConfigured, narration }` —— 要登入。設定頁「目前」那一行讀它 |
 | GET | `/api/models` | Gemini model 白名單與預設值 |
 | GET | `/api/content/:name` | `sentences` / `listening` / `translation` / `dialogues` |
 | GET | `/api/vocabulary/:file` | `index.json` / `tier-map.json` / `curated.json` / `tier-N.json` / `band-NN.json`。檔名形態是白名單（避免路徑穿越），形態合法但檔案不存在回 404 |
 | GET | `/api/sentences` | 307 轉到 `/api/content/sentences`（舊路徑，口說分支用過） |
-| GET / POST | `/api/settings` | 讀寫金鑰設定（**只接受 loopback**） |
+| GET / POST | `/api/settings` | 讀寫金鑰與講評端點設定（**只有擁有者**，也就是第一個註冊的帳號） |
 | POST | `/api/pronunciation-feedback` | multipart：`audio`（WAV）+ `sentence` + `model`（選填）+ `narrate`（選填，`off` 表示不要 Gemini 講評） |
 
 `/api/pronunciation-feedback` 有 Azure 時回：
@@ -1461,6 +1529,7 @@ npm test
 | `settings.test.js` | 設定的搬家規則。搬家錯了**沒有任何錯誤訊息** —— 使用者設過的 50 無聲變回 20，或者一個數字的單位換了、數字沒換算，目標從此永遠達不到。聽力的目標從「題」變成「組」那次全部釘住：換算過、不會把小目標變成 0、0（不設目標）維持 0、靠旗標所以只換算一次、**只碰使用者設過的值不碰預設值**（`migrate()` 收併好 DEFAULTS 的版本就會把預設值一起除下去，真的踩過） |
 | `pwa.test.js` | manifest、圖示與 service worker。釘的三件事都是**壞掉不會有徵兆**的：快取清單漏掉一個檔案（掃過 `public/` 比對，漏了就紅）、金鑰或發音評估被存進快取、manifest 指到不存在或尺寸不符的圖示（直接讀 PNG 檔頭）。service worker 沒辦法在 node 裡真的跑起來，所以「哪個網址走哪一條規則」寫成純函式 `strategyFor()`，測試用 `node:vm` 載進來直接呼叫 |
 | `translation.test.js` | `content/translation.json` 這份資料（2,159 題，其中 1,880 題是腳本匯入的）。最重要的一條是**每個 `accept` 自己送進 `grade()` 都要判成「完全正確」**—— 使用者看得到「其他說法」，照著寫卻拿到 ❌ 是最傷的一種 bug，而且完全沒有錯誤訊息。其餘：keywords 每種說法都涵蓋得到（匯入的題目才保證，手寫的 118 題是既有資料債）、keyword 是 answer 裡的**完整 token**（`complicate` 不是 `overcomplicate` 的一部分，那一題會永遠判不到「意思對了」）、`answer` 排在 `accept[0]`、簡繁轉換的錯字與殘留簡體字 |
+| `content-generation.test.js` | 題庫生成的守門員（`scripts/generate-content.mjs`）與聽力／對話這兩份資料。這兩個模式的內容是**模型生出來的**，而壞掉通常沒有徵兆：一題只有三個選項、兩個選項一模一樣、解析把英文原句抄一遍、對話的 `keywords` 不在參考答案裡（那一題就永遠判不到「意思對了」）。真的呼叫模型要金鑰又要配額、回來的東西每次還不一樣，所以驗收規則自己要測。另外釘住兩件會靜靜壞掉的事：**生成器的情境清單跟 App 一樣**（原本自己寫死四個，於是餐飲／購物／健康／學習永遠生不出來）、**現有資料過得了同一套規則**（規則與資料分家的話，下一批寫進來的東西會比現有的差） |
 | `sentences.test.js` | `content/sentences.json` 這份資料，以及匯入時的配額。擋的都是**錯了不會炸、只會安靜失效**的東西：`focus` 代碼打錯、id 重複、某個音的句子太少、某個情境＋難度的組合是空的、簡繁轉換踩到一對多陷阱、每個情境的句數跑出 200～300 之外、重跑匯入把句庫疊成兩倍 |
 
 ### 前端 UI 測試（223 項，需要伺服器，不需要金鑰）
@@ -1474,12 +1543,18 @@ npm run test:ui
 > `uitest` 帳號 —— 而「第一個帳號」才建得起來。伺服器上已經有你自己的帳號時，
 > 測試會直接告訴你要換 `DATA_DIR`，不會莫名其妙紅一片。
 > CI 每次都是全新的容器，所以不用特別處理。
+>
+> 登入這一段（以及「把伺服器上的進度清成什麼都沒練過」）在 `test/login.mjs`，
+> 三支瀏覽器測試（`ui` / `e2e` / `layout`）共用。`e2e` 與 `layout` 曾經漏掉它 ——
+> 那時候帳號剛上線，兩支就這樣**一直跑不動**：`layout` 印的是「伺服器有在跑嗎？」
+> （其實在跑，是 401），`e2e` 則是停在登入畫面、每一條檢查都紅。
 
 把假的練習紀錄塞進 `localStorage`，驗七個分頁都載入得起來、**首頁的今天總覽**
 （跨模式的總數與連續天數、達標的樣子、第一天的樣子、沒設目標的樣子）、今天的進度與連續天數、
 練習紀錄與趨勢圖、重練這句、弱點音會回頭影響抽句、中文意思、加權不會餓死句子、
 Azure 與 Gemini 兩條講評路徑、講評缺席時的四種說明、中文講評開關存不存得起來、
 一組總結、設定頁、**單字卡的選難度與各級進度**（含舊進度搬家搬得對）、
+**複習盒**（五個盒子、清單的字數跟側欄的「已熟練 / 學習中」對得起來、到期的標出來）、
 **單字卡的每日目標**（練滿之後關掉重開不會重來、換難度不會歸零）、
 **單字卡的選擇題**（答錯時同時標出正確答案與自己選的、答完不能改答案、
 兩個方向的題目與選項語言對得起來、一種都沒勾會退回翻卡、
@@ -1524,15 +1599,35 @@ Azure／Gemini → 顯示講評 → 寫進 `localStorage` → 影響下一次抽
 **【1】【2】【4】不需要任何金鑰**（無人聲把關在後端呼叫 API 之前就擋掉了），
 所以手上沒有金鑰也驗得到那幾段。【3】【5】沒金鑰時會自動跳過。
 
+開跑前會先把**伺服器上**這個測試帳號的進度清掉。清 `localStorage` 不夠 ——
+自動同步會在 App 一打開時把伺服器那份合併回來，而「今天的進度是 0」
+「不寫進練習紀錄」這些斷言的前提是「這台裝置什麼都還沒練」。
+
+**CI 會跑這一支，但不帶任何金鑰**，所以【3】【5】在那裡是跳過的。
+掛上 CI 的理由是【1】【2】【4】沒有別的測試涵蓋得到，而且**沒掛 CI 的測試會腐爛**：
+帳號上線之後這支漏了登入、一直跑不動，期間「分頁有六個」早就變成七個，沒人發現。
+
 環境變數：`BASE`、`MODEL`（預設 `gemini-3.1-flash-lite`，最省配額）、`SHOTS`、`CHROMIUM`。
 
 ### 內容驗證
+
+聽力與情境對話的資料**已經掛進 `npm test`**（`content-generation.test.js`）：
+每一筆都要過得了 `scripts/generate-content.mjs` 的 `validate()`、id 不重複、
+近似重複的內容不重複、情境與難度是 App 認得的那八個與三個。
+
+> **規則跟資料必須是同一套。** 分家的話有兩種壞法：規則變鬆（下一批生成寫進來的
+> 東西比現有的差），或規則變嚴到連現有資料都不合格 —— 而那批東西早就在使用者
+> 眼前了，只有測試會告訴你。
+
+手動掃一次（中翻英那 1,880 筆匯入的題目**不適用**生成器的規則 ——
+它們沒有 `explain_zh`，情境也用滿了八個）：
 
 ```bash
 node --input-type=module -e "
 import fs from 'node:fs';
 const { TYPES } = await import('./scripts/generate-content.mjs');
-for (const [t, spec] of Object.entries(TYPES)) {
+for (const t of ['listening', 'dialogue']) {
+  const spec = TYPES[t];
   const items = JSON.parse(fs.readFileSync('content/' + spec.file, 'utf8'));
   const bad = items.filter((x) => spec.validate(x));
   console.log(t, items.length, bad.length ? '❌' + bad.length : '✅');
@@ -1541,6 +1636,32 @@ for (const [t, spec] of Object.entries(TYPES)) {
 
 > **解析不能只是把英文原句抄一遍加中文句號。** 這是這個專案裡反覆犯的錯，
 > 三個聽力批次分別被驗證擋下 12、0、5 筆，全是同一個問題。新增內容一定要跑過這套驗證。
+
+### 補聽力與情境對話的題庫
+
+生成要 `GEMINI_API_KEY`；**看現況不用**：
+
+```bash
+node scripts/generate-content.mjs listening --plan   # 現況、缺哪些情境、建議的指令
+node scripts/generate-content.mjs dialogue  --plan
+```
+
+⚠️ **這兩份資料現在只涵蓋四個情境**（日常對話、旅遊、職場、面試），
+餐飲、購物、健康、學習各 0 筆 —— 生成器原本自己寫死了四個情境。
+設定頁那八顆按鈕照樣點得下去，點了會**靜靜退回全部題目**，所以一直沒被發現。
+現在生成器跟 App 用同一份清單（`public/lib/labels.js`），可以補了。
+
+```bash
+# 先看一批的品質，覺得可以再真的寫進去
+node scripts/generate-content.mjs listening --count 5 --category food --dry-run
+node scripts/generate-content.mjs listening --count 26 --category food
+npm test    # 資料測試會把新內容一起驗一次
+```
+
+不指定 `--category` 就**每一批都補目前最少的那個情境** —— 照順序輪的話，
+0 筆的那個情境要等好幾批才輪得到一次。一批 5 筆（太多會讓品質下降），
+退件會自動重試（上限 = 批數 + 3）。一筆都沒收下時 exit code 是 1，
+而訊息會分清楚是「呼叫失敗」（重跑就好）還是「全被退件」（先看退件原因）。
 
 ---
 

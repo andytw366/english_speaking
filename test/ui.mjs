@@ -22,6 +22,9 @@ import { chromium } from '@playwright/test';
 // 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
 // 所以直接用 App 用的同一份，而不是在這裡再抄一次切義項的邏輯。
 import { firstSense } from '../public/lib/quiz.js';
+import {
+  TEST_USER, addCookieToContext, apiGetter, authenticate, resetServerProgress,
+} from './login.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const SHOTS = process.env.SHOTS;
@@ -37,72 +40,15 @@ const shot = (page, name) =>
 // ─── 先登入 ──────────────────────────────────────────────────────────────
 //
 // 所有 /api 端點都要登入（見 server/routes-auth.js），所以測試自己要有帳號。
-//
-// 「先註冊，403 就改成登入」是為了兩種情境都能跑：
-//   CI     每次都是全新的容器 → 沒有帳號 → 註冊成功
-//   本機   重跑第二次時帳號已經在了 → 註冊回 403 → 用同一組密碼登入
-// 需要伺服器指向一個乾淨的 DATA_DIR 才會是「第一個帳號」，所以這組帳密
-// 只會出現在開發／CI 的伺服器上。
-const TEST_USER = { username: 'uitest', password: 'ui-test-password' };
-
-async function authenticate() {
-  const post = (path, body) => fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  let res = await post('/api/auth/register', TEST_USER);
-  if (!res.ok) res = await post('/api/auth/login', TEST_USER);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    console.error(
-      `測試帳號登入不了（HTTP ${res.status}）：${body.message ?? ''}\n` +
-      '這台伺服器上已經有別的帳號了。請用一個乾淨的 DATA_DIR 重新啟動伺服器：\n' +
-      '  DATA_DIR=$(mktemp -d) npm start'
-    );
-    process.exit(1);
-  }
-  // 同一個 cookie 要同時給 fetch（下面的預檢）與瀏覽器用
-  return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
-}
-
-const cookieHeader = await authenticate();
+// 登入本身在 test/login.mjs（三支瀏覽器測試共用，見那裡的說明）。
+const cookieHeader = await authenticate(BASE);
 
 /**
  * 打 API 一律走這裡 —— 每一個端點都要登入，漏帶 cookie 的話拿到的是 401 的
  * JSON 物件而不是預期的陣列，症狀會是「`.find` is not a function」這種
  * 完全看不出原因的錯（真的踩過）。
  */
-const apiGet = (path) =>
-  fetch(`${BASE}${path}`, { headers: { cookie: cookieHeader } }).then((r) => r.json());
-
-/**
- * 把伺服器上的進度清成「什麼都沒練過」。【22】用。
- *
- * 【22】驗的是絕對數字（兩台各練 N → 總和是 N+M），所以伺服器上不可以留著
- * **上一次跑測試**留下的今日計數 —— 同一個 `DATA_DIR` 重跑第二次時，
- * 上一輪那兩台裝置的格子會被合併進來，症狀是四條測試同時說數字變成兩倍，
- * 看起來像合併寫錯了（真的踩過，而且第一眼完全不像測試自己的問題）。
- *
- * 走的是「整包覆蓋」那個端點 —— 它就是為了覆蓋而存在的，
- * 而 `POST /merge` 的語意是合併，清不掉東西。
- */
-async function resetServerProgress() {
-  const current = await apiGet('/api/sync');
-  const res = await fetch(`${BASE}/api/sync`, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json', cookie: cookieHeader },
-    body: JSON.stringify({
-      rev: current.rev ?? 0,
-      data: { srs: {}, activity: {}, history: [] },
-    }),
-  });
-  if (!res.ok) {
-    console.error(`清不掉伺服器上的進度（HTTP ${res.status}）—— 【22】的數字會不準。`);
-    process.exit(1);
-  }
-}
+const apiGet = apiGetter(BASE, cookieHeader);
 
 const sentences = await apiGet('/api/content/sentences');
 if (!Array.isArray(sentences) || sentences.length < 10) {
@@ -116,13 +62,7 @@ const context = await browser.newContext({ acceptDownloads: true });
 
 // 把登入的 cookie 塞進瀏覽器，其餘的測試就跟以前一樣不必管登入。
 // 登入畫面本身另外有一段測（【21】）
-{
-  const url = new URL(BASE);
-  const [name, value] = cookieHeader.split('=');
-  await context.addCookies([{
-    name, value, domain: url.hostname, path: '/', httpOnly: true, secure: false,
-  }]);
-}
+await addCookieToContext(context, BASE, cookieHeader);
 
 const page = await context.newPage();
 
@@ -513,6 +453,41 @@ await narrationChips.first().click();
 await page.waitForTimeout(200);
 check('開回來也存得回去', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings') ?? '{}').geminiNarration)) === true);
+
+// ─── 從網頁設金鑰 ────────────────────────────────────────────────────────
+//
+// 以前這張卡只有「從 localhost 打進來」的請求看得到（`assertLocalRequest`），
+// 現在是「要登入 + 要是擁有者」。測試帳號是這台伺服器上第一個帳號，
+// 所以它就是擁有者 —— 這幾條會失敗的話，第一個要懷疑的是伺服器的 DATA_DIR
+// 不乾淨（uitest 變成第二個帳號，那它就不是擁有者了）。
+check('擁有者看得到金鑰欄位', (await page.locator('#azure-key').count()) === 1);
+check('看得到講評端點那張卡', (await page.locator('#narration-base-url').count()) === 1);
+check('講評來源四個選項都在', (await page.locator('#narration-provider option').count()) === 4);
+check('金鑰卡寫出「現在」用的是哪一條路',
+  (await page.locator('.card', { hasText: 'API 金鑰' }).textContent()).includes('目前'));
+
+// 真的存一次 —— 這是這一版唯一重要的事，「按鈕在」不算。
+// 存完再清掉，不要把值留在開發／CI 的伺服器上
+// 用「裡面有那個欄位的卡」來抓，不要用 hasText —— 練習偏好那張卡的說明文字
+// 裡也寫著「講評端點」，hasText 會同時抓到兩張（踩過）
+const narrationCard = page.locator('.card', { has: page.locator('#narration-base-url') });
+
+/** 按「儲存講評端點」，等畫面真的說存好了。等訊息而不是睡 600 毫秒 —— 睡會 flaky。 */
+async function saveNarrationModel(value) {
+  await page.locator('#narration-model').fill(value);
+  await page.locator('button', { hasText: '儲存講評端點' }).click();
+  return narrationCard.getByText('已儲存').first()
+    .waitFor({ timeout: 5000 }).then(() => true, () => false);
+}
+
+check('存了會說立即生效', await saveNarrationModel('ui-test-model'));
+check('伺服器真的收到了',
+  (await apiGet('/api/settings')).NARRATION_MODEL?.value === 'ui-test-model',
+  (await apiGet('/api/settings')).NARRATION_MODEL?.value);
+
+check('清掉也清得回去', (await saveNarrationModel('')) &&
+  (await apiGet('/api/settings')).NARRATION_MODEL?.value === '');
+
 await shot(page, 'ui-09-設定');
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -572,6 +547,42 @@ await page.waitForTimeout(600);
 check('換級之後標題跟著換', (await text('.deckbar')).includes('第 4 級'));
 check('選的難度記在設定裡', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabDeck)) === 'tier-4');
+
+// ─── 複習盒：哪些字在哪個盒子 ────────────────────────────────────────────
+//
+// 側欄那四個數字回答得了「我練了多少」，回答不了「那些是哪些字」。
+// 這幾條驗的是**清單跟數字說的是同一件事** —— 對不起來的話，
+// 畫面會出現「已熟練 20」但盒子裡數不出 20 個，而且沒有任何錯誤訊息。
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1' }, srs: legacySrs });
+await page.waitForSelector('.deckbar');
+
+const mastered = Number(await text('.srsstat--mastered .srsstat__value'));
+const learning = Number(await text('.srsstat--learning .srsstat__value'));
+
+await page.locator('#view button', { hasText: '看複習盒' }).click();
+await page.waitForSelector('.boxlist');
+
+check('五個盒子都在', (await page.locator('.card', { has: page.locator('.deckbar') }).count()) >= 5,
+  `${await page.locator('.card').count()} 張卡`);
+check('間隔寫在盒子上', (await viewText()).includes('每 21 天複習'));
+
+const boxWords = async (n) => page.locator('.card', { hasText: `第 ${n} 盒` })
+  .locator('.boxlist__word').count();
+check('最後一盒的字數跟「已熟練」對得起來', (await boxWords(5)) === mastered,
+  `第 5 盒 ${await boxWords(5)} 個・已熟練 ${mastered}`);
+check('學習中的字散在中間那幾盒',
+  (await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4)) === learning,
+  `1～4 盒共 ${(await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4))}・學習中 ${learning}`);
+check('到期的字標出來了', (await page.locator('.boxlist .chip--due').count()) > 0,
+  `${await page.locator('.boxlist .chip--due').count()} 個標成已到期`);
+check('每個字都寫出答對幾次', /答對 \d+ \/ \d+ 次/.test(await viewText()));
+check('沒練過的那幾千個字只給數量、不列出來', (await viewText()).includes('還沒練過，不列在下面'));
+await shot(page, 'ui-11b-複習盒');
+
+await page.locator('#view button', { hasText: '回去練' }).click();
+await page.waitForTimeout(400);
+check('回去練會回到題目', (await page.locator('.boxlist').count()) === 0 &&
+  (await page.locator('.card--today').count()) === 1);
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【12】單字卡：每日目標');
@@ -1264,7 +1275,7 @@ console.log('\n【22】跨裝置自動合併');
 // 而且走真的伺服器 —— 合併是在伺服器上做的，mock 掉就等於沒測到。
 {
   // 伺服器上不能留著上一次跑測試的今日計數（見 `resetServerProgress()`）
-  await resetServerProgress();
+  await resetServerProgress(BASE, cookieHeader);
 
   const devices = [];
   const openDevice = async () => {

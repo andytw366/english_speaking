@@ -1,13 +1,13 @@
 import { h, append } from '../lib/dom.js';
 import { columns, single } from '../lib/layout.js';
-import { categoryLabel, difficultyLabel } from '../lib/labels.js';
+import { categoryLabel, difficultyLabel, formatTime } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
-  buildQueue, recordAnswer, srsSummary, getCardState, resetSrs,
+  boxBreakdown, buildQueue, recordAnswer, srsSummary, getCardState, resetSrs,
   getSrsState, tierProgress,
 } from '../lib/storage.js';
 import { dailyState as modeDaily, recordPractice, renderDailyCard } from '../lib/daily.js';
-import { pickType, buildQuestion, senses } from '../lib/quiz.js';
+import { pickType, buildQuestion, briefMeaning, senses } from '../lib/quiz.js';
 import { bindKeys, indexOfKey } from '../lib/keys.js';
 import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
 
@@ -44,6 +44,7 @@ let queue = [];
 let index = 0;
 let revealed = false;
 let picking = false;     // 是否停在選難度的畫面
+let showingBoxes = false;// 是否停在「複習盒」那一頁（哪些字在哪個盒子）
 let showBands = false;   // 詞頻級距預設收起來 —— 分級才是主要的選法
 let extra = 0;           // 今天目標達成後又自己多要的張數
 let currentType = 'flip';// 這張卡出哪一種題型（設定裡可以複選，一張一抽）
@@ -180,6 +181,7 @@ function prepareCard() {
 function render() {
   if (!root) return;
   if (picking) return renderPicker();
+  if (showingBoxes) return renderBoxes();
 
   // 主欄只有題目與答完的回饋；這一級的進度與今天的份是「瞄一眼」的東西，
   // 卻在單欄版本裡永遠擋在題目前面
@@ -422,6 +424,15 @@ function deckCard(deck, summary) {
 
     h('p', { class: 'hint' }, '抽卡順序：到期要複習的優先，再補沒學過的。'),
 
+    // 數字回答不了「那些字是哪些」——練過的字在這一級裡才列得出來
+    // （其他級的卡片沒載下來，只有 id）
+    summary.total > summary.fresh && h('div', { class: 'row' },
+      h('button', {
+        class: 'btn btn--ghost btn--small',
+        onclick: () => { showingBoxes = true; render(); },
+      }, '看複習盒（哪些字在哪個盒子）'),
+    ),
+
     // 不自動跳級：難度是使用者自己選的，這裡只在該畢業的時候提醒一次
     next && shouldAdvance(summary) && h('div', { class: 'banner' },
       `這一級已經熟練 ${Math.round((summary.mastered / summary.total) * 100)}%。`,
@@ -446,6 +457,124 @@ function progressBar(mastered, learning, total) {
     h('span', { class: 'tierbar__fill tierbar__fill--mastered', style: `width:${pct(mastered)}` }),
     h('span', { class: 'tierbar__fill tierbar__fill--learning', style: `width:${pct(learning)}` }),
   );
+}
+
+// ─── 複習盒 ──────────────────────────────────────────────────────────────
+//
+// 「哪些字在哪個盒子」。側欄那四個數字（待複習 / 未學過 / 學習中 / 已熟練）
+// 回答得了「我練了多少」，但回答不了「那些是哪些字」—— 而後者才是使用者
+// 真正想確認的事（「我到底把 thorough 記住了沒？」）。沒有清單的話，
+// 唯一的辦法是等它下次被抽到。
+//
+// **只列這一級練過的字。** 別級的卡片沒載下來（六個分級檔加起來 3 MB），
+// localStorage 裡只有 `ecdict:1234` 這樣的鍵，湊不出字本身 ——
+// 所以這一頁跟側欄的數字一樣是「這一級」的範圍，畫面上要講清楚。
+
+/** 一個盒子最多列幾個字。第 1 盒可以累積到幾百個，全列出來是一面牆。 */
+const BOX_LIST_LIMIT = 60;
+
+function renderBoxes() {
+  // 這一頁自己就是一整頁的清單，不分主輔欄（跟選難度一樣）
+  single(root);
+
+  const deck = deckOf(deckId);
+  const view = boxBreakdown(currentPool(), getSrsState());
+
+  append(root,
+    h('div', { class: 'card' },
+      h('div', { class: 'deckbar' },
+        h('div', {},
+          h('span', { class: 'deckbar__label' }, '複習盒'),
+          h('span', { class: 'deckbar__count' },
+            [
+              deck?.label,
+              `練過 ${view.practised.toLocaleString()} 字`,
+              view.due ? `待複習 ${view.due}` : null,
+            ].filter(Boolean).join('・')),
+        ),
+        h('button', {
+          class: 'btn btn--primary',
+          onclick: () => { showingBoxes = false; render(); },
+        }, '回去練'),
+      ),
+      h('p', { class: 'hint' },
+        '答對就往上一盒、間隔拉長；答錯直接回第 1 盒。間隔是 1 天 → 3 天 → 7 天 → 21 天。'),
+      view.fresh > 0 && h('p', { class: 'hint' },
+        `這一級另外有 ${view.fresh.toLocaleString()} 個字還沒練過，不列在下面。`),
+    ),
+    view.boxes.map(boxCard),
+  );
+}
+
+function boxCard(box) {
+  const shown = box.cards.slice(0, BOX_LIST_LIMIT);
+  const overdue = box.cards.filter((c) => c.overdue).length;
+
+  return h('div', { class: 'card' },
+    h('div', { class: 'deckbar' },
+      h('div', {},
+        h('span', { class: 'deckbar__label' },
+          `第 ${box.box} 盒${box.mastered ? '（已熟練）' : ''}`),
+        h('span', { class: 'deckbar__count' },
+          (box.intervalDays > 0 ? `每 ${box.intervalDays} 天複習・` : '今天內再複習・') +
+          `${box.cards.length} 字` + (overdue ? `・${overdue} 個到期了` : '')),
+      ),
+    ),
+
+    box.cards.length === 0
+      ? h('p', { class: 'hint' }, box.box === 1
+        ? '第 1 盒是空的 —— 答錯的字會掉到這裡。'
+        : '這一盒還沒有字。')
+      : h('ol', { class: 'boxlist' },
+        shown.map(boxItem),
+        box.cards.length > shown.length &&
+          h('li', { class: 'hint' },
+            `另有 ${box.cards.length - shown.length} 個字未顯示（照下次複習的時間排，最早的在前面）。`)),
+  );
+}
+
+function boxItem(entry) {
+  const { card, seen, correct, overdue, due } = entry;
+
+  return h('li', { class: 'boxlist__item' },
+    h('div', { class: 'boxlist__head' },
+      h('span', { class: 'boxlist__word' }, card.word ?? ''),
+      card.ipa && h('span', { class: 'boxlist__ipa' }, card.ipa),
+      card.pos && h('span', { class: 'boxlist__pos' }, card.pos),
+      // chip--past + chip--due 是跟讀那邊「該回頭練了」用的琥珀色，同一個意思共用同一個樣子
+      h('span', { class: `chip chip--past${overdue ? ' chip--due' : ''}` }, dueText(due, overdue)),
+      // 答對率跟到期時間排在同一行而不是自己一行：一盒可以有幾十個字，
+      // 每個字多一行就多捲一個螢幕，而這兩件事都是「瞄一眼」的東西
+      h('span', { class: 'chip chip--muted' }, accuracyText(seen, correct)),
+      // 只放一個 🔊：一頁有幾十顆，寫成「唸這個字」會比字本身還吵
+      ttsSupported() && h('button', {
+        class: 'btn btn--ghost btn--small boxlist__speak',
+        title: `唸「${card.word}」`,
+        onclick: (e) => playWord(card, e.currentTarget),
+      }, '🔊'),
+    ),
+    h('p', { class: 'boxlist__meaning' }, briefMeaning(card.meaning_zh ?? '')),
+  );
+}
+
+/**
+ * 下一次什麼時候複習。
+ *
+ * 用「還有幾天」而不是日期：使用者要判斷的是「這個字快要回來了嗎」，
+ * 不是「那天是幾月幾號」。已經到期的最重要，所以它自己一句話。
+ */
+function dueText(due, overdue) {
+  if (overdue) return '已到期';
+  const days = Math.ceil((due - Date.now()) / (24 * 60 * 60 * 1000));
+  if (days <= 1) return '明天';
+  return `${days} 天後`;
+}
+
+/** 答對率。**練過一次的字不寫「100%」** —— 一次就一次，百分比會給人假的確定感。 */
+function accuracyText(seen, correct) {
+  if (seen <= 0) return '還沒作答過';
+  if (seen === 1) return correct === 1 ? '答對 1 次' : '答錯 1 次';
+  return `答對 ${correct} / ${seen} 次（${Math.round((correct / seen) * 100)}%）`;
 }
 
 // ─── 選難度 ──────────────────────────────────────────────────────────────
@@ -642,7 +771,7 @@ async function playWord(card, button = null) {
  * 不給發音鍵是同一條規則。
  */
 function onKey(key) {
-  if (picking || !root) return false;
+  if (picking || showingBoxes || !root) return false;
   const card = queue[index];
   if (!card || index >= queue.length) return false;
 

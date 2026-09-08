@@ -3,6 +3,7 @@ import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { filterBySettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
+import { shuffleOptions } from '../lib/practice.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { bindKeys, indexOfKey } from '../lib/keys.js';
 
@@ -33,7 +34,11 @@ export async function mount(container) {
 }
 
 function pick(item) {
-  current = item;
+  // **選項在這裡洗牌**，不是在 render 裡 —— 每次 render 都洗的話，
+  // 選項會在使用者要按下去的那一刻自己跳位。
+  // 為什麼要洗：題庫裡 68% 的正解都在第二個位置（見 lib/practice.js 的
+  // shuffleOptions），不洗的話一路按 B 就能對三分之二，那不是在練聽力。
+  current = { ...item, questions: item.questions.map((q) => shuffleOptions(q)) };
   counted = false;
   restart();
 }
@@ -41,8 +46,12 @@ function pick(item) {
 /**
  * 同一組重來。跟 `pick()` 的差別只有一個：**不動 `counted`** ——
  * 重做一次不是又練完一組，今天的份不該再加一次。
+ *
+ * 選項**會再洗一次**：不洗的話「再做一次」只是重按同樣的位置，
+ * 而那個記得住的東西是位置，不是內容。
  */
 function restart() {
+  current = { ...current, questions: current.questions.map((q) => shuffleOptions(q)) };
   answers = new Array(current.questions.length).fill(null);
   submitted = false;
   showTranscript = false;

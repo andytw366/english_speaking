@@ -2,7 +2,7 @@
 //
 // 為什麼要獨立出來：講評現在有三種可能的來源（Gemini、任何 OpenAI 相容端點、
 // 本地摘要），而「現在用的是哪一個」這個問題有三個地方要問 ——
-// `/api/health`（設定頁要顯示）、`/api/pronunciation-feedback`（真的要呼叫）、
+// `/api/capabilities`（設定頁要顯示）、`/api/pronunciation-feedback`（真的要呼叫）、
 // 以及伺服器啟動時的提示。三個地方各判斷一次的話，一定會有一天對不起來，
 // 而症狀是「設定頁說在用 A，實際跑的是 B」。
 //

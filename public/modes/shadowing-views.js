@@ -111,7 +111,7 @@ export function renderHistory(history, { sentences, onReplay, onClear, replayDis
         h('li', { class: 'hint' }, `另有 ${history.length - LIST_LIMIT} 筆較早的紀錄未顯示。`)),
     h('div', { class: 'row history__actions' },
       h('button', { class: 'btn', onclick: onClear }, '清除所有紀錄'),
-      h('span', { class: 'hint' }, '紀錄只存在這台電腦的瀏覽器裡，不會上傳。')),
+      h('span', { class: 'hint' }, '紀錄只存在這個瀏覽器裡。')),
   );
   return card;
 }

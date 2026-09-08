@@ -153,7 +153,7 @@ export function renderAssessment(container, data, targetText, replaceSentence, o
         scoreTile('完整度', s.completeness, '有沒有漏字'),
         scoreTile('語調', s.prosody, '重音、語調、語速與節奏'),
       ),
-      h('p', { class: 'hint' }, 'Azure Speech 的客觀分數（逐音素分析）。語調評估目前僅支援 en-US。'),
+      h('p', { class: 'hint' }, 'Azure Speech 的客觀分數（語調評估僅 en-US）。'),
     );
 
     const problems = (data.words ?? []).filter(
@@ -191,7 +191,7 @@ export function renderAssessment(container, data, targetText, replaceSentence, o
           h('span', { class: 'overall__label' }, '參考分數'),
         ),
         h('p', { class: 'hint' },
-          '這是 AI 的主觀評估，僅供參考，不是標準化測驗分數。設定 Azure 之後會換成客觀的逐音素評分。'),
+          'AI 的主觀評估，僅供參考。設定 Azure 之後會換成客觀的逐音素評分。'),
       );
     }
     if (data.transcript) {

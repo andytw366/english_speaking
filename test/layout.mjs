@@ -55,7 +55,7 @@ await page.evaluate(({ h, r, a }) => {
   localStorage.setItem('speaking-coach:settings', JSON.stringify({ vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'] }));
 }, { h: history, r: srs, a: activity });
 
-const MODES = ['home', 'vocabulary', 'listening', 'translation', 'dialogue', 'shadowing', 'settings'];
+const MODES = ['home', 'vocabulary', 'listening', 'translation', 'dialogue', 'shadowing', 'settings', 'help'];
 const SIZES = [['desktop', 1440, 900], ['laptop', 1280, 800], ['mobile', 390, 844]];
 
 for (const [name, w, hgt] of SIZES) {

@@ -347,8 +347,7 @@ function recordCard() {
         h('button', { class: 'btn btn--primary', id: 'btn-submit', onclick: submit },
           '🎯 檢查我的發音'),
         h('p', { class: 'hint' },
-          '發音評估需要伺服器設定 Azure（客觀的逐音素分數）或 Gemini（主觀分數）。' +
-          '單純想練的話，聽示範 → 錄音 → 自己比對就很有幫助了。'),
+          '發音評分要先在設定頁填 Azure 或 Gemini 金鑰。沒有也能聽示範 → 錄音 → 自己比對。'),
       );
     }
     append(card, playback);
@@ -555,7 +554,7 @@ function narrationBox() {
 
   append(view,
     h('button', { class: 'btn btn--ghost', onclick: askNarration }, '🤖 要中文講評'),
-    h('p', { class: 'hint' }, '按 A 也可以。分數已經算好了，這一次只把數字寫成中文建議。'),
+    h('p', { class: 'hint' }, '按 A 也可以。分數已經算好了，不會重送錄音。'),
   );
   return { view };
 }

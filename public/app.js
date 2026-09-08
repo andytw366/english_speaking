@@ -20,9 +20,16 @@ const pageTitle = document.getElementById('pageTitle');
 const railToday = document.getElementById('railToday');
 const railKeys = document.getElementById('railKeys');
 const gear = document.getElementById('gear');
+const helpBtn = document.getElementById('helpBtn');
+const footHelp = document.getElementById('footHelp');
 
-/** 螢幕下方那一列放得下的模式：設定不放（它在頁首的齒輪）。 */
-const DOCK_MODES = MODES.filter((m) => m.id !== 'settings');
+/**
+ * 螢幕下方那一列放得下的模式：設定與說明不放（它們在頁首的兩顆按鈕）。
+ *
+ * 手機那一列一格塞得下一個圖示加兩三個中文字，五格剛好；
+ * 多一格就開始擠成兩行，而那兩個都不是每天要按的東西。
+ */
+const DOCK_MODES = MODES.filter((m) => m.id !== 'settings' && m.id !== 'help');
 
 let loaded = {};      // id -> module
 let cleanup = null;
@@ -98,8 +105,11 @@ function renderNav() {
     );
   }
 
-  gear.classList.toggle('page__gear--active', currentMode === 'settings');
-  gear.setAttribute('aria-current', currentMode === 'settings' ? 'page' : 'false');
+  for (const [button, id] of [[gear, 'settings'], [helpBtn, 'help']]) {
+    if (!button) continue;
+    button.classList.toggle('page__gear--active', currentMode === id);
+    button.setAttribute('aria-current', currentMode === id ? 'page' : 'false');
+  }
 }
 
 /**
@@ -203,6 +213,8 @@ function toggleKeyHelp(open = !keyHelpOpen) {
 }
 
 gear.addEventListener('click', () => switchTo('settings'));
+helpBtn?.addEventListener('click', () => switchTo('help'));
+footHelp?.addEventListener('click', () => switchTo('help'));
 
 /**
  * 全域快捷鍵。**綁在外殼、而且在模式之前收到鍵** ——

@@ -7,6 +7,7 @@ import { filterBySettings, getSettings, aiMode } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, normalize, RESULT_HEAD } from '../lib/grade.js';
 import { createReviewer, reviewKey, storedReview } from '../lib/ai-review.js';
+import { answerPair, sentenceRow, moreBox } from '../lib/answer-lines.js';
 import { Recorder, isSupported as recSupported, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
 
 export const meta = { id: 'dialogue', label: '情境對話', icon: '💬' };
@@ -287,7 +288,7 @@ function yourTurnCard() {
 /** 選用：把這句話唸出來練發音 */
 function recordingRow(line) {
   const row = h('div', { class: 'dlg__record' },
-    h('p', { class: 'hint' }, `想順便練發音的話，把這句唸出來：「${line}」`),
+    h('p', { class: 'hint' }, `順便練發音：把「${line}」唸出來`),
     h('div', { class: 'row' },
       h('button', {
         class: 'btn' + (recState === 'recording' ? ' is-recording' : ''),
@@ -304,36 +305,45 @@ function recordingRow(line) {
   return row;
 }
 
+/**
+ * 對完一句台詞之後的那張卡。
+ *
+ * **順序跟中翻英一致**（那邊的說明寫得比較完整）：判定 → 兩句並列
+ * （🤖 AI 改的在上、📘 參考說法在下）→ AI 的說明 → 收起來的細節 → 錄音 → 按鈕。
+ *
+ * 情境對話這邊 AI 那句尤其重要：模型收得到情境、角色、對方剛剛說的話
+ * （見 `check()`），所以它給的是「在這個場合這樣講對不對」——
+ * 而教材的參考說法只有一種寫法。
+ */
 function resultCard() {
   const turn = currentTurn();
   const { level, missing } = checked.result;
   const [title, tone] = RESULT_HEAD[level];
+  const ai = reviewer.render();
 
   const card = h('div', { class: `card result--${tone}` },
     h('p', { class: 'result__title' }, title),
+    answerPair(
+      ai.row,
+      sentenceRow('📘 參考說法', turn.answer, { tone: 'ref', speakText: turn.answer }),
+    ),
+    ai.notes,
   );
 
-  if (level === 'close') {
-    append(card, h('p', { class: 'hint' }, '關鍵用字都有，說法跟參考答案不同沒關係。'));
-  }
+  // 少了哪些關鍵用字：直接指出下一步要補什麼，所以不收起來
   if (level === 'wrong' && missing?.length) {
-    append(card, h('p', { class: 'hint' }, `少了這些關鍵用字：${missing.join('、')}`));
+    append(card, h('p', { class: 'hint' }, `少了關鍵用字：${missing.join('、')}`));
   }
-
-  // 完全相符時再秀一次一模一樣的對照只是雜訊
-  if (level !== 'exact') {
-    append(card, diffView(checked.input || '（空白）', turn.answer));
-  }
-
   if (turn.accept.length > 1) {
-    append(card, h('p', { class: 'hint' }, `另一種說法：${turn.accept[1]}`));
+    append(card, h('p', { class: 'hint' }, `也可以說：${turn.accept[1]}`));
   }
-  append(card, h('p', { class: 'explain explain--neutral' }, turn.note_zh));
 
-  // AI 修正接在參考答案**後面**，不是取代它。
-  // 參考答案是教材寫死的（免費、離線、每次都一樣），AI 看的是「你自己那句」——
-  // 兩個回答的是不同的問題，所以兩個都要在
-  append(card, reviewer.view());
+  append(card, moreBox('看詳細比對',
+    // 完全相符時再秀一次一模一樣的對照只是雜訊
+    level !== 'exact' && diffView(checked.input || '（空白）', turn.answer),
+    turn.note_zh && h('p', { class: 'explain explain--neutral' }, turn.note_zh),
+    ai.credit,
+  ));
 
   // 知道正確說法之後再練發音才有意義，所以錄音放在這裡而不是作答前
   if (recSupported()) append(card, recordingRow(turn.answer));

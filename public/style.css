@@ -126,8 +126,10 @@ body {
 
 .page__foot { margin-top: auto; }
 
-/* 設定的入口。下方那一列只放五個練習模式 + 今天 —— 設定不是每天要按的東西，
-   而多塞一格會讓每一格的中文標籤放不下。 */
+/* 設定與說明的入口。下方那一列只放五個練習模式 + 今天 —— 這兩個都不是每天
+   要按的東西，而多塞一格會讓每一格的中文標籤放不下。 */
+.page__tools { display: flex; gap: 0.4rem; flex: none; }
+
 .page__gear {
   flex: none;
   font-size: 1.1rem;
@@ -336,7 +338,7 @@ body {
   }
 
   .dock { display: none; }
-  .page__gear { display: none; }
+  .page__tools { display: none; }
 
   /* 多欄網格的畫面（設定頁）沒有輔助欄，那 320px 就直接讓給欄數 ——
      不然筆電上它還是被關在 720px 裡，排不出第二欄。 */
@@ -1150,35 +1152,55 @@ body {
 }
 .bubble__play:hover { opacity: 1; }
 
-/* AI 修正（情境對話）。刻意跟參考答案那一段長得不一樣 ——
-   一個是教材寫死的，一個是模型這次的意見，混在一起看不出哪句話該信到什麼程度 */
-.airev { margin-top: 1rem; }
-.airev__box {
-  padding: 0.8rem 0.9rem;
+/* ─── 兩句並列（中翻英與情境對話的結果卡最上面）────────────────────────
+   🤖 AI 改的那句在上、📘 教材的參考答案在下。左邊那條色帶是唯一的區別 ——
+   一個是模型這次的意見，一個是教材寫死的，混在一起看不出哪句話該信到什麼程度。 */
+.pair {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.2rem 0 0.9rem;
+}
+.pair__row {
+  padding: 0.55rem 0.8rem;
   border-radius: 10px;
   border: 1px solid var(--border);
   border-left-width: 3px;
   background: color-mix(in srgb, var(--text-muted) 6%, transparent);
 }
-.airev__box--ok { border-left-color: var(--ok); }
-.airev__box--close { border-left-color: var(--warn-text); }
-.airev__box--bad { border-left-color: var(--danger); }
-.airev__title {
-  margin: 0 0 0.5rem;
-  font-weight: 600;
-  font-size: 0.95rem;
+.pair__row--ai { border-left-color: var(--accent); }
+.pair__row--ref { border-left-color: var(--text-muted); }
+.pair__row--ok { border-left-color: var(--ok); }
+.pair__row--close { border-left-color: var(--warn-text); }
+.pair__row--bad { border-left-color: var(--danger); }
+.pair__label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
 }
-.airev__line {
-  position: relative;
-  margin: 0 0 0.5rem;
-  padding-right: 2rem;
-  font-size: 1.15rem;
-  line-height: 1.6;
-}
-.airev__line .bubble__play { top: 0.25rem; right: 0; }
-.airev__note {
-  margin: 0.25rem 0 0;
+.pair__body { position: relative; padding-right: 2rem; }
+.pair__text { margin: 0; font-size: 1.15rem; line-height: 1.6; }
+.pair__text--muted { font-size: 0.95rem; color: var(--text-muted); }
+.pair__play {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
   font-size: 0.95rem;
+  opacity: 0.55;
+  padding: 0.1rem;
+}
+.pair__play:hover { opacity: 1; }
+
+/* AI 給的說明。並列下面一小段，不收起來 —— 那是「為什麼要這樣改」 */
+.airev__notes {
+  margin: 0 0 0.8rem;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
   line-height: 1.7;
 }
 .airev__by {
@@ -1186,6 +1208,23 @@ body {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+/* ─── 收起來的細節 ──────────────────────────────────────────────────────
+   逐字比對、教材說明、AI 出處這些「想追究的時候才看」的東西。
+   第一次看有用、第二十次是雜訊 —— 但刪掉的話想追究的人就沒地方追究了。 */
+.more {
+  margin: 0.6rem 0 0.9rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+.more__summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  list-style-position: outside;
+}
+.more__summary:hover { color: var(--text); }
+.more__body { padding-top: 0.4rem; }
 
 /* ─── 單字牌組選擇 ─────────────────────────────────────────────────────── */
 .deckbar {
@@ -2031,7 +2070,7 @@ body {
    留著它們的話，點下去只會拿到一連串 401，而畫面看起來像壞了。 */
 body.locked .rail,
 body.locked .dock,
-body.locked .page__gear,
+body.locked .page__tools,
 body.locked .page__foot { display: none; }
 
 /* 側欄藏起來之後 shell 的分欄也要關掉。
@@ -2050,3 +2089,47 @@ body.locked .shell { display: block; }
   font-size: 0.875rem;
   color: var(--text-muted);
 }
+
+
+/* 頁尾的「看說明」。長得像連結、行為是按鈕（換模式不換網址） */
+.linkbtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.linkbtn:hover { opacity: 0.8; }
+
+/* ─── 說明 / Q&A ────────────────────────────────────────────────────────
+   全部收起來，標題就是問題本身 —— 攤開來寫成長文的話，這一頁會變成
+   另一個沒有人讀的地方。 */
+.qa {
+  border-top: 1px solid var(--border);
+  padding: 0.55rem 0;
+}
+.qa:last-child { border-bottom: 1px solid var(--border); }
+.qa__q {
+  cursor: pointer;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.qa__q:hover { color: var(--accent); }
+.qa__a { padding: 0.3rem 0 0.5rem; }
+.qa__p {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text-muted);
+}
+.qa__list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text-muted);
+}
+.qa__list strong { color: var(--text); }
+.qa__a .row { margin-top: 0.7rem; }

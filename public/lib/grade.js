@@ -63,8 +63,7 @@ export function diffView(userText, referenceText) {
     line(userText, setRef, 'dword--extra'),
     h('p', { class: 'diff__label' }, '參考答案'),
     line(referenceText, setUser, 'dword--missing'),
-    h('p', { class: 'hint' },
-      '紅色＝參考答案有但你沒寫到；灰色底＝你多寫的。意思對就好，用字不必完全一樣。'),
+    h('p', { class: 'hint' }, '紅＝你沒寫到　灰＝你多寫的'),
   );
 }
 

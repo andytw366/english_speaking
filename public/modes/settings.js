@@ -27,6 +27,17 @@ import {
 
 export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 
+// ─── 這一頁的小字要寫到什麼程度 ──────────────────────────────────────────
+//
+// 規則只有一條：**留下「現在要做這個決定時需要知道的事」，一句話講完。**
+//
+// 其餘的（為什麼會這樣設計、清掉會發生什麼、金鑰存在哪裡、額度怎麼算）
+// 搬到 ❓ 說明頁。理由不是那些字沒用，是它們**每次進來都在**：
+// 第一次讀有用，第二十次只是把控制項擠得很散，而使用者是來按東西的。
+//
+// 想追究的人找得到（每張卡最下面都有一顆「看說明」），
+// 而只是要調一個目標的人不必先讀完一頁字。
+
 // 情境與難度的清單從 lib/labels.js 長出來，不在這裡再寫死一份 ——
 // 句庫已經有八種情境（原本這裡只列四種，新增的四種就選不到）。
 const CATEGORIES = Object.entries(CATEGORY_LABEL);
@@ -60,6 +71,14 @@ let quotaSaveState = '';
 let backupState = '';
 let syncState = '';
 let root = null;
+
+/** 「這張卡的細節在說明頁」。整段講解搬走之後，指路的那一顆一定要留。 */
+function helpLink(label = '看說明') {
+  return h('button', {
+    class: 'linkbtn',
+    onclick: () => window.dispatchEvent(new CustomEvent('switch-mode', { detail: 'help' })),
+  }, label);
+}
 
 export async function mount(container) {
   root = container;
@@ -144,9 +163,7 @@ function render() {
 function aiCard() {
   const card = h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '🤖 AI 功能'),
-    h('p', { class: 'hint' },
-      '三個會呼叫模型的功能。自動＝每次都要（要等幾秒、每次都算一次額度）；' +
-      '手動＝畫面上留一個按鈕，按了才呼叫；關＝完全不呼叫（改用本地的批改與摘要）。'),
+    h('p', { class: 'hint' }, '自動＝每次都要　手動＝按了才要　關＝不呼叫'),
   );
 
   for (const feature of AI_FEATURES) {
@@ -165,8 +182,7 @@ function aiCard() {
     // 這裡只放一行「今天用了幾次」。細節（分模型、怎麼調）在下面那張卡 ——
     // 同一頁上把同一組數字寫兩次，第二次就變成雜訊
     usageLine({ compact: true }),
-    h('p', { class: 'hint' },
-      '已經拿到的修正會存下來，同一句話再問一次不會重複呼叫（設定 → 學習資料看得到有幾筆）。'),
+    h('p', { class: 'hint' }, helpLink('這三個差在哪？')),
   );
   return card;
 }
@@ -179,16 +195,15 @@ function aiCard() {
  */
 function aiStatusLine() {
   const ai = caps?.aiReview ?? null;
-  if (!ai) return h('p', { class: 'hint' }, '（讀不到伺服器狀態，無法確認現在接得到哪個模型。）');
+  if (!ai) return h('p', { class: 'hint' }, '（讀不到伺服器狀態。）');
 
-  const where = isOwner ? '下面的「AI 金鑰與模型」' : '伺服器的設定（要擁有者的帳號才改得動）';
   if (!ai.ready) {
     return h('p', { class: 'hint hint--warn' },
-      `⚠️ 現在沒有可以呼叫的模型（${ai.problem}）—— 上面選「自動」也不會有東西出現。` +
-      `請到${where}補上。`);
+      `⚠️ 現在沒有可以呼叫的模型（${ai.problem}）—— 選「自動」也不會有東西出現。` +
+      (isOwner ? '請到下面的「AI 金鑰與模型」補上。' : '要擁有者的帳號才設得了。'));
   }
   return h('p', { class: 'hint' },
-    `目前由 ${ai.label}${ai.model ? ` 的 ${ai.model}` : ''} 產生（要換請看${where}）。`);
+    `目前由 ${ai.label}${ai.model ? ` 的 ${ai.model}` : ''} 產生。`);
 }
 
 // ─── AI 金鑰與模型：一張卡，重要的在上面，細節收在摺疊裡 ─────────────────
@@ -214,17 +229,14 @@ function aiStatusLine() {
 function modelCard() {
   const card = h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '🧠 AI 金鑰與模型'),
-    h('p', { class: 'hint' },
-      '上面三個 AI 功能都走這裡設的模型。金鑰是選用的 —— 不填也能正常使用單字卡、' +
-      '聽力、中翻英與情境對話（少的是 AI 那幾段），跟讀也還是可以錄音比對。'),
+    h('p', { class: 'hint' }, '選用的 —— 不填也能練，少的是 AI 那幾段。'),
   );
 
   // 別人的帳號：不給看也不給改，但要看得到「現在到底有沒有設定」——
   // 不然跟讀拿不到分數時，他無從判斷是伺服器沒設定還是自己操作錯了
   if (knowWhoIAm && !isOwner) {
     append(card,
-      h('p', { class: 'hint' },
-        '金鑰與模型由擁有者（這台伺服器上第一個註冊的帳號）設定 —— 這個帳號看不到也改不了。'),
+      h('p', { class: 'hint' }, '由擁有者設定 —— 這個帳號看不到也改不了。'),
       serverStatusLine(),
     );
     return card;
@@ -232,7 +244,7 @@ function modelCard() {
 
   if (!knowWhoIAm) {
     append(card, h('p', { class: 'hint' },
-      '現在讀不到登入狀態（可能是離線），所以看不到金鑰設定。連上線之後重新整理就會出現。'));
+      '讀不到登入狀態（可能是離線）。連上線之後重新整理就會出現。'));
     return card;
   }
   if (serverError) {
@@ -278,9 +290,8 @@ function modelCard() {
       (value) => { updateSettings({ geminiModel: value }); render(); },
       {
         note: (models.find((m) => m.id === getSettings().geminiModel)?.note ?? '') +
-          '　這是這台裝置的選擇（清單寫死在後端，送上來的值也會再驗一次）。' +
           (provider === 'openai' || provider === 'local'
-            ? `　目前的來源不是 Gemini，所以這一格${provider === 'local' ? '沒有作用' : '要等來源切回 Gemini 才有作用'}。`
+            ? `　（來源不是 Gemini，這一格${provider === 'local' ? '沒有作用' : '要切回 Gemini 才有作用'}）`
             : ''),
       },
     ),
@@ -294,20 +305,17 @@ function modelCard() {
     keySection('azure', 'Azure Speech（跟讀的發音評分）', azureSection()),
 
     h('p', { class: 'hint' },
-      '金鑰存了立刻生效，不用重啟。它們寫在伺服器的資料目錄裡' +
-      '（DATA_DIR/settings.env，權限 600），不會存在瀏覽器裡，也不會完整回傳到前端' +
-      '—— 上面只看得到末四碼。留空表示不變更；要清除請輸入一個空格再儲存。'),
+      '存了立刻生效。留空＝不變更，要清除請填一個空格再存。　', helpLink('金鑰存在哪裡？')),
   );
   return card;
 }
 
 /** 每一種來源選了會怎樣。**每個值各一句** —— 那正是按下去之前想知道的事。 */
 const PROVIDER_HINT = {
-  '': '有 Gemini 金鑰就用 Gemini，否則看下面的端點設定齊了沒。',
-  gemini: '用 Gemini（要有 Gemini 金鑰）。品質穩，但講評那一段實測幾秒到十幾秒。',
-  openai: '用下面設定的端點。這是「想更快」的那條路 —— HF 的 Inference Providers、' +
-    'Groq、或自己機器上的 Ollama，實測一兩秒。',
-  local: '完全不呼叫模型：跟讀退回本地摘要，而 AI 修正沒有替代品可以退 —— 那兩個模式的修正會停在「不能用」。',
+  '': '有 Gemini 金鑰就用 Gemini，否則看下面的端點。',
+  gemini: '品質穩，但講評那一段實測幾秒到十幾秒。',
+  openai: '想更快的那條路（HF Router／Groq／Ollama，實測一兩秒）。',
+  local: '完全不呼叫模型：跟讀退回本地摘要，AI 修正會停在「不能用」。',
 };
 
 /**
@@ -333,8 +341,7 @@ function geminiSection() {
     textField('Gemini API 金鑰', 'gemini-key', {
       type: 'password',
       placeholder: gemini.configured ? `目前已設定（${gemini.preview}）` : '尚未設定',
-      note: '到 https://aistudio.google.com/apikey 產生一組。' +
-        '沒有 Azure 金鑰時，跟讀的分數也會由 Gemini 給（主觀分數）。',
+      note: '到 aistudio.google.com/apikey 產生一組。',
     }),
     saveRow('gemini', '儲存 Gemini 金鑰', saveGemini),
   );
@@ -347,42 +354,38 @@ function endpointSection() {
       type: 'text',
       value: serverSettings.NARRATION_BASE_URL.value,
       placeholder: 'https://router.huggingface.co/v1',
-      note: '填到 /v1 就好，/chat/completions 那一段伺服器會自己接。' +
-        'Hugging Face 要用 router.huggingface.co（api-inference 那個舊端點有冷啟動，會更慢）。',
+      note: '填到 /v1 就好。Hugging Face 要用 router.huggingface.co。',
     }),
     textField('端點金鑰', 'narration-key', {
       type: 'password',
       placeholder: key.configured ? `目前已設定（${key.preview}）` : '尚未設定',
-      note: '供應商給的 token。Ollama 這種本機端點隨便填一個非空字串就行。',
+      note: '供應商給的 token（Ollama 這種本機端點隨便填一個非空字串）。',
     }),
     textField('model', 'narration-model', {
       type: 'text',
       value: serverSettings.NARRATION_MODEL.value,
       placeholder: '照供應商列的 id 完整填',
-      note: 'HF 的 router 可以在後面加「:供應商」指定要轉給誰（例如 :groq）。',
+      note: '照供應商列的 id 完整填（HF 可以在後面加 :groq 指定轉給誰）。',
     }),
     saveRow('endpoint', '儲存端點設定', saveEndpoint),
-    h('p', { class: 'hint' },
-      '三格要一起齊才會生效。這條路失敗不會自動改打 Gemini —— 會退回本地摘要，' +
-      '而上面那行「目前」就會寫出缺什麼或哪裡不通。'),
+    h('p', { class: 'hint' }, '三格要一起齊才會生效。'),
   );
 }
 
 function azureSection() {
   const azureKey = serverSettings.AZURE_SPEECH_KEY;
   return h('div', {},
-    h('p', { class: 'hint' },
-      'Azure 只給跟讀的發音評分（逐字、逐音素的客觀分數），跟上面三個 AI 功能無關。'),
+    h('p', { class: 'hint' }, '只給跟讀的發音評分，跟上面三個 AI 功能無關。'),
     textField('Azure Speech 金鑰', 'azure-key', {
       type: 'password',
       placeholder: azureKey.configured ? `目前已設定（${azureKey.preview}）` : '尚未設定',
-      note: '到 Azure 入口網站建立「語音服務」資源，在「金鑰與端點」複製 KEY 1。',
+      note: 'Azure 入口網站 →「語音服務」資源 →「金鑰與端點」的 KEY 1。',
     }),
     textField('Azure 區域', 'azure-region', {
       type: 'text',
       value: serverSettings.AZURE_SPEECH_REGION.value,
       placeholder: '例如 eastasia',
-      note: '必須跟建立資源時選的區域一致，填錯會認證失敗。',
+      note: '要跟建立資源時選的區域一致。',
     }),
     saveRow('azure', '儲存 Azure 金鑰', saveAzure),
   );
@@ -429,15 +432,15 @@ function serverStatusLine() {
 function quotaCard() {
   const card = h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '每天的呼叫上限'),
-    h('p', { class: 'hint' },
-      '所有模式加在一起算 —— 跟讀的發音評分與中文講評、情境對話的 AI 修正，' +
-      '全部記在同一個計數裡。這是唯一擋得住「按錯一直重試把配額燒光」的東西。'),
+    // 「所有模式加在一起算」不能省：看不到這句的話，「我明明只用中翻英，
+    // 額度怎麼會滿」完全無從理解
+    h('p', { class: 'hint' }, '所有模式加在一起算。'),
     usageLine(),
   );
 
   if (!isOwner) {
     append(card, h('p', { class: 'hint' },
-      '上限由擁有者（第一個註冊的帳號）設定 —— 這個帳號改不了，但上面的數字是你自己今天用掉的。'));
+      '上限由擁有者設定 —— 上面的數字是你今天用掉的。'));
     return card;
   }
   if (serverError || !serverSettings) return card;
@@ -447,21 +450,20 @@ function quotaCard() {
       type: 'text',
       value: serverSettings.AI_DAILY_LIMIT?.value ?? '',
       placeholder: '留空 = 預設 200；填 off = 不限制',
-      note: '扣的時機是「呼叫之前」—— 所以就算模型沒回來，那一次也算用掉了（錢真的花了）。',
+      note: '呼叫之前就扣 —— 模型沒回來那一次也算。',
     }),
     textField('個別模型的上限（選填）', 'quota-per-model', {
       type: 'text',
       value: serverSettings.AI_DAILY_LIMITS?.value ?? '',
       placeholder: 'gemini=50; openai/gpt-oss-120b:groq=500; azure=off',
-      note: '寫成「model=次數」，多個用分號隔開。' +
-        '只寫供應商名稱（gemini / openai / azure）的話，那條路的所有 model 都算同一個上限。' +
-        '總量與這裡的上限「兩道都要過」，任一個滿了就擋。',
+      note: '「model=次數」，多個用分號隔開。跟總量兩道都要過。',
     }),
     h('div', { class: 'row' },
       h('button', { class: 'btn btn--primary', onclick: saveQuota }, '儲存上限'),
       quotaSaveState &&
         h('span', { class: `hint ${saveTone(quotaSaveState)}` }, quotaSaveState),
     ),
+    h('p', { class: 'hint' }, helpLink('額度是怎麼算的？')),
   );
   return card;
 }
@@ -476,9 +478,7 @@ function usageLine({ compact = false } = {}) {
 
   const headline = `今天已經用了 ${usage.total} 次` +
     (limit === null ? '（沒有上限）' : ` / 上限 ${limit} 次`);
-  if (compact) {
-    return h('p', { class: 'hint' }, `${headline}（所有模式一起算，細節見下面「每天的呼叫上限」）。`);
-  }
+  if (compact) return h('p', { class: 'hint' }, `${headline}（所有模式一起算）。`);
 
   const byKey = Object.entries(usage.byKey ?? {})
     .filter(([, n]) => Number(n) > 0)
@@ -489,8 +489,6 @@ function usageLine({ compact = false } = {}) {
   return h('div', {},
     h('p', { class: 'field__label' }, headline),
     byKey && h('p', { class: 'hint' }, `分別是：${byKey}`),
-    h('p', { class: 'hint' }, '每天從 0 開始（伺服器的日期），數字存在伺服器上 —— ' +
-      '換裝置或清除瀏覽器資料都不會重新計算。'),
   );
 }
 
@@ -627,9 +625,7 @@ function goalCard() {
 
   return h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '每日目標'),
-    h('p', { class: 'hint' },
-      '每個模式每天練幾個。練滿了會告訴你今天完成了，但不會擋著不讓你繼續練 ——' +
-      '目標是拿來知道自己完成了，不是拿來鎖門的。0 表示不設目標。'),
+    h('p', { class: 'hint' }, '0 ＝ 不設目標。練滿了只是告訴你，不會擋著不讓你練。'),
 
     // 每個模式一組快速選項 + 一個數字框。**快速選項用的是跟別處一樣的 chip**
     // （按下去就生效），數字框給的是「我就是要 37」那種情況
@@ -649,9 +645,9 @@ function goalCard() {
       }),
     )),
 
-    h('p', { class: 'hint' },
-      '單字卡的目標同時決定一輪抽幾張（到期要複習的優先，再補沒學過的）；' +
-      '其他模式只是拿來記錄與累積連續天數，不會限制你能練多少。'),
+    // 這一句留著：單字卡是唯一「目標會改變行為」的模式，
+    // 不知道的話會覺得「我只是調個目標，怎麼一輪的張數也變了」
+    h('p', { class: 'hint' }, '單字卡的目標同時決定一輪抽幾張。　', helpLink()),
   );
 }
 
@@ -678,8 +674,7 @@ function practiceCard() {
       {
         hint: s.vocabQuizTypes.length === 0
           ? '一種都沒選 —— 會用翻卡（自己判斷記不記得）。'
-          : '勾幾種就混哪幾種出題。選擇題是四選一，干擾項只會從同一級裡挑' +
-            '跟答案完全不同義的字，所以不會出現兩個都對的選項。',
+          : '勾幾種就混哪幾種出題。',
       }),
 
     chipField('中翻英題型',
@@ -692,9 +687,7 @@ function practiceCard() {
       s.autoPlayListening === true,
       (value) => { updateSettings({ autoPlayListening: value }); render(); },
       {
-        hint: s.autoPlayListening
-          ? '換到新的一組就自動唸一次（還是可以按 P 重聽）。'
-          : '自己按播放。想連著練的時候可以改成自動。',
+        hint: s.autoPlayListening ? '換一組就自動唸一次（P 可重聽）。' : '自己按播放。',
       }),
 
     chipField('跟讀抽句',
@@ -703,8 +696,8 @@ function practiceCard() {
       (value) => { updateSettings({ shadowingWeighted: value }); render(); },
       {
         hint: s.shadowingWeighted !== false
-          ? '分數低的、久沒練的、以及練得到你常錯的音的句子會比較常出現。'
-          : '每一句機率一樣。覺得「怎麼一直抽到同幾句」的時候用這個。',
+          ? '分數低的、久沒練的、練得到你常錯的音的句子會比較常出現。'
+          : '每一句機率一樣。',
       }),
   );
 }
@@ -717,7 +710,7 @@ function voiceCard() {
     return h('div', { class: 'card' },
       h('p', { class: 'card__title' }, '語音'),
       h('p', { class: 'hint' },
-        '找不到英語語音。請到作業系統的語音設定安裝英語語音包，或改用 Chrome / Edge。'),
+        '找不到英語語音 —— 到系統的語音設定裝一個，或改用 Chrome / Edge。'),
     );
   }
 
@@ -739,7 +732,7 @@ function voiceCard() {
         min: '0.5', max: '1.3', step: '0.05', value: String(s.ttsRate),
         oninput: (e) => { updateSettings({ ttsRate: Number(e.target.value) }); render(); },
       }),
-      h('p', { class: 'hint' }, '慢一點比較聽得清楚細節，快一點比較接近真實語速。'),
+      h('p', { class: 'hint' }, '慢一點聽得清楚，快一點接近真實語速。'),
     ),
     h('button', {
       class: 'btn btn--ghost',
@@ -772,10 +765,8 @@ function syncCard() {
         '沒有登入，所以同步不了 —— 進度只留在這個瀏覽器裡。'),
 
     h('p', { class: 'hint' },
-      '進度存在你自己的伺服器上，而且是',
-      h('strong', {}, '自動'),
-      '合併的：打開 App 時、切到背景時、以及練完一段之後都會同步一次。' +
-      '兩台裝置各練各的，數字會加起來。'),
+      '兩台裝置各練各的，數字會', h('strong', {}, '加起來'), '（自動合併）。　',
+      helpLink('同步怎麼運作？')),
 
     user && h('div', { class: 'field' },
       h('span', { class: 'field__label' }, '自動同步'),
@@ -803,11 +794,10 @@ function syncCard() {
     // 而且每一次都會先把兩邊的內容並排出來讓人確認
     user && h('details', { class: 'field' },
       h('summary', {}, '整包覆蓋（自動合併出問題時才用）'),
+      // 這一段不能縮：下面兩顆按鈕會讓一邊的進度永久消失，
+      // 而「覆蓋不是合併」正是按下去之前唯一要知道的事
       h('p', { class: 'hint' },
-        '這兩顆是',
-        h('strong', {}, '覆蓋'),
-        '不是合併：會讓其中一邊的進度完全取代另一邊。' +
-        '自動合併壞掉、或想強制讓某一台的版本說話時才用。'),
+        '這兩顆是', h('strong', {}, '覆蓋'), '不是合併：其中一邊會完全取代另一邊，無法復原。'),
       h('div', { class: 'row' },
         h('button', { class: 'btn', onclick: uploadProgress }, '⬆️ 用這台覆蓋伺服器'),
         h('button', { class: 'btn', onclick: downloadProgress }, '⬇️ 用伺服器覆蓋這台'),
@@ -925,8 +915,7 @@ function dataCard() {
     h('p', { class: 'card__title' }, '學習資料'),
     h('p', { class: 'hint' },
       `單字卡進度：${srsCount} 張有紀錄　|　跟讀紀錄：${historyCount} 筆　|　` +
-      `每日紀錄：${activeDays} 天　|　AI 修正：${reviewCount} 筆。` +
-      '這些都存在這個瀏覽器的 localStorage，換瀏覽器或清除瀏覽資料就會消失。'),
+      `每日紀錄：${activeDays} 天　|　AI 修正：${reviewCount} 筆`),
 
     // 備份放在清除按鈕的**上面**：這一區最危險的三顆按鈕就在下面，
     // 而唯一救得回來的方法是先有備份
@@ -940,9 +929,11 @@ function dataCard() {
       }),
       backupState && h('span', { class: 'hint' }, backupState),
     ),
+    // 「存在這個瀏覽器裡」是清除按鈕上面唯一非講不可的一句 ——
+    // 不知道的人會以為換一台電腦進度自己會在
     h('p', { class: 'hint' },
-      '備份是一個 JSON 檔，包含複習進度、每日紀錄、跟讀紀錄、AI 修正紀錄與偏好設定（不含金鑰）。' +
-      '換瀏覽器、換電腦、或清除瀏覽資料之前先下載一份 —— 這些東西重建不出來。'),
+      '這些存在這個瀏覽器裡，清除瀏覽資料就會消失。換裝置前先下載一份。　',
+      helpLink('怎麼把進度帶走？')),
 
     h('div', { class: 'row' },
       h('button', {

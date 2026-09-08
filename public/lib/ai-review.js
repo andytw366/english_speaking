@@ -16,10 +16,10 @@
 //
 // 金鑰一律不進瀏覽器 —— 這裡只送文字，模型是伺服器呼叫的（見 server/settings.js）。
 
-import { h, append } from './dom.js';
-import { speak, isSupported as ttsSupported } from './tts.js';
+import { h } from './dom.js';
 import { getReviews, saveReview } from './storage.js';
 import { normalize } from './grade.js';
+import { sentenceRow } from './answer-lines.js';
 
 /**
  * 「這台伺服器現在有沒有一條可以呼叫的模型」。
@@ -156,11 +156,14 @@ export function storedReview(key, input) {
 /**
  * 判定的三級要怎麼顯示。伺服器只回 `ok` / `minor` / `major` 三個字 ——
  * 中文與顏色是畫面的事，寫在前端。
+ *
+ * 標籤裡就講完判定（「可以」「更自然」「要改」），所以不再另外畫一行標題 ——
+ * 兩句並列的版面上，一行標題加一句話等於同一件事講兩次。
  */
 export const VERDICT_HEAD = {
   ok: ['🤖 AI：這樣說可以', 'ok'],
-  minor: ['🤖 AI：可以更自然', 'close'],
-  major: ['🤖 AI：這句要改', 'bad'],
+  minor: ['🤖 AI 改的', 'close'],
+  major: ['🤖 AI 改的', 'bad'],
 };
 
 /**
@@ -186,8 +189,9 @@ export function quotaNote(quota) {
  * const reviewer = createReviewer({ onChange: render });
  * // 對答案時：
  * reviewer.begin({ key, input, task, mode: aiMode('dialogue') });
- * // 畫面上：
- * append(card, reviewer.view());
+ * // 畫面上（三塊各自有位置，見 render()）：
+ * const ai = reviewer.render();
+ * append(card, answerPair(ai.row, sentenceRow('📘 參考答案', reference)), ai.notes);
  * // 換題／再試一次：
  * reviewer.reset();
  * ```
@@ -275,112 +279,106 @@ export function createReviewer({ onChange }) {
     },
 
     /**
-     * 那一段畫面。**永遠不會取代參考答案** —— 它接在那些東西後面。
+     * 那一段畫面，拆成三塊交給模式自己排。
      *
-     * 四種狀態各自要說不同的話，而分不清楚的代價都是「以為壞了」：
-     *   還沒要（自動修正關掉時）→ 一個按鈕，按了才花錢
+     * 為什麼是三塊而不是一整個 `view()`：AI 改的那一句現在要跟教材的參考答案
+     * **並排在結果卡最上面**（見 `lib/answer-lines.js`），而說明與出處還是屬於
+     * 下面的細節區 —— 揉成一塊的話，模式就沒辦法把它們拆到兩個位置。
+     *
+     * 五種狀態各自要說不同的話，而分不清楚的代價都是「以為壞了」：
+     *   還沒要（手動模式）→ 一顆按鈕，按了才花錢
      *   要不到（伺服器沒設定模型）→ 講清楚要去哪裡設定，不要給一個按了也沒用的按鈕
      *   正在要 → 明講在等什麼，不然那幾秒看起來像卡住
-     *   要到了 / 這次沒回來 → 前者顯示修正，後者給一個「再要一次」
+     *   要到了 / 這次沒回來 → 前者顯示修正，後者給一顆「再要一次」
+     *   關掉 → 整塊都不畫（那正是「關」跟「手動」的差別）
+     *
+     * @returns {{row: Node|null, notes: Node|null, credit: Node|null}}
+     *   row 進兩句並列、notes 接在並列下面、credit 收進「詳細比對」的摺疊裡
      */
-    view() {
-      const box = h('div', { class: 'airev' });
+    render() {
+      const empty = { row: null, notes: null, credit: null };
 
       // 空白作答不給按鈕：沒有東西可以改，而那仍然是一次要花錢的呼叫
-      if (!request?.input) return box;
+      if (!request?.input) return empty;
 
       if (state?.phase === 'loading') {
-        append(box, h('p', { class: 'status status--busy' }, '🤖 AI 正在看你寫的這一句…'));
-        return box;
+        return {
+          ...empty,
+          row: sentenceRow('🤖 AI 改的',
+            h('p', { class: 'status status--busy' }, 'AI 正在看你寫的這一句…'),
+            { tone: 'ai', extraClass: 'airev' }),
+        };
       }
 
       if (state?.phase === 'error') {
-        append(box,
-          // 前面加上機器人：這一行講的是 AI 修正的事，而它前面就是教材的參考答案 ——
-          // 沒有記號的話看起來像在說剛才那次作答出了什麼問題
-          h('p', { class: 'hint hint--warn' }, `🤖 ${state.message}`),
-          // 沒設定模型、或今天的次數用完了都不給「再要一次」——
-          // 按幾次都會是同一個結果，而其中一種還會讓人以為是自己按得不夠多
-          !['no_key', 'quota'].includes(state.reason)
-            && h('button', { class: 'btn btn--ghost', onclick: ask }, '🤖 再要一次'),
-        );
-        return box;
+        return {
+          ...empty,
+          row: sentenceRow('🤖 AI 改的',
+            h('div', {},
+              h('p', { class: 'pair__text pair__text--muted' }, state.message),
+              // 沒設定模型、或今天的次數用完了都不給「再要一次」——
+              // 按幾次都會是同一個結果，而其中一種還會讓人以為是自己按得不夠多
+              !['no_key', 'quota'].includes(state.reason)
+                && h('button', { class: 'btn btn--ghost', onclick: ask }, '再要一次'),
+            ),
+            { tone: 'ai', extraClass: 'airev' }),
+        };
       }
 
-      if (state?.phase === 'done') {
-        append(box, resultBox(state, request.input));
-        return box;
-      }
+      if (state?.phase === 'done') return doneParts(state, request.input);
 
       // 關掉的話連按鈕都不畫 —— 那正是「關」跟「手動」的差別
-      if (request.mode === 'off') return box;
+      if (request.mode === 'off') return empty;
 
       // 還沒要。伺服器那邊根本沒有模型可用的話，給的是說明而不是按鈕
       if (ready && ready.ready === false) {
-        append(box, h('p', { class: 'hint' },
-          `🤖 AI 修正目前不能用（${ready.problem}）。` +
-          '設定好之後，這裡會多一段「你這句話本身怎麼樣」的建議。'));
-        return box;
+        return {
+          ...empty,
+          row: sentenceRow('🤖 AI 改的',
+            h('p', { class: 'pair__text pair__text--muted' },
+              `現在不能用（${ready.problem}）—— 到設定頁補上金鑰就會出現。`),
+            { tone: 'ai', extraClass: 'airev' }),
+        };
       }
 
-      append(box,
-        h('button', { class: 'btn btn--ghost', onclick: ask }, '🤖 讓 AI 看我這一句'),
-        h('p', { class: 'hint' }, '按 A 也可以。會把你的句子連同題目送給伺服器設定的模型，換一句更自然的說法。'),
-      );
-      return box;
+      return {
+        ...empty,
+        row: sentenceRow('🤖 AI 改的',
+          h('button', { class: 'btn btn--ghost', onclick: ask }, '讓 AI 看我這一句（A）'),
+          { tone: 'ai', extraClass: 'airev' }),
+      };
     },
   };
 }
 
-/** 修正回來之後長什麼樣。 */
-function resultBox({ data, label, ms, quota, cached }, input) {
+/**
+ * 修正回來之後的三塊。
+ *
+ * 「模型把原句照抄回來」要講出來而不是留白：秀一次一模一樣的句子只會讓人
+ * 以為它沒看懂，什麼都不畫又看起來像沒回來。
+ */
+function doneParts({ data, label, ms, quota, cached }, input) {
   const [title, tone] = VERDICT_HEAD[data.verdict] ?? VERDICT_HEAD.minor;
-  const box = h('div', { class: `airev__box airev__box--${tone}` },
-    h('p', { class: 'airev__title' }, title),
+  const unchanged = data.corrected && normalize(data.corrected) === normalize(input);
+  const show = data.corrected && !unchanged;
+
+  const row = sentenceRow(
+    title,
+    show ? data.corrected : '你原本那句就可以直接用，不用改。',
+    { tone, speakText: show ? data.corrected : '', extraClass: 'airev' },
   );
 
-  // 模型把原句照抄回來時不要再秀一次一模一樣的句子 —— 那只會讓人以為它沒看懂
-  const unchanged = data.corrected && normalize(data.corrected) === normalize(input);
+  const notes = (data.notes ?? []).length
+    ? h('ul', { class: 'airev__notes' }, (data.notes ?? []).map((n) => h('li', {}, n)))
+    : null;
 
-  if (data.corrected && !unchanged) {
-    append(box,
-      h('p', { class: 'airev__line' },
-        data.corrected,
-        ttsSupported() && h('button', {
-          class: 'bubble__play',
-          title: '唸這一句',
-          onclick: (e) => replay(data.corrected, e.currentTarget),
-        }, '🔊'),
-      ),
-    );
-  } else if (unchanged) {
-    append(box, h('p', { class: 'hint' }, '你原本那句就可以直接用，不用改。'));
-  }
-
-  for (const note of data.notes ?? []) {
-    append(box, h('p', { class: 'airev__note' }, `• ${note}`));
-  }
-
-  append(box, h('p', { class: 'airev__by' },
-    `由 ${label || '伺服器設定的模型'} 產生` +
+  const quotaLine = quotaNote(quota);
+  const credit = h('p', { class: 'airev__by' },
+    `AI 那句由 ${label || '伺服器設定的模型'} 產生` +
     (typeof ms === 'number' ? `，等了 ${(ms / 1000).toFixed(1)} 秒` : '') +
     // 從快取拿的要講出來：不然「這次怎麼是瞬間出現」看起來像沒有真的問過
-    (cached ? '（這一題你之前已經問過了，直接拿存下來的，沒有再呼叫一次）' : '') +
-    '。這是模型的意見，跟上面教材的參考答案不一樣是正常的。'));
+    (cached ? '（之前問過了，直接拿存下來的，沒有再呼叫一次）' : '') +
+    '。' + quotaLine);
 
-  const note = quotaNote(quota);
-  if (note) append(box, h('p', { class: 'airev__by' }, note));
-
-  return box;
-}
-
-async function replay(text, button) {
-  button.disabled = true;
-  try {
-    await speak(text);
-  } catch (err) {
-    console.error('[tts]', err);
-  } finally {
-    button.disabled = false;
-  }
+  return { row, notes, credit };
 }

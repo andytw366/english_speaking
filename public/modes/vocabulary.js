@@ -218,9 +218,7 @@ function render() {
     append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, '這一級目前沒有需要複習的卡片 🎉'),
-        h('p', { class: 'hint' },
-          `${summary.total} 張都排進了複習排程，時間到了會再出現。` +
-          '間隔是 1 天 → 3 天 → 7 天 → 21 天，答錯會回到第一天。'),
+        h('p', { class: 'hint' }, `${summary.total} 張都排進了複習排程，時間到了會再出現。`),
         h('div', { class: 'row' },
           h('button', { class: 'btn btn--primary', onclick: () => { picking = true; render(); } }, '換一個難度'),
           h('button', { class: 'btn btn--ghost', onclick: () => { resetSrs(); startSession(); } }, '重設所有進度'),
@@ -497,8 +495,7 @@ function renderBoxes() {
           onclick: () => { showingBoxes = false; render(); },
         }, '回去練'),
       ),
-      h('p', { class: 'hint' },
-        '答對就往上一盒、間隔拉長；答錯直接回第 1 盒。間隔是 1 天 → 3 天 → 7 天 → 21 天。'),
+      h('p', { class: 'hint' }, '間隔 1 天 → 3 天 → 7 天 → 21 天，答錯回第 1 盒。'),
       view.fresh > 0 && h('p', { class: 'hint' },
         `這一級另外有 ${view.fresh.toLocaleString()} 個字還沒練過，不列在下面。`),
     ),
@@ -591,7 +588,7 @@ function renderPicker() {
     h('div', { class: 'card' },
       h('p', { class: 'card__title' }, '選難度'),
       h('p', { class: 'hint' },
-        `共 ${(catalog.total ?? 0).toLocaleString()} 個字，依 ECDICT 的考試範圍分成 ` +
+        `共 ${(catalog.total ?? 0).toLocaleString()} 個字，分成 ` +
         `${tierDecks().length} 級（國中 → 高中 → 四級 → 六級 → 檢定 → GRE）。` +
         '一個字同時屬於多個範圍時算最簡單的那一個。'),
       h('div', { class: 'decklist' },
@@ -617,8 +614,7 @@ function renderPicker() {
         }, showBands ? '收起' : '展開'),
       ),
       h('p', { class: 'hint' },
-        '按「第幾個 1,000 常用」切的舊分組。跟上面的分級是同一批字、' +
-        '複習進度也共用 —— 想照詞頻順序練的時候才需要它。'),
+        '按「第幾個 1,000 常用」切的分組。跟上面是同一批字，複習進度共用。'),
       showBands && h('div', { class: 'decklist' }, bandDecks().map((d) => deckItem(d, null))),
     ),
 

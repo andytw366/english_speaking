@@ -40,6 +40,7 @@ const SHELL = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
+  '/lib/ai-review.js',
   '/lib/azure-issues.js',
   '/lib/backup.js',
   '/lib/daily.js',

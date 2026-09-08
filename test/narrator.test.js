@@ -14,7 +14,9 @@ import { buildNarrationPrompt, cleanNarration } from '../server/narration.js';
 import {
   openAIConfig, openAIConfigProblem, narrateViaOpenAI,
 } from '../server/openai-narrator.js';
-import { narrationProvider, narrate, PROVIDERS } from '../server/narrator.js';
+import {
+  narrationProvider, narrate, complete, modelAvailability, PROVIDERS,
+} from '../server/narrator.js';
 
 const ASSESSMENT = {
   referenceText: 'I think this is thoroughly wrong.',
@@ -292,5 +294,45 @@ test('超時用 AbortController，而且訊號真的傳下去了', async () => {
     });
     assert.equal(out, null);
     assert.ok(signal instanceof AbortSignal);
+  });
+});
+
+// ─── 「有沒有一條模型的路可以用」（情境對話的 AI 修正靠這個）─────────────
+
+test('local 這條路的 ready 是 true，但對 AI 修正而言是不能用', async () => {
+  // 這兩件事**不一樣**，而混在一起的症狀是「畫面說可以用，按下去卻永遠失敗」：
+  // 本地摘要永遠可用（那正是 local 的意義），但 AI 修正沒有本地替代品
+  await withEnv({ NARRATION_PROVIDER: 'local' }, async () => {
+    assert.equal(narrationProvider().ready, true);
+
+    const availability = modelAvailability();
+    assert.equal(availability.ready, false);
+    assert.match(availability.problem, /NARRATION_PROVIDER=local/);
+
+    // 而且真的不會呼叫任何東西
+    assert.equal(await complete('隨便一段 prompt'), null);
+  });
+});
+
+test('設定不完整時 modelAvailability 說得出缺哪一個', () => {
+  withEnv({ NARRATION_PROVIDER: 'openai', NARRATION_BASE_URL: 'https://x/v1' }, () => {
+    const availability = modelAvailability();
+    assert.equal(availability.ready, false);
+    assert.match(availability.problem, /NARRATION_API_KEY/);
+  });
+});
+
+test('設定齊了時 modelAvailability 回得出主機名與 model', () => {
+  withEnv(OPENAI_ENV, () => {
+    const availability = modelAvailability();
+    assert.equal(availability.ready, true);
+    assert.equal(availability.label, 'router.huggingface.co');
+    assert.equal(availability.model, 'some-org/some-model:groq');
+  });
+});
+
+test('complete() 走的是「現在設定的那一條路」，設定不完整就不硬打出去', async () => {
+  await withEnv({ NARRATION_PROVIDER: 'openai', NARRATION_BASE_URL: 'https://x/v1' }, async () => {
+    assert.equal(await complete('prompt'), null);
   });
 });

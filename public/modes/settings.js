@@ -17,6 +17,7 @@ import {
 import { CATEGORY_LABEL, DIFFICULTY_LABEL, DIFFICULTY_ORDER, formatTime } from '../lib/labels.js';
 import { QUIZ_TYPES } from '../lib/quiz.js';
 import { PRACTICE_MODES } from '../lib/modes.js';
+import { forgetAiReviewAvailability } from '../lib/ai-review.js';
 
 export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 
@@ -358,6 +359,9 @@ async function postSettings(payload) {
     // 存完之後「目前」那一行要馬上對，不然使用者會以為沒生效而重複儲存。
     // 前端自己推的話就會有第二份規則（Azure 要 key 和 region 都有才算）
     if (body.capabilities) caps = body.capabilities;
+    // 情境對話那邊自己快取了一份「AI 修正能不能用」（同一次載入只問一趟）。
+    // 不丟掉的話，剛剛才設好金鑰卻要重新整理才會通 —— 而那看起來就是沒生效
+    forgetAiReviewAvailability();
     return '✅ 已儲存，立即生效（不用重啟）';
   } catch (err) {
     return '⚠️ 連不上伺服器';
@@ -433,6 +437,8 @@ function practiceCard() {
     ),
 
     narrationField(s),
+
+    aiReviewField(s),
 
     models.length > 0 && h('div', { class: 'field' },
       h('label', { class: 'field__label', for: 'gemini-model' }, '講評用的 Gemini model'),
@@ -536,6 +542,41 @@ function narrationStatus(narration) {
       `講評由 ${narration.label} 的 ${narration.model} 產生（要換請看${where}）。`);
   }
   return null;
+}
+
+/**
+ * 情境對話的 AI 修正開關。
+ *
+ * 跟上面那個開關的差別值得寫下來：跟讀的講評開關是在買**時間**
+ * （分數本來就會出現，關掉只是不等講評）；這一個是在買**錢** ——
+ * 情境對話原本一毛都不花（關鍵字比對在瀏覽器裡跑），開了之後每按一次
+ * 「對答案」就是一次呼叫。所以關掉之後結果卡上仍留著一個按鈕：
+ * 想要的那一句還是要得到，只是不再每一句都自動送出去。
+ */
+function aiReviewField(s) {
+  const on = s.dialogueAiReview !== false;
+  const ai = caps?.aiReview ?? null;
+
+  return h('div', { class: 'field' },
+    h('span', { class: 'field__label' }, '情境對話的 AI 修正'),
+    h('div', { class: 'chips' },
+      [[true, '自動（對完答案就送出）'], [false, '手動（按了才送出）']].map(([value, label]) =>
+        toggleChip(label, on === value, () => {
+          updateSettings({ dialogueAiReview: value });
+          render();
+        }))),
+    h('p', { class: 'hint' },
+      on
+        ? '每按一次「對答案」就讓模型看你寫的那一句，回一句更自然的說法與原因。' +
+          '教材的參考答案照樣會出現 —— AI 修正是多的，不是取代。'
+        : '結果卡上會有一個「讓 AI 看我這一句」的按鈕，按了才呼叫模型。'),
+    ai && !ai.ready && h('p', { class: 'hint hint--warn' },
+      `⚠️ 目前沒有可以呼叫的模型（${ai.problem}）—— 這個開關要等${
+        isOwner ? '上面的「講評端點」設定好' : '擁有者設定好模型'
+      }才有作用。`),
+    ai && ai.ready && ai.model && h('p', { class: 'hint' },
+      `修正由 ${ai.label} 的 ${ai.model} 產生。`),
+  );
 }
 
 function toggleChip(label, active, onclick) {

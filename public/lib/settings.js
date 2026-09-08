@@ -23,6 +23,10 @@ export const DEFAULTS = {
   vocabDeck: 'curated',  // 目前選的單字牌組
   geminiModel: '',       // 空字串 = 用後端的預設值
   geminiNarration: true, // 要不要等 Gemini 寫中文講評。關掉改用本地摘要，送出後快很多
+  // 情境對話按「對答案」之後，要不要自動讓 AI 看你寫的那一句。
+  // 關掉之後結果卡上仍有一個按鈕，按了才會呼叫 —— 這是唯一「打字就花錢」的地方，
+  // 所以要留得住「我今天不想花這個錢」這個選擇
+  dialogueAiReview: true,
   shadowingWeighted: true, // 跟讀：依成績與間隔加權抽句
 };
 

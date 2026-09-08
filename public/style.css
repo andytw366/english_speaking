@@ -1074,6 +1074,43 @@ body {
 }
 .bubble__play:hover { opacity: 1; }
 
+/* AI 修正（情境對話）。刻意跟參考答案那一段長得不一樣 ——
+   一個是教材寫死的，一個是模型這次的意見，混在一起看不出哪句話該信到什麼程度 */
+.airev { margin-top: 1rem; }
+.airev__box {
+  padding: 0.8rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  background: color-mix(in srgb, var(--text-muted) 6%, transparent);
+}
+.airev__box--ok { border-left-color: var(--ok); }
+.airev__box--close { border-left-color: var(--warn-text); }
+.airev__box--bad { border-left-color: var(--danger); }
+.airev__title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.airev__line {
+  position: relative;
+  margin: 0 0 0.5rem;
+  padding-right: 2rem;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+.airev__line .bubble__play { top: 0.25rem; right: 0; }
+.airev__note {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.airev__by {
+  margin: 0.6rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 /* ─── 單字牌組選擇 ─────────────────────────────────────────────────────── */
 .deckbar {
   display: flex;

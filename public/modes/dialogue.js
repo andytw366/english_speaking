@@ -3,9 +3,12 @@ import { columns } from '../lib/layout.js';
 import { bindKeys } from '../lib/keys.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
-import { filterBySettings } from '../lib/settings.js';
+import { filterBySettings, getSettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
-import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
+import { grade, diffView, normalize, RESULT_HEAD } from '../lib/grade.js';
+import {
+  aiReviewAvailability, requestDialogueReview, VERDICT_HEAD,
+} from '../lib/ai-review.js';
 import { Recorder, isSupported as recSupported, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
 
 export const meta = { id: 'dialogue', label: '情境對話', icon: '💬' };
@@ -17,6 +20,14 @@ let step = 0;            // 目前進行到第幾個 turn
 let checked = null;      // 這一輪的作答結果
 let revealed = false;    // 有沒有先看參考說法
 let scores = [];         // 每個「你的台詞」的判定結果
+// AI 修正這一輪的狀態：null（還沒要）| { state: 'loading' | 'done' | 'error', … }
+let review = null;
+// 每要一次修正就 +1。回應回來時對不上就丟掉 —— 請求還在飛的時候按「繼續對話」，
+// 上一句的修正會蓋在下一句的畫面上，而那個 bug 只有手速快的時候才出現
+let reviewToken = 0;
+// 伺服器有沒有一條可以呼叫的模型。null = 還不知道（那一趟請求還沒回來或掉了），
+// **不知道時當作可以試** —— 說死「不能用」的代價是使用者以為功能壞了
+let aiReady = null;
 let recorder = null;
 let recState = 'idle';   // idle | recording | done
 let playbackUrl = null;
@@ -32,6 +43,10 @@ export async function mount(container) {
   if (all.length === 0) all = raw;
   start(all[Math.floor(Math.random() * all.length)]);
   unbindKeys = bindKeys(onKey);
+  // 不 await，也**不因此重畫**：AI 修正只出現在「對答案」之後的那張卡，
+  // 而這時候使用者可能正在輸入框裡打字 —— 為了一個還沒要顯示的東西重畫，
+  // 打到一半的字會消失
+  aiReviewAvailability().then((info) => { aiReady = info; });
   return cleanup;
 }
 
@@ -79,10 +94,20 @@ function start(dialogue) {
   checked = null;
   revealed = false;
   scores = [];
+  resetReview();
   resetRecording();
   render();
   // 如果第一句是對方講的，直接唸出來
   maybeSpeakPartner();
+}
+
+/**
+ * 丟掉這一輪的 AI 修正。**token 也要 +1** —— 只清掉 review 的話，
+ * 還在飛的那個請求回來時會把自己畫到下一句的畫面上。
+ */
+function resetReview() {
+  review = null;
+  reviewToken++;
 }
 
 function resetRecording() {
@@ -117,6 +142,7 @@ function advance() {
   step++;
   checked = null;
   revealed = false;
+  resetReview();
   resetRecording();
   render();
   maybeSpeakPartner();
@@ -298,6 +324,11 @@ function resultCard() {
   }
   append(card, h('p', { class: 'explain explain--neutral' }, turn.note_zh));
 
+  // AI 修正接在參考答案**後面**，不是取代它。
+  // 參考答案是教材寫死的（免費、離線、每次都一樣），AI 看的是「你自己那句」——
+  // 兩個回答的是不同的問題，所以兩個都要在
+  append(card, reviewBlock());
+
   // 知道正確說法之後再練發音才有意義，所以錄音放在這裡而不是作答前
   if (recSupported()) append(card, recordingRow(turn.answer));
 
@@ -307,12 +338,101 @@ function resultCard() {
         class: 'btn btn--ghost',
         onclick: (e) => replay(turn.answer, e.currentTarget),
       }, '🔊 唸一次參考說法'),
-      h('button', { class: 'btn', onclick: () => { checked = null; render(); } }, '再試一次'),
+      h('button', { class: 'btn', onclick: () => { checked = null; resetReview(); render(); } }, '再試一次'),
       h('button', { class: 'btn btn--primary', onclick: advance },
         step === current.turns.length - 1 ? '完成對話 →' : '繼續對話 →'),
     ),
   );
   return card;
+}
+
+/**
+ * 「AI 怎麼看你這一句」。**永遠不會取代參考答案** —— 它接在那些東西後面。
+ *
+ * 四種狀態各自要說不同的話，而分不清楚的代價都是「以為壞了」：
+ *   還沒要（自動修正關掉時）→ 一個按鈕，按了才花錢
+ *   要不到（伺服器沒設定模型）→ 講清楚要去哪裡設定，不要給一個按了也沒用的按鈕
+ *   正在要 → 明講在等什麼，不然那幾秒看起來像卡住
+ *   要到了 / 這次沒回來 → 前者顯示修正，後者給一個「再要一次」
+ */
+function reviewBlock() {
+  const box = h('div', { class: 'airev' });
+
+  // 空白作答不給按鈕：沒有東西可以改，而那仍然是一次要花錢的呼叫
+  if (!checked?.input?.trim()) return box;
+
+  if (review?.state === 'loading') {
+    append(box, h('p', { class: 'status status--busy' }, '🤖 AI 正在看你寫的這一句…'));
+    return box;
+  }
+
+  if (review?.state === 'error') {
+    append(box,
+      // 前面加上機器人：這一行講的是 AI 修正的事，而它前面就是教材的參考答案 ——
+      // 沒有記號的話看起來像在說剛才那次作答出了什麼問題
+      h('p', { class: 'hint hint--warn' }, `🤖 ${review.message}`),
+      // 沒設定模型時不給「再要一次」—— 按幾次都會是同一個結果
+      review.reason !== 'no_key' && h('button', { class: 'btn btn--ghost', onclick: askAi },
+        '🤖 再要一次'),
+    );
+    return box;
+  }
+
+  if (review?.state === 'done') {
+    append(box, reviewResult(review));
+    return box;
+  }
+
+  // 還沒要。伺服器那邊根本沒有模型可用的話，給的是說明而不是按鈕
+  if (aiReady && aiReady.ready === false) {
+    append(box, h('p', { class: 'hint' },
+      `🤖 AI 修正目前不能用（${aiReady.problem}）。` +
+      '設定好之後，這裡會多一段「你這句話本身怎麼樣」的建議。'));
+    return box;
+  }
+
+  append(box,
+    h('button', { class: 'btn btn--ghost', onclick: askAi }, '🤖 讓 AI 看我這一句'),
+    h('p', { class: 'hint' }, '會把你的句子連同這個情境送給伺服器設定的模型，換一句更自然的說法。'),
+  );
+  return box;
+}
+
+/** 修正回來之後長什麼樣。 */
+function reviewResult({ data, label, ms }) {
+  const [title, tone] = VERDICT_HEAD[data.verdict] ?? VERDICT_HEAD.minor;
+  const box = h('div', { class: `airev__box airev__box--${tone}` },
+    h('p', { class: 'airev__title' }, title),
+  );
+
+  // 模型把原句照抄回來時不要再秀一次一模一樣的句子 —— 那只會讓人以為它沒看懂
+  const unchanged = data.corrected && normalize(data.corrected) === normalize(checked.input);
+
+  if (data.corrected && !unchanged) {
+    append(box,
+      h('p', { class: 'airev__line' },
+        data.corrected,
+        ttsSupported() && h('button', {
+          class: 'bubble__play',
+          title: '唸這一句',
+          onclick: (e) => replay(data.corrected, e.currentTarget),
+        }, '🔊'),
+      ),
+    );
+  } else if (unchanged) {
+    append(box, h('p', { class: 'hint' }, '你原本那句就可以直接用，不用改。'));
+  }
+
+  for (const note of data.notes ?? []) {
+    append(box, h('p', { class: 'airev__note' }, `• ${note}`));
+  }
+
+  append(box, h('p', { class: 'airev__by' },
+    `由 ${label ?? '伺服器設定的模型'} 產生` +
+    (typeof ms === 'number' ? `，等了 ${(ms / 1000).toFixed(1)} 秒` : '') +
+    '。這是模型的意見，跟上面教材的參考答案不一樣是正常的。'));
+
+  return box;
 }
 
 function summaryCard() {
@@ -357,7 +477,50 @@ function check() {
   checked = { input, result };
   // 記錄這一輪的結果（再試一次會覆蓋掉同一格）
   scores[countUserTurnsBefore(step)] = { input, level: result.level };
+  resetReview();
   render();
+
+  // 本地批改先出現（免費、瞬間），AI 修正才去要 —— 順序反過來的話，
+  // 整張結果卡要等模型回來才看得到，而那幾秒裡使用者什麼都沒有
+  if (getSettings().dialogueAiReview !== false) askAi();
+}
+
+/**
+ * 去要一次 AI 修正。空白的答案不送 —— 沒有東西可以改，而那仍然是一次呼叫。
+ *
+ * 送出去的東西見 `server/coach.js` 的 `parseReviewRequest()`：情境、角色、
+ * 對方剛剛說的話都要帶上，少了它們模型只能就句子論句子，
+ * 而同一句話在咖啡店與在藥局是完全不同的評語。
+ */
+function askAi() {
+  const turn = currentTurn();
+  const input = checked?.input?.trim();
+  if (!turn || !input) return;
+
+  const previous = current.turns[step - 1];
+  const token = ++reviewToken;
+  review = { state: 'loading' };
+  render();
+
+  requestDialogueReview({
+    input,
+    reference: turn.answer,
+    accept: turn.accept ?? [],
+    intent_zh: turn.intent_zh,
+    setting_zh: current.setting_zh,
+    your_role_zh: current.your_role_zh,
+    partner_role_zh: current.partner_role_zh,
+    partner_line: previous?.speaker === 'partner' ? previous.en : '',
+    // 只有 Gemini 那條路吃得到（OpenAI 相容端點的 model 在伺服器的 .env 裡）
+    model: getSettings().geminiModel || undefined,
+  }).then((out) => {
+    // 對不上 token 就是「這已經不是剛才那一句了」—— 直接丟掉
+    if (token !== reviewToken || !root) return;
+    review = out.ok
+      ? { state: 'done', data: out.review, label: out.label, ms: out.ms }
+      : { state: 'error', reason: out.reason, message: out.message };
+    render();
+  });
 }
 
 function nextDialogue() {

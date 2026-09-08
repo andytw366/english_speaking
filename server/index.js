@@ -13,7 +13,8 @@ import {
 // 匯入時改名：這個檔案裡已經有一個 `narrate` —— 那是「使用者要不要講評」的布林值。
 // 同名的話 handler 裡的 const 會遮住 import，而錯誤是執行期的
 // `narrate is not a function`，只有真的送一次錄音才會發現。
-import { narrate as generateNarration, narrationProvider } from './narrator.js';
+import { narrate as generateNarration, narrationProvider, modelAvailability } from './narrator.js';
+import { parseReviewRequest, reviewDialogueAnswer } from './coach.js';
 import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { localSummary, wantsNarration } from './narration.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
@@ -104,6 +105,10 @@ function capabilities() {
     azureConfigured: hasAzureConfig(),
     geminiConfigured: hasApiKey(),
     narration: narrationProvider(),
+    // 情境對話的 AI 修正能不能用。**不等於 narration.ready** ——
+    // local 那條路的 ready 是 true（本地摘要永遠可用），但 AI 修正沒有本地
+    // 替代品，local 對它就是不能用。推導在 narrator.js，只有那一份
+    aiReview: modelAvailability(),
   };
 }
 
@@ -216,6 +221,59 @@ function handleSettingsError(err, res) {
       '詳細原因請看伺服器 console。',
   });
 }
+
+/**
+ * 情境對話的 AI 修正：收一句使用者寫的英文，回「更自然的說法 + 為什麼」。
+ *
+ * ─── 為什麼失敗不是 HTTP 錯誤 ─────────────────────────────────────────────
+ *
+ * 沒設定模型、呼叫失敗、回來的東西整理不出來 —— 這三種都回 **200 + ok:false**，
+ * 只有「送上來的東西不對」才是 4xx。理由跟講評一樣（見 server/narration.js）：
+ * 本地批改與參考答案在畫面上**已經出現了**，AI 修正是額外多的一段。
+ * 讓它變成紅色的錯誤，會讓人以為剛剛那次作答壞了 —— 而其實只是少了一段建議。
+ *
+ * `reason` 分得比 ok:false 細，因為每一種原因該做的事不一樣：
+ *   no_key → 去設定頁（只有擁有者做得到）；failed → 再按一次就好。
+ */
+app.post('/api/dialogue-review', async (req, res) => {
+  const parsed = parseReviewRequest(req.body ?? {});
+  if (!parsed.ok) {
+    return res.status(400).json({ error: parsed.error, message: parsed.message });
+  }
+
+  const availability = modelAvailability();
+  if (!availability.ready) {
+    return res.json({
+      ok: false,
+      reason: 'no_key',
+      message: `AI 修正需要一個能呼叫的模型，但${availability.problem}。` +
+        '請到「設定」的「講評端點」補上（要擁有者的帳號）。',
+    });
+  }
+
+  // model 只有 Gemini 那條路吃得到，白名單在 gemini.js 再驗一次
+  const model = typeof req.body?.model === 'string' ? req.body.model.trim() || undefined : undefined;
+
+  const startedAt = Date.now();
+  const review = await reviewDialogueAnswer(parsed.task, { model });
+  const ms = Date.now() - startedAt;
+
+  console.log(
+    `[coach] ${req.user.username} 的情境對話修正：${availability.label}` +
+      `（${(ms / 1000).toFixed(1)} 秒）${review ? `判定 ${review.verdict}` : '沒回來'}`
+  );
+
+  if (!review) {
+    return res.json({
+      ok: false,
+      reason: 'failed',
+      message: '這次的 AI 修正沒有回來。本地批改與參考答案不受影響，' +
+        '可以直接繼續練；一直失敗的話請看伺服器 console。',
+    });
+  }
+
+  res.json({ ok: true, review, label: availability.label, model: availability.model, ms });
+});
 
 app.post(
   '/api/pronunciation-feedback',

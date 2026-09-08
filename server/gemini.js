@@ -508,6 +508,40 @@ const NARRATION_SCHEMA = {
 };
 
 /**
+ * 送一段文字給 Gemini，把回來的**原始文字**交出去。**失敗一律回 null。**
+ *
+ * 跟 `narrateAssessment()` 的差別只有一個：這支不要求 JSON schema。
+ * 情境對話的 AI 修正（`server/coach.js`）要的是「一行一個欄位」的純文字，
+ * 而那份格式**兩條路共用**（OpenAI 相容端點拿不到 structured output）——
+ * 這裡也走純文字，兩邊回來的東西才有得比。
+ *
+ * @param {string} prompt 要送出去的提示
+ * @param {{ model?: string, timeoutMs?: number }} options
+ */
+export async function completeText(prompt, { model, timeoutMs = NARRATION_TIMEOUT_MS } = {}) {
+  if (!hasApiKey() || !looksLikeApiKey(process.env.GEMINI_API_KEY.trim())) {
+    // 沒有金鑰不算錯誤 —— 呼叫端會改用不呼叫模型的那條路
+    return null;
+  }
+
+  try {
+    const interaction = await withTimeout(
+      getClient().interactions.create({
+        // 白名單檢查在 getPronunciationFeedback 裡做過了；拿不到指定 model 就用預設值
+        model: model && isAllowedModel(model) ? model : defaultModel(),
+        input: [{ type: 'text', text: prompt }],
+      }),
+      timeoutMs
+    );
+    const text = interaction?.output_text;
+    return typeof text === 'string' && text.trim() ? text : null;
+  } catch (err) {
+    console.error('[gemini] 文字呼叫失敗（呼叫端會退回不呼叫模型的那條路）：', err);
+    return null;
+  }
+}
+
+/**
  * 把 Azure 的評估結果轉成繁體中文講評。
  *
  * prompt 來自 `narration.js`，跟 OpenAI 相容那條路**共用同一份** ——

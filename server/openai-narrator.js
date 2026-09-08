@@ -22,7 +22,7 @@
 // 容器的 egress 是逐主機允許清單，`huggingface.co`、`api.groq.com`、
 // `api.openai.com` 全部連不到（跟 Azure 一樣的處境，見 TODO.md）。
 // 所以**真正的呼叫從來沒跑過**。這裡驗過的是：請求的形狀、回應的解析、
-// 超時、以及各種錯誤碼對應的中文訊息（`test/openai-narrator.test.js`
+// 超時、以及各種錯誤碼對應的中文訊息（`test/narrator.test.js`
 // 用假的 fetch 跑）。要驗真的呼叫請看 README「換一個更快的講評模型」。
 
 import { buildNarrationPrompt, cleanNarration } from './narration.js';
@@ -68,16 +68,27 @@ export function hasOpenAIConfig() {
 }
 
 /**
- * 呼叫 OpenAI 相容端點產生中文講評。
+ * 呼叫 OpenAI 相容端點，把模型回來的**原始文字**交出去。
+ *
+ * 為什麼是「原始文字」而不是整理好的講評：這條路現在有兩個用途 ——
+ * 跟讀的中文講評（條列）與情境對話的 AI 修正（一行一個欄位，見 `server/coach.js`）。
+ * 兩者要的整理方式不一樣，但**請求怎麼發、超時怎麼算、哪個狀態碼代表什麼**
+ * 完全一樣。那一段只放這裡一份，換供應商時要改的地方才只有一個。
  *
  * 跟 `narrateAssessment()` 一樣：**失敗一律回 null，不丟例外**。
- * 講評是配角，Azure 的分數才是主角 —— 呼叫端拿到 null 就改用本地摘要，
- * 分數照樣看得到。
+ * 模型的輸出是配角（Azure 的分數、本地批改才是主角），呼叫端拿到 null
+ * 就改用不花錢的那條路。
  *
- * @param {object} assessment assessPronunciation() 的回傳值
- * @param {{ fetchImpl?: typeof fetch }} options fetchImpl 只給測試用
+ * @param {string} prompt 要送出去的提示（prompt 一律由呼叫端組，不在這裡組）
+ * @param {{ maxTokens?: number, temperature?: number, timeoutMs?: number,
+ *   fetchImpl?: typeof fetch }} options fetchImpl 只給測試用
  */
-export async function narrateViaOpenAI(assessment, { fetchImpl = fetch } = {}) {
+export async function completeViaOpenAI(prompt, {
+  maxTokens = MAX_TOKENS,
+  temperature = 0.3,
+  timeoutMs = TIMEOUT_MS,
+  fetchImpl = fetch,
+} = {}) {
   const config = openAIConfig();
   const problem = openAIConfigProblem(config);
   if (problem) {
@@ -88,7 +99,7 @@ export async function narrateViaOpenAI(assessment, { fetchImpl = fetch } = {}) {
   // 用 AbortController 而不是 Promise.race：race 贏了之後那個請求還是掛在背景
   // 跑完才放掉連線，連續超時幾次就會累積一堆沒人要的請求。
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetchImpl(`${config.baseUrl}/chat/completions`, {
@@ -99,10 +110,10 @@ export async function narrateViaOpenAI(assessment, { fetchImpl = fetch } = {}) {
       },
       body: JSON.stringify({
         model: config.model,
-        messages: [{ role: 'user', content: buildNarrationPrompt(assessment) }],
-        max_tokens: MAX_TOKENS,
-        // 講評不需要創意，要的是穩定 —— 同樣的分數每次講差不多的話才好比較
-        temperature: 0.3,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: maxTokens,
+        // 不需要創意，要的是穩定 —— 同樣的輸入每次講差不多的話才好比較
+        temperature,
         stream: false,
       }),
       signal: controller.signal,
@@ -121,24 +132,39 @@ export async function narrateViaOpenAI(assessment, { fetchImpl = fetch } = {}) {
     const data = await res.json();
     // OpenAI 相容的形狀就是這一個；有些供應商會多包東西，但 choices[0] 是共同點
     const content = data?.choices?.[0]?.message?.content;
-    const cleaned = cleanNarration(content);
-    if (!cleaned) {
+    if (typeof content !== 'string' || !content.trim()) {
       console.error(
-        '[narration] 回應裡找不到可用的講評：',
+        '[narration] 回應裡找不到文字內容：',
         JSON.stringify(data)?.slice(0, 500)
       );
+      return null;
     }
-    return cleaned;
+    return content;
   } catch (err) {
     if (err?.name === 'AbortError') {
-      console.error(`[narration] ${config.model} 超過 ${TIMEOUT_MS / 1000} 秒沒回應，改用本地摘要`);
+      console.error(`[narration] ${config.model} 超過 ${timeoutMs / 1000} 秒沒回應，改用不呼叫模型的那條路`);
     } else {
-      console.error('[narration] 呼叫 OpenAI 相容端點失敗（將改用本地摘要）：', err);
+      console.error('[narration] 呼叫 OpenAI 相容端點失敗：', err);
     }
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * 呼叫 OpenAI 相容端點產生中文講評。整理不出東西時回 null（呼叫端改用本地摘要）。
+ *
+ * @param {object} assessment assessPronunciation() 的回傳值
+ * @param {{ fetchImpl?: typeof fetch }} options fetchImpl 只給測試用
+ */
+export async function narrateViaOpenAI(assessment, { fetchImpl = fetch } = {}) {
+  const raw = await completeViaOpenAI(buildNarrationPrompt(assessment), { fetchImpl });
+  const cleaned = cleanNarration(raw);
+  if (raw && !cleaned) {
+    console.error('[narration] 回應裡找不到可用的講評：', raw.slice(0, 500));
+  }
+  return cleaned;
 }
 
 /** 常見錯誤碼的提示。只寫進伺服器 log，給設定的人看的。 */

@@ -978,6 +978,22 @@ if (await partnerButton.count()) {
 check('對方講的那句不算進度', (await text('.card--today')).startsWith('0 /'),
   (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 16));
 
+// AI 修正：**不管這台伺服器有沒有設定模型**，那一段都要在畫面上有位置 ——
+// 有修正就顯示修正，沒有模型就講出原因。靜靜不見是最糟的一種（看起來像壞了），
+// 所以這裡驗的是「🤖 那一段在」而不是某一種特定文字。
+// 同一張卡上教材的參考答案照樣要在 —— AI 修正是多的，不是取代
+const answerBox = page.locator('#view #answer');
+if (await answerBox.count()) {
+  await answerBox.fill('I want a coffee please');
+  await page.locator('#view button', { hasText: '對答案' }).click();
+  await page.waitForTimeout(600);
+  const afterCheck = await viewText();
+  check('對完答案仍然看得到教材的參考答案', afterCheck.includes('參考答案'));
+  check('AI 修正在結果卡上有位置（有修正、或講得出為什麼沒有）',
+    afterCheck.includes('🤖'),
+    afterCheck.replace(/\s+/g, ' ').replace(/^.*(?=🤖)/, '').slice(0, 60));
+}
+
 // 清除每日紀錄（連續天數唯一清得掉的地方）
 await seed({ mode: 'settings', activity: { vocabulary: { '2026-09-04': 20, '2026-09-05': 12 } } });
 await page.waitForSelector('.card', { hasText: '學習資料' });

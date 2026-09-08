@@ -2,9 +2,10 @@ import { h, append } from '../lib/dom.js';
 import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
-import { getSettings } from '../lib/settings.js';
+import { getSettings, aiMode } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
+import { createReviewer, reviewKey } from '../lib/ai-review.js';
 import { bindKeys } from '../lib/keys.js';
 
 export const meta = { id: 'translation', label: '中翻英', icon: '✍️' };
@@ -17,6 +18,8 @@ let current = null;
 let checked = null;      // null = 還沒對答案
 let counted = false;     // 這一題算進今天的進度了沒（「再試一次」不會再算一次）
 let showHint = false;
+// AI 修正。狀態、快取、那一段畫面都在 lib/ai-review.js（情境對話用的是同一份）
+let reviewer = null;
 let root = null;
 
 export async function mount(container) {
@@ -25,15 +28,37 @@ export async function mount(container) {
   if (!res.ok) throw new Error(`讀取中翻英題目失敗（HTTP ${res.status}）`);
   all = await res.json();
   applyFilter();
+  reviewer = createReviewer({ onChange: render });
   next();
   // 作答中的 Enter 由輸入框自己的 onEnter 處理（整句翻譯要能換行，所以是 ⌘+Enter）；
-  // 這裡接的是**對完答案之後**的 Enter —— 那時輸入框是 disabled 的，焦點不在裡面
-  const unbindKeys = bindKeys((key) => {
-    if (!checked) return false;
-    if (key === 'enter' || key === 'space') { next(); return true; }
-    return false;
-  });
+  // 這裡接的是**焦點不在輸入框時**的鍵。鍵的意思跟別的模式一致，見 lib/modes.js
+  const unbindKeys = bindKeys(onKey);
   return () => { unbindKeys(); root = null; };
+}
+
+/**
+ * 鍵盤。**一套共通的語言**（見 `lib/modes.js` 的說明）：
+ * Enter 主要動作、N 換一題、S 唸出來、A 問 AI、H 提示。
+ */
+function onKey(key) {
+  if (!root || !current) return false;
+
+  if (key === 'n') { next(); return true; }
+
+  if (!checked) {
+    // 提示只有填空題有（整句翻譯的提示就是答案本身，給了等於直接看答案）
+    if (key === 'h' && current.type === 'cloze' && current.hint_zh && !showHint) {
+      showHint = true;
+      render();
+      return true;
+    }
+    return false;
+  }
+
+  if (key === 'enter' || key === 'space') { next(); return true; }
+  if (key === 's') { root.querySelector('#btn-speak')?.click(); return true; }
+  if (key === 'a') { root.querySelector('.airev button')?.click(); return true; }
+  return false;
 }
 
 function applyFilter() {
@@ -51,6 +76,7 @@ function next() {
   checked = null;
   counted = false;
   showHint = false;
+  reviewer?.reset();
   render();
 }
 
@@ -180,13 +206,17 @@ function resultCard() {
     append(card, h('p', { class: 'explain explain--neutral' }, current.explain_zh));
   }
 
+  // AI 修正接在參考答案**後面**，不是取代它 —— 兩者回答的是不同的問題：
+  // 參考答案是「教材建議怎麼翻」，AI 修正是「我這樣翻行不行」
+  append(card, reviewer.view());
+
   append(card, 
     h('div', { class: 'row' },
       ttsSupported() && h('button', {
-        class: 'btn btn--ghost',
+        class: 'btn btn--ghost', id: 'btn-speak',
         onclick: (e) => playAnswer(e.currentTarget),
       }, '🔊 唸一次答案'),
-      h('button', { class: 'btn', onclick: () => { checked = null; render(); } }, '再試一次'),
+      h('button', { class: 'btn', onclick: () => { checked = null; reviewer.reset(); render(); } }, '再試一次'),
       h('button', { class: 'btn btn--primary', onclick: next }, '下一題'),
     ),
   );
@@ -218,6 +248,26 @@ function check() {
 
   checked = { input, result };
   render();
+
+  // 空白作答不去要修正（沒有東西可以改，而那仍然是一次要花錢的呼叫）——
+  // reviewer 自己會擋，這裡不必再判一次
+  //
+  // 填空題除了「他填了什麼」還要送**句型**（`sentence`，含 ___）：
+  // 「grab」單獨看不出對錯，模型要看得到整句才知道那個位置該用什麼詞
+  reviewer.begin({
+    key: reviewKey('translation', current.id),
+    input,
+    mode: aiMode('translation'),
+    task: {
+      mode: 'translation',
+      zh: current.zh,
+      type: current.type,
+      sentence: current.sentence ?? '',
+      reference: current.answer,
+      accept: current.accept ?? [],
+      model: getSettings().geminiModel || undefined,
+    },
+  });
 }
 
 async function playAnswer(button) {

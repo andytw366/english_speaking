@@ -55,6 +55,45 @@ ${problems || '（沒有明顯問題的字）'}
 /** 一段講評最多幾行。prompt 裡也寫了 4 行，這裡是模型不聽話時的第二道關。 */
 const MAX_NARRATION_LINES = 4;
 
+const BULLET = /^([•‧・*\-–—]|\d+[.)])\s*/;
+
+/**
+ * 去掉 markdown 圍欄。模型很愛把整段包進 ```markdown 裡，而那三個反引號
+ * 在畫面上就只是雜訊。
+ *
+ * 抽成獨立的函式是因為情境對話的 AI 修正（server/coach.js）吃的不是條列，
+ * 而是「一行一個欄位」的格式 —— 圍欄要拿掉，但條列那一套不適用。
+ */
+export function stripFences(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .replace(/^\s*```[a-z]*\s*\n/i, '')   // 開頭的 ``` 或 ```markdown
+    .replace(/\n\s*```\s*$/, '')          // 結尾的圍欄
+    .trim();
+}
+
+/**
+ * 從模型回來的文字裡挑出條列，回傳**不含符號**的字串陣列。
+ *
+ * 「什麼算一條」的規則刻意只有這一份 —— 講評與情境對話的 AI 修正都在解析
+ * 同一批模型的同一種壞習慣（`- ` 而不是「• 」、開場白、只有符號的空行），
+ * 各寫一份的話兩邊會慢慢長出不一樣的容忍度。
+ */
+export function bulletLines(text, max = Infinity) {
+  if (typeof text !== 'string') return [];
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    // 只留條列。開場白（「好的，以下是講評：」）與結語都不是條列，會在這裡被丟掉
+    .filter((line) => BULLET.test(line))
+    // 先把符號拿掉、確認裡面真的有字 ——
+    // 順序反過來的話，只有符號的那一行會變成一個空的「• 」留在畫面上
+    .map((line) => line.replace(BULLET, '').trim())
+    .filter(Boolean)
+    .slice(0, max);
+}
+
 /**
  * 把模型回來的文字整理成可以直接顯示的講評。整理不出東西時回 null。
  *
@@ -65,35 +104,17 @@ const MAX_NARRATION_LINES = 4;
  * 刻意**不**要求 JSON：講評只是幾行字，JSON 除了多一種「回來的不是合法 JSON」
  * 的失敗方式之外沒有任何好處，而且不是每個供應商都支援 JSON mode。
  */
-const BULLET = /^([•‧・*\-–—]|\d+[.)])\s*/;
-
 export function cleanNarration(raw) {
-  if (typeof raw !== 'string') return null;
-
-  const text = raw
-    .replace(/^\s*```[a-z]*\s*\n/i, '')   // 開頭的 ``` 或 ```markdown
-    .replace(/\n\s*```\s*$/, '')          // 結尾的圍欄
-    .trim();
+  const text = stripFences(raw);
   if (!text) return null;
 
-  const lines = text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    // 只留條列。開場白（「好的，以下是講評：」）與結語都不是條列，會在這裡被丟掉
-    .filter((line) => BULLET.test(line))
-    // 先把符號拿掉、確認裡面真的有字，再補上「• 」——
-    // 順序反過來的話，只有符號的那一行會變成一個空的「• 」留在畫面上
-    .map((line) => line.replace(BULLET, '').trim())
-    .filter(Boolean)
-    .map((line) => `• ${line}`);
-
+  const lines = bulletLines(text, MAX_NARRATION_LINES).map((line) => `• ${line}`);
   if (lines.length === 0) return null;
-  return lines.slice(0, MAX_NARRATION_LINES).join('\n');
+  return lines.join('\n');
 }
 
 /** 講評缺席的原因。會回給前端，決定畫面上那行小字怎麼寫。 */
-export const NARRATION_REASONS = ['disabled', 'no_key', 'failed', 'gemini_scores'];
+export const NARRATION_REASONS = ['disabled', 'no_key', 'failed', 'gemini_scores', 'quota'];
 
 /**
  * 前端送上來的 narrate 欄位要不要呼叫 Gemini 講評。
@@ -130,6 +151,8 @@ const CLOSING = {
   no_key: '•（伺服器設定好講評用的模型之後，這裡會換成更具體的中文教練建議）',
   failed: '•（這次的講評沒有回來，已改用本地摘要。分數不受影響，' +
     '可以直接繼續練；一直失敗的話請看伺服器 console。）',
+  quota: '•（今天的 AI 呼叫次數用完了，這段改用本地摘要。分數不受影響，' +
+    '明天會重新計算；要調整上限請看「設定 → 每天的呼叫上限」。）',
 };
 
 /**

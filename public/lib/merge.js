@@ -18,6 +18,9 @@ const HISTORY_LIMIT = 200;
 /** 每個模式留幾天。跟 `storage.js` 的 `ACTIVITY_DAY_LIMIT` 是同一個數字。 */
 const ACTIVITY_DAY_LIMIT = 400;
 
+/** AI 修正留幾筆。跟 `storage.js` 的 `REVIEW_LIMIT` 是同一個數字。 */
+const REVIEW_LIMIT = 200;
+
 /**
  * 合併兩份進度。
  *
@@ -40,6 +43,7 @@ export function mergeState(a = {}, b = {}) {
   put('vocabDays', mergeDayNumbers(left.vocabDays, right.vocabDays));
   put('history', mergeHistory(left.history, right.history));
   put('settings', mergeSettings(left.settings, right.settings));
+  put('reviews', mergeReviews(left.reviews, right.reviews));
 
   return out;
 }
@@ -221,6 +225,60 @@ function byNewest(x, y) {
   const iy = String(y.sentenceId ?? '');
   if (ix !== iy) return ix.localeCompare(iy);
   return JSON.stringify(x).localeCompare(JSON.stringify(y));
+}
+
+// ─── reviews：每一格取比較新的那一次 ─────────────────────────────────────
+
+/**
+ * 情境對話的 AI 修正。鍵是「哪一段對話的第幾句」，值是那次的修正。
+ *
+ * 規則跟 `srs` 一樣是「每一格整筆取比較新的」，理由也一樣：
+ * 逐欄位合併會拼出一個「修正句是新的、說明是舊的」而且沒有人看過的組合。
+ *
+ * 為什麼要合併而不是整包取新的一邊：這份東西是**花錢換來的**
+ * （每一筆都是一次模型呼叫），整包取新的會把另一台裝置練過的那幾段丟掉，
+ * 而丟掉的代價是下次練到那一段時再付一次錢。
+ */
+export function mergeReviews(a, b) {
+  if (!isObject(a) && !isObject(b)) return undefined;
+  const left = isObject(a) ? a : {};
+  const right = isObject(b) ? b : {};
+
+  const merged = {};
+  for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    merged[key] = newerReview(left[key], right[key]);
+  }
+
+  // 超過上限時丟掉最舊的。排序要是**全序**（`at` 一樣時比鍵），
+  // 不然兩邊丟掉的不是同一批，merge(a,b) 與 merge(b,a) 就會不一樣
+  const keys = Object.keys(merged);
+  if (keys.length <= REVIEW_LIMIT) return merged;
+
+  const kept = keys
+    .sort((x, y) => {
+      const ax = String(merged[x]?.at ?? '');
+      const ay = String(merged[y]?.at ?? '');
+      if (ax !== ay) return ay.localeCompare(ax);
+      return x.localeCompare(y);
+    })
+    .slice(0, REVIEW_LIMIT);
+
+  const out = {};
+  for (const key of kept) out[key] = merged[key];
+  return out;
+}
+
+function newerReview(x, y) {
+  if (!isObject(x)) return y;
+  if (!isObject(y)) return x;
+
+  const ax = String(x.at ?? '');
+  const ay = String(y.at ?? '');
+  if (ax !== ay) return ax > ay ? x : y;
+
+  // 時間一模一樣（同一台裝置存了兩次、或時鐘的解析度不夠）：
+  // 用一條決定性的規則挑，不能用「先到的贏」—— 那不滿足交換律
+  return stable(x, y);
 }
 
 // ─── settings：整包取新的 ────────────────────────────────────────────────

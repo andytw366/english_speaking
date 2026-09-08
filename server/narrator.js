@@ -11,8 +11,10 @@
 // 怎麼還是要等十幾秒」變成無解的問題。設定的那條路失敗就退回本地摘要，
 // 使用者馬上看得出來，也知道要去修哪裡。
 
-import { narrateAssessment, hasApiKey } from './gemini.js';
-import { hasOpenAIConfig, narrateViaOpenAI, openAIConfig, openAIConfigProblem } from './openai-narrator.js';
+import { narrateAssessment, completeText, hasApiKey } from './gemini.js';
+import {
+  hasOpenAIConfig, narrateViaOpenAI, completeViaOpenAI, openAIConfig, openAIConfigProblem,
+} from './openai-narrator.js';
 
 /** 可以填在 NARRATION_PROVIDER 的值。 */
 export const PROVIDERS = ['gemini', 'openai', 'local'];
@@ -98,4 +100,68 @@ export async function narrate(assessment, { model } = {}) {
 
   if (provider.id === 'openai') return narrateViaOpenAI(assessment);
   return narrateAssessment(assessment, { model });
+}
+
+/**
+ * 「現在有沒有一條真的會呼叫模型的路」。
+ *
+ * 為什麼不能直接看 `narrationProvider().ready`：`local` 那條路的 ready 是
+ * **true**（本地摘要永遠可用，那正是它的意義）。但情境對話的 AI 修正沒有
+ * 本地替代品 —— 本地能做的（關鍵字比對、參考答案）畫面上已經有了，
+ * AI 修正就是「模型看你寫的句子」這件事本身。所以對它而言 local = 不能用。
+ *
+ * 這個推導只放這一份、而且放在伺服器端：前端自己從「有沒有設定金鑰」去猜的話，
+ * 規則就有兩份，而分岔的症狀是「畫面說可以用，按下去卻永遠失敗」。
+ *
+ * @returns {{ready: boolean, label: string, model: string, problem: string|null}}
+ */
+export function modelAvailability() {
+  const provider = narrationProvider();
+
+  if (provider.id === 'local') {
+    return {
+      id: 'local',
+      ready: false,
+      label: provider.label,
+      model: '',
+      problem: '伺服器設定成 NARRATION_PROVIDER=local，不會呼叫任何模型',
+    };
+  }
+  return {
+    // id 是給每日呼叫上限用的（`server/quota.js`）—— 次數記在「哪個模型」上，
+    // 而 Gemini 那條路的 model 是每次請求可以換的，所以要知道現在走的是哪一條
+    id: provider.id,
+    ready: provider.ready,
+    label: provider.label,
+    model: provider.model,
+    problem: provider.problem,
+  };
+}
+
+/**
+ * 送一段 prompt 給「現在設定的那個模型」，回**原始文字**；沒有可用的路
+ * 或呼叫失敗一律回 null。
+ *
+ * 為什麼放這裡：`narrationProvider()` 那份「走哪一條路」的邏輯**只能有一份**
+ * （這個檔案開頭就寫著這件事）。AI 修正不是講評，但它要問的是同一個問題 ——
+ * 「這台伺服器現在接得到哪個模型」。
+ *
+ * 整理回來的文字是呼叫端的事：講評要條列（`cleanNarration`），
+ * AI 修正要的是一行一個欄位（`server/coach.js` 的 `parseDialogueReview`）。
+ *
+ * @param {string} prompt
+ * @param {{ model?: string, maxTokens?: number }} options
+ *   model 只有 Gemini 那條路用得到（OpenAI 相容那條的 model 在 .env 裡）
+ */
+export async function complete(prompt, { model, maxTokens } = {}) {
+  const provider = narrationProvider();
+
+  if (provider.id === 'local') return null;
+  if (!provider.ready) {
+    console.error(`[narration] ${provider.label} ${provider.problem}，這次不呼叫模型`);
+    return null;
+  }
+
+  if (provider.id === 'openai') return completeViaOpenAI(prompt, { maxTokens });
+  return completeText(prompt, { model });
 }

@@ -19,6 +19,9 @@ import { hashToken, newSession, SESSION_DAYS } from './auth.js';
 /** 進度檔保留幾個舊版本。 */
 const KEEP_REVISIONS = 10;
 
+/** 呼叫次數留幾天。只有「今天」會被讀，多留幾天純粹是為了看得出昨天用了多少。 */
+const KEEP_USAGE_DAYS = 7;
+
 /** 一個使用者的進度上限。超過就拒收 —— 正常值不到 1 MB。 */
 export const MAX_DATA_BYTES = 8 * 1024 * 1024;
 
@@ -33,6 +36,7 @@ export class StoreError extends Error {
 export function createStore(dir) {
   const usersFile = path.join(dir, 'users.json');
   const sessionsFile = path.join(dir, 'sessions.json');
+  const usageFile = path.join(dir, 'usage.json');
   const userDir = path.join(dir, 'u');
 
   /**
@@ -207,6 +211,68 @@ export function createStore(dir) {
 
         await writeJson(dataFile(userId), next);
         return next;
+      });
+    },
+
+    // ─── 每天的呼叫次數 ──────────────────────────────────────────────────
+    //
+    // 為什麼存在伺服器而不是瀏覽器：上限要擋的是**花錢**，而錢是伺服器在花。
+    // 存在 localStorage 的話換一台裝置、開個無痕視窗、或按一下「清除學習資料」
+    // 就重新開始 —— 那不是上限，是提醒。
+    //
+    // 檔案形狀：`{ "<日期>": { "<userId>": { total, byKey } } }`。
+    // 一天一格、只留最近幾天 —— 這份資料的用途只有「今天還剩幾次」，
+    // 留著歷史除了讓檔案長大之外沒有任何人會去看。
+
+    /** 這個人今天已經用掉多少。沒有紀錄回 `{ total: 0, byKey: {} }`。 */
+    async readUsage(userId, day) {
+      const all = await readJson(usageFile, {});
+      const today = all?.[day]?.[userId];
+      return {
+        total: Number(today?.total ?? 0),
+        byKey: { ...(today?.byKey ?? {}) },
+      };
+    },
+
+    /**
+     * 記一次呼叫 —— 但**先讓呼叫端判斷放不放行**，而且整段在同一個獨佔區段裡。
+     *
+     * 為什麼要把判斷傳進來（而不是「先 readUsage 再 recordUsage」）：
+     * 那兩趟中間會讓出去，兩個幾乎同時進來的請求會各自讀到同一個舊數字、
+     * 然後兩個都放行 —— 上限就變成「大約」。放在同一個區段裡就沒有這個空隙。
+     *
+     * 判斷規則本身是純函式（`server/quota.js` 的 `judgeCall`），不在 store 裡。
+     *
+     * @param {string} userId
+     * @param {string} key 記在哪個計數上（模型 id，見 quota.js 的 usageKey）
+     * @param {{day: string, judge: (usage: {total: number, byKey: object}) => object}} options
+     *   judge 要回一個至少有 `allowed` 的物件；`allowed` 是 false 就不會加一
+     * @returns {Promise<object>} judge 的回傳值，加上 `usage`（記完之後的計數）
+     */
+    async spendUsage(userId, key, { day, judge }) {
+      return exclusive(async () => {
+        const all = await readJson(usageFile, {});
+        const forDay = all[day] ?? {};
+        const current = forDay[userId] ?? { total: 0, byKey: {} };
+        const usage = { total: Number(current.total ?? 0), byKey: { ...(current.byKey ?? {}) } };
+
+        const verdict = judge(usage);
+        if (!verdict?.allowed) return { ...verdict, usage };
+
+        const next = {
+          total: usage.total + 1,
+          byKey: { ...usage.byKey, [key]: Number(usage.byKey[key] ?? 0) + 1 },
+        };
+
+        // 只留最近幾天。寫入時順手清掉，不需要另外排程（跟 session 一樣的做法）
+        const days = Object.keys({ ...all, [day]: forDay }).sort();
+        const keep = new Set(days.slice(-KEEP_USAGE_DAYS));
+        const pruned = Object.fromEntries(
+          Object.entries(all).filter(([d]) => keep.has(d))
+        );
+
+        await writeJson(usageFile, { ...pruned, [day]: { ...forDay, [userId]: next } });
+        return { ...verdict, usage: next };
       });
     },
 

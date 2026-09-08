@@ -11,7 +11,7 @@
 import { h, append } from '../lib/dom.js';
 import { columns } from '../lib/layout.js';
 import { bindKeys } from '../lib/keys.js';
-import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
+import { filterBySettings, getSettings, updateSettings, aiMode, setAiMode, AI_MODES } from '../lib/settings.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
   Recorder, isSupported as recSupported, unsupportedReason,
@@ -26,6 +26,8 @@ import {
 } from '../lib/practice.js';
 import { problemWordsFromAssessment, prosodyIssue } from '../lib/azure-issues.js';
 import { renderAssessment } from './assessment-view.js';
+import { requestNarration, quotaNote } from '../lib/ai-review.js';
+import { chipField } from '../lib/fields.js';
 import { renderToday, renderSetSummary, renderHistory } from './shadowing-views.js';
 import { recordPractice } from '../lib/daily.js';
 import { goalOf, setGoal } from '../lib/settings.js';
@@ -49,6 +51,9 @@ let stats = new Map();   // 依句子彙整的成績；history 一變就重算
 let weak = new Map();    // 最近哪些音出問題出得最多
 let setRecords = [];     // 這一組練到第幾句（只存在記憶體：一組是「這次坐下來練的」）
 let lastSetSummary = null;
+// 手動要來的中文講評：null（還沒要）| { phase: 'loading'|'done'|'error', … }。
+// 跟著 lastResult 走 —— 換一句、或重新送出一次錄音都要清掉
+let narration = null;
 let outOfPoolNote = '';
 let root = null;
 let unbindKeys = null;
@@ -87,6 +92,20 @@ function onKey(key) {
   if (recording) return false;
   if (key === 'p') { playDemo(); return true; }
   if (key === 'n') { nextSentence(); return true; }
+  // 錄好了就送出 —— Enter 在每個模式都是「這個畫面的主要動作」
+  if (key === 'enter') {
+    const btn = root.querySelector('#btn-submit');
+    if (!btn || btn.disabled) return false;
+    btn.click();
+    return true;
+  }
+  // 手動模式下要一次中文講評（自動模式下那顆按鈕根本不存在）
+  if (key === 'a') {
+    const btn = root.querySelector('.airev button');
+    if (!btn) return false;
+    btn.click();
+    return true;
+  }
   return false;
 }
 
@@ -134,6 +153,7 @@ function dailyGoal() {
 }
 
 function nextSentence() {
+  narration = null;
   outOfPoolNote = '';
   // 加權的規則在 practice.js，這裡只負責把目前的狀態餵進去。
   // 關掉開關就退回等機率隨機 —— 「怎麼一直抽到同幾句」要有辦法關掉。
@@ -205,7 +225,7 @@ function render() {
     renderAssessment(card, lastResult, current.text, (el) => {
       const target = root.querySelector('#sentence');
       if (target) target.replaceWith(el);
-    });
+    }, { narration: narrationBox() });
     append(main, card);
   }
 
@@ -258,18 +278,22 @@ function sentenceCard() {
         h('span', { class: 'hint' }, `這一組：${setRecords.length} / ${SET_SIZE} 句`),
     ),
 
-    h('label', { class: 'check' },
-      h('input', {
-        type: 'checkbox',
-        checked: weightedEnabled(),
-        disabled: Boolean(recorder?.isRecording),
-        onchange: (e) => {
-          updateSettings({ shadowingWeighted: e.target.checked });
-          render();
-        },
+    // 抽句方式。**跟設定頁裡的那一個是同一個選項、也長同一個樣子**
+    // （`lib/fields.js`）—— 一個 checkbox 一排 chip 的話，
+    // 使用者會以為是兩件不同的事，而 checkbox 還會讓人去找「儲存」按鈕
+    chipField('抽句方式',
+      [[true, '優先練弱點'], [false, '完全隨機']],
+      weightedEnabled(),
+      (value) => {
+        if (recorder?.isRecording) return;   // 錄音中不要換抽句規則
+        updateSettings({ shadowingWeighted: value });
+        render();
+      },
+      {
+        hint: weightedEnabled()
+          ? '分數低的、久沒練的、以及練得到你常錯的音的句子會比較常出現。'
+          : '每一句機率一樣。覺得「怎麼一直抽到同幾句」的時候用這個。',
       }),
-      h('span', {}, '優先練分數低、久沒練的句子'),
-    ),
 
     outOfPoolNote && h('p', { class: 'hint' }, outOfPoolNote),
   );
@@ -490,16 +514,85 @@ function setRecordingUI(isRecording) {
   if (goalSelect) goalSelect.disabled = isRecording;
 }
 
+/**
+ * 「手動要中文講評」那一段。
+ *
+ * 為什麼要有手動這條路：講評原本是「送出錄音時一起要」，也就是全有或全無 ——
+ * 想省那幾秒就得整個關掉，然後遇到真的想知道的那一句時沒有辦法補要。
+ * 三個 AI 功能現在都是自動／手動／關（見 `lib/settings.js` 的 `AI_FEATURES`），
+ * 而這裡是跟讀那一個的手動路徑。
+ *
+ * 補要的是**已經算好的分數**，不是重送錄音 —— 重送等於再花一次 Azure 的錢。
+ *
+ * @returns {{text?: string, label?: string, ms?: number, view?: HTMLElement}|null}
+ */
+function narrationBox() {
+  // 自動模式、或這一趟本來就拿到講評了，就沒有什麼要按的
+  const mode = aiMode('narration');
+  if (mode !== 'manual') return null;
+  if (lastResult?.narrationSource && lastResult.narrationSource !== 'local') return null;
+  // 沒有人聲那一種回應連分數都沒有，補要講評沒有意義
+  if (lastResult?.speech_detected === false) return null;
+
+  if (narration?.phase === 'done') {
+    return { text: narration.text, label: narration.label, ms: narration.ms, view: quotaLine(narration) };
+  }
+
+  const view = h('div', { class: 'airev' });
+  if (narration?.phase === 'loading') {
+    append(view, h('p', { class: 'status status--busy' }, '🤖 正在寫中文講評…'));
+    return { view };
+  }
+  if (narration?.phase === 'error') {
+    append(view,
+      h('p', { class: 'hint hint--warn' }, `🤖 ${narration.message}`),
+      // 沒設定模型、或今天的次數用完了都不給重試 —— 按幾次都是同一個結果
+      !['no_key', 'quota'].includes(narration.reason)
+        && h('button', { class: 'btn btn--ghost', onclick: askNarration }, '🤖 再要一次'),
+    );
+    return { view };
+  }
+
+  append(view,
+    h('button', { class: 'btn btn--ghost', onclick: askNarration }, '🤖 要中文講評'),
+    h('p', { class: 'hint' }, '按 A 也可以。分數已經算好了，這一次只把數字寫成中文建議。'),
+  );
+  return { view };
+}
+
+function quotaLine(state) {
+  const note = quotaNote(state.quota);
+  return note ? h('p', { class: 'hint' }, note) : null;
+}
+
+/** 手動要一次講評。**不重送錄音** —— 送的是畫面上已經有的那份評估結果。 */
+function askNarration() {
+  if (!lastResult || narration?.phase === 'loading') return;
+  narration = { phase: 'loading' };
+  render();
+
+  const model = getSettings().geminiModel || undefined;
+  requestNarration(lastResult, { model }).then((out) => {
+    // 換句、或又送了一次錄音的話這一份就過期了
+    if (!root || !lastResult) return;
+    narration = out.ok
+      ? { phase: 'done', text: out.feedback_zh, label: out.label, ms: out.ms, quota: out.quota }
+      : { phase: 'error', reason: out.reason, message: out.message, quota: out.quota };
+    render();
+  });
+}
+
 // ─── 送出評估 ────────────────────────────────────────────────────────────
 
 async function submit() {
   if (!wavBlob || !current) return;
   const btn = root?.querySelector('#btn-submit');
   if (btn) btn.disabled = true;
+  narration = null;
   setStatus(
-    getSettings().geminiNarration === false
-      ? '分析中（中文講評已關閉，會快一些）…'
-      : '分析中，請稍候…',
+    aiMode('narration') === 'auto'
+      ? '分析中，請稍候…'
+      : '分析中（這一趟不等中文講評，會快一些）…',
     'busy'
   );
 
@@ -509,9 +602,11 @@ async function submit() {
   // 使用者在「設定」選的 model。沒選就不送，後端用它自己的預設值。
   const chosenModel = getSettings().geminiModel;
   if (chosenModel) form.append('model', chosenModel);
-  // 關掉中文講評時明講，後端就不會去呼叫 Gemini（分數照樣有）。
-  // 只在關掉時送這個欄位 —— 後端沒收到就是預設的「要」。
-  if (getSettings().geminiNarration === false) form.append('narrate', 'off');
+  // 「自動」以外都不在這一趟要講評，後端就不會去呼叫模型（分數照樣有）。
+  // 手動模式下的講評是之後按按鈕、走 /api/narration 補要的 ——
+  // 那條路送的是算好的分數，不會再花一次 Azure 的錢。
+  // 只在不要的時候送這個欄位 —— 後端沒收到就是預設的「要」。
+  if (aiMode('narration') !== 'auto') form.append('narrate', 'off');
 
   try {
     const res = await fetch('/api/pronunciation-feedback', { method: 'POST', body: form });

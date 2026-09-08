@@ -132,8 +132,11 @@ function geminiProblemWords(list) {
  * @param {object} data /api/pronunciation-feedback 的回應
  * @param {string} targetText 目標句
  * @param {(el: HTMLElement) => void} replaceSentence 用標色版本換掉畫面上的句子
+ * @param {{narration?: object}} options
+ *   narration 是「手動要講評」那顆按鈕的狀態（見 modes/shadowing.js 的 narrationBox）。
+ *   沒給就是舊行為 —— 講評是什麼就顯示什麼
  */
-export function renderAssessment(container, data, targetText, replaceSentence) {
+export function renderAssessment(container, data, targetText, replaceSentence, options = {}) {
   replaceSentence?.(buildHighlightedSentence(targetText, data));
 
   if (data.provider === 'azure') {
@@ -197,9 +200,21 @@ export function renderAssessment(container, data, targetText, replaceSentence) {
     append(container, geminiProblemWords(data.problem_words));
   }
 
-  append(container, h('p', { class: 'coach' }, data.feedback_zh ?? '（沒有收到講評內容）'));
+  // 手動要來的講評會蓋掉本地摘要 —— 那正是使用者按那顆按鈕的目的
+  const manual = options.narration ?? null;
+  append(container, h('p', { class: 'coach' },
+    manual?.text ?? data.feedback_zh ?? '（沒有收到講評內容）'));
 
-  append(container, narrationNote(data));
+  // 手動拿到講評之後，「為什麼是本地摘要」那一行就不成立了 —— 改寫成誰產生的
+  if (manual?.text) {
+    append(container, h('p', { class: 'hint' },
+      `（講評由 ${manual.label || 'AI'} 產生` +
+      (typeof manual.ms === 'number' ? `，等了 ${(manual.ms / 1000).toFixed(1)} 秒` : '') + '。）'));
+  } else {
+    append(container, narrationNote(data));
+  }
+
+  if (options.narration?.view) append(container, options.narration.view);
 }
 
 // 講評是誰寫的、為什麼。四種情況要講四句不同的話 ——
@@ -208,10 +223,15 @@ export function renderAssessment(container, data, targetText, replaceSentence) {
 // 講評的來源現在不一定是 Gemini（伺服器的 .env 可以指到任何 OpenAI 相容端點），
 // 所以這幾句話都不寫死廠商名 —— 實際是誰由回應的 narrationLabel 帶上來。
 const NARRATION_NOTE = {
-  disabled: '（中文講評已關閉，上面是本地摘要。要更具體的建議可以到「設定」重新開啟。）',
+  // 「關」與「手動」的差別要講出來 —— 兩個都是本地摘要，但一個下面有按鈕、
+  // 另一個沒有，而使用者需要知道自己現在在哪一種
+  disabled: '（中文講評設成「關」，上面是本地摘要。要更具體的建議可以到「設定 → AI 功能」' +
+    '改成自動或手動。）',
+  manual: '（中文講評設成「手動」，上面是本地摘要 —— 想要具體建議就按下面那顆按鈕。）',
   no_key: '（上面的講評由本地摘要產生 —— 伺服器還沒設定講評用的模型。）',
   failed: '（這次的講評沒有回來，已改用本地摘要。分數不受影響。）',
   gemini_scores: '（沒有設定 Azure 時分數本身就是 Gemini 給的，所以關掉講評不會變快。）',
+  quota: '（今天的 AI 呼叫次數用完了，上面是本地摘要。分數不受影響；上限在「設定 → 每天的呼叫上限」。）',
 };
 
 function narrationNote(data) {

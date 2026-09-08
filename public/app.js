@@ -5,11 +5,12 @@
 // 由 CSS 決定哪一份出現 —— 兩份各自維護的話，加一個模式就會有一邊忘了加。
 import { h, clear, append } from './lib/dom.js';
 import { single } from './lib/layout.js';
-import { MODES, MODE_IDS, modeMeta } from './lib/modes.js';
+import { MODES, MODE_IDS, GLOBAL_KEYS, modeMeta } from './lib/modes.js';
 import { overallToday } from './lib/daily.js';
 import { setUnauthenticatedHandler, whoAmI } from './lib/session.js';
 import { renderLogin } from './lib/login-view.js';
 import { start as startSync } from './lib/sync.js';
+import { bindKeys } from './lib/keys.js';
 
 const nav = document.getElementById('nav');
 const dock = document.getElementById('dock');
@@ -132,23 +133,102 @@ function renderToday() {
  *
  * 文字來自 `lib/modes.js` 的 `keys`，實作在各模式的 `onKey()`。**兩邊要一起改**。
  */
+const RAIL_KEYS = 4;
+
 function renderKeys(meta) {
   if (!railKeys) return;
   clear(railKeys);
   const keys = meta.keys ?? [];
-  railKeys.hidden = keys.length === 0;
-  if (keys.length === 0) return;
+  railKeys.hidden = false;
 
   append(railKeys,
     h('p', { class: 'railkeys__title' }, '鍵盤'),
-    keys.map(([key, what]) => h('div', { class: 'railkeys__row' },
-      h('kbd', { class: 'kbd' }, key),
-      h('span', { class: 'railkeys__what' }, what),
-    )),
+    // 側欄只放最常按的幾個 —— 列滿七行的話它會比練習區還高，
+    // 而那幾行每一題都在那裡，看第二次就是雜訊了
+    keys.slice(0, RAIL_KEYS).map(([key, what]) => keyRow(key, what)),
+    h('button', {
+      class: 'railkeys__more',
+      onclick: () => toggleKeyHelp(true),
+    }, keys.length > RAIL_KEYS ? `全部 ${keys.length} 個（?）` : '全部快捷鍵（?）'),
   );
 }
 
+function keyRow(key, what) {
+  return h('div', { class: 'railkeys__row' },
+    h('kbd', { class: 'kbd' }, key),
+    h('span', { class: 'railkeys__what' }, what),
+  );
+}
+
+/**
+ * 快捷鍵說明面板（按 `?`）。
+ *
+ * 為什麼需要它而不是只有側欄那幾行：側欄放得下四行，而每個模式現在有五到七個
+ * 鍵、還有四個全域的。**快捷鍵最大的問題不是難按，是沒人知道有這個東西** ——
+ * 側欄那幾行負責「讓人知道有」，這張表負責「一次看完」。
+ *
+ * 手機上不會出現（沒有鍵盤），跟側欄同一個理由。
+ */
+let keyHelpOpen = false;
+
+function toggleKeyHelp(open = !keyHelpOpen) {
+  keyHelpOpen = open;
+  const existing = document.getElementById('keyhelp');
+  existing?.remove();
+  if (!open) return;
+
+  const meta = modeMeta(currentMode);
+  const panel = h('div', {
+    class: 'keyhelp', id: 'keyhelp', role: 'dialog', 'aria-label': '鍵盤快捷鍵',
+    // 點背景關掉。點面板本身不關 —— 使用者會想選字
+    onclick: (e) => { if (e.target.id === 'keyhelp') toggleKeyHelp(false); },
+  },
+    h('div', { class: 'keyhelp__card' },
+      h('div', { class: 'keyhelp__head' },
+        h('p', { class: 'card__title' }, '鍵盤快捷鍵'),
+        h('button', { class: 'btn btn--ghost', onclick: () => toggleKeyHelp(false) }, '關閉（Esc）'),
+      ),
+      h('p', { class: 'keyhelp__group' }, `${meta.icon} ${meta.label}`),
+      (meta.keys ?? []).length
+        ? (meta.keys ?? []).map(([key, what]) => keyRow(key, what))
+        : h('p', { class: 'hint' }, '這個模式沒有快捷鍵。'),
+      h('p', { class: 'keyhelp__group' }, '不分模式'),
+      GLOBAL_KEYS.map(([key, what]) => keyRow(key, what)),
+      h('p', { class: 'hint' },
+        '打字的時候一律不接（中翻英、情境對話、設定裡的欄位）—— ' +
+        '不然打一個 n 就換題了。中文輸入法組字中也不接。'),
+    ),
+  );
+  document.body.append(panel);
+}
+
 gear.addEventListener('click', () => switchTo('settings'));
+
+/**
+ * 全域快捷鍵。**綁在外殼、而且在模式之前收到鍵** ——
+ * 模式自己的 onKey 收到的是它沒接走的那些。
+ *
+ * 為什麼是 `[` `]` 而不是數字鍵換模式：數字在四個模式裡是「選第幾個選項」，
+ * 搶過來的話作答會變成換分頁。
+ */
+bindKeys((key, event) => {
+  if (key === 'escape') {
+    if (!keyHelpOpen) return false;
+    toggleKeyHelp(false);
+    return true;
+  }
+  // `?` 在多數鍵盤上要按 shift，所以 key 直接就是 '?'
+  if (key === '?' || (key === '/' && event.shiftKey)) { toggleKeyHelp(); return true; }
+  if (key === '[' || key === ']') {
+    const ids = MODE_IDS;
+    const at = ids.indexOf(currentMode);
+    if (at < 0) return false;
+    const next = key === ']' ? (at + 1) % ids.length : (at - 1 + ids.length) % ids.length;
+    switchTo(ids[next]);
+    return true;
+  }
+  return false;
+});
 
 // 首頁（或別的模式）要跳到某個模式時發這個事件。
 // 反過來讓模式模組 import app.js 會變成循環相依 —— 模式是 app.js 動態載入的。

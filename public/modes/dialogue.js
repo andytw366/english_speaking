@@ -3,9 +3,10 @@ import { columns } from '../lib/layout.js';
 import { bindKeys } from '../lib/keys.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
-import { filterBySettings } from '../lib/settings.js';
+import { filterBySettings, getSettings, aiMode } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
-import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
+import { grade, diffView, normalize, RESULT_HEAD } from '../lib/grade.js';
+import { createReviewer, reviewKey, storedReview } from '../lib/ai-review.js';
 import { Recorder, isSupported as recSupported, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
 
 export const meta = { id: 'dialogue', label: '情境對話', icon: '💬' };
@@ -17,6 +18,8 @@ let step = 0;            // 目前進行到第幾個 turn
 let checked = null;      // 這一輪的作答結果
 let revealed = false;    // 有沒有先看參考說法
 let scores = [];         // 每個「你的台詞」的判定結果
+// AI 修正。狀態、快取、那一段畫面都在 lib/ai-review.js（中翻英用的是同一份）
+let reviewer = null;
 let recorder = null;
 let recState = 'idle';   // idle | recording | done
 let playbackUrl = null;
@@ -30,6 +33,7 @@ export async function mount(container) {
   const raw = await res.json();
   all = filterBySettings(raw);
   if (all.length === 0) all = raw;
+  reviewer = createReviewer({ onChange: render });
   start(all[Math.floor(Math.random() * all.length)]);
   unbindKeys = bindKeys(onKey);
   return cleanup;
@@ -44,11 +48,26 @@ export async function mount(container) {
 function onKey(key) {
   if (!root || !current) return false;
 
+  // 換一段情境：整段對話的任何時候都能按（畫面右上角那顆按鈕）
+  if (key === 'n') { nextDialogue(); return true; }
+
   if (key === 'p') {
     const btn = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('再聽一次'));
     if (!btn) return false;
     btn.click();
     return true;
+  }
+
+  // 想不出來就看參考說法（跟中翻英的 H 是同一個意思）
+  if (key === 'h' && !checked && !revealed && currentTurn()?.speaker === 'you') {
+    revealed = true;
+    render();
+    return true;
+  }
+
+  if (checked) {
+    if (key === 's') { root.querySelector('#btn-speak')?.click(); return true; }
+    if (key === 'a') { root.querySelector('.airev button')?.click(); return true; }
   }
 
   if (key !== 'enter') return false;
@@ -79,6 +98,7 @@ function start(dialogue) {
   checked = null;
   revealed = false;
   scores = [];
+  reviewer?.reset();
   resetRecording();
   render();
   // 如果第一句是對方講的，直接唸出來
@@ -117,6 +137,7 @@ function advance() {
   step++;
   checked = null;
   revealed = false;
+  reviewer?.reset();
   resetRecording();
   render();
   maybeSpeakPartner();
@@ -186,6 +207,9 @@ function transcriptCard() {
       );
     } else {
       const said = scores[countUserTurnsBefore(i)];
+      // 存下來的 AI 修正也放回對話記錄裡。存了卻沒有地方看得到的話，
+      // 那份資料對使用者不存在 —— 而它是花錢換來的
+      const stored = said?.input ? storedReviewFor(i, said.input) : null;
       append(card, 
         h('div', { class: 'bubble bubble--you' },
           h('span', { class: 'bubble__who' }, current.your_role_zh),
@@ -193,11 +217,19 @@ function transcriptCard() {
           said && said.level !== 'exact' && said.level !== 'close'
             ? h('p', { class: 'bubble__ref' }, `參考：${turn.answer}`)
             : null,
+          stored?.corrected && normalize(stored.corrected) !== normalize(said.input)
+            ? h('p', { class: 'bubble__ref' }, `🤖 更自然：${stored.corrected}`)
+            : null,
         ),
       );
     }
   });
   return card;
+}
+
+/** 對話記錄裡第 index 句台詞存下來的修正（句子要對得上，理由見 storedReview）。 */
+function storedReviewFor(index, input) {
+  return storedReview(reviewKey('dialogue', current.id, index), input);
 }
 
 function countUserTurnsBefore(index) {
@@ -298,16 +330,21 @@ function resultCard() {
   }
   append(card, h('p', { class: 'explain explain--neutral' }, turn.note_zh));
 
+  // AI 修正接在參考答案**後面**，不是取代它。
+  // 參考答案是教材寫死的（免費、離線、每次都一樣），AI 看的是「你自己那句」——
+  // 兩個回答的是不同的問題，所以兩個都要在
+  append(card, reviewer.view());
+
   // 知道正確說法之後再練發音才有意義，所以錄音放在這裡而不是作答前
   if (recSupported()) append(card, recordingRow(turn.answer));
 
   append(card, 
     h('div', { class: 'row' },
       ttsSupported() && h('button', {
-        class: 'btn btn--ghost',
+        class: 'btn btn--ghost', id: 'btn-speak',
         onclick: (e) => replay(turn.answer, e.currentTarget),
       }, '🔊 唸一次參考說法'),
-      h('button', { class: 'btn', onclick: () => { checked = null; render(); } }, '再試一次'),
+      h('button', { class: 'btn', onclick: () => { checked = null; reviewer.reset(); render(); } }, '再試一次'),
       h('button', { class: 'btn btn--primary', onclick: advance },
         step === current.turns.length - 1 ? '完成對話 →' : '繼續對話 →'),
     ),
@@ -357,7 +394,32 @@ function check() {
   checked = { input, result };
   // 記錄這一輪的結果（再試一次會覆蓋掉同一格）
   scores[countUserTurnsBefore(step)] = { input, level: result.level };
+  // AI 修正：同一句話已經要過的話直接拿存下來的，**不再付一次錢**。
+  // 送出去的東西見 server/coach.js 的 parseReviewRequest()：情境、角色、
+  // 對方剛剛說的話都要帶上，少了它們模型只能就句子論句子，
+  // 而同一句話在咖啡店與在藥局是完全不同的評語。
+  //
+  // 本地批改先畫出來（免費、瞬間），AI 修正才去要 —— 順序反過來的話，
+  // 整張結果卡要等模型回來才看得到，而那幾秒裡使用者什麼都沒有
   render();
+  const previous = current.turns[step - 1];
+  reviewer.begin({
+    key: reviewKey('dialogue', current.id, step),
+    input,
+    mode: aiMode('dialogue'),
+    task: {
+      mode: 'dialogue',
+      reference: turn.answer,
+      accept: turn.accept ?? [],
+      intent_zh: turn.intent_zh,
+      setting_zh: current.setting_zh,
+      your_role_zh: current.your_role_zh,
+      partner_role_zh: current.partner_role_zh,
+      partner_line: previous?.speaker === 'partner' ? previous.en : '',
+      // 只有 Gemini 那條路吃得到（OpenAI 相容端點的 model 在伺服器的 .env 裡）
+      model: getSettings().geminiModel || undefined,
+    },
+  });
 }
 
 function nextDialogue() {

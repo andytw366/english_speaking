@@ -22,7 +22,9 @@ export const BACKUP_APP = 'speaking-coach';
  * 塞進別的鍵，也進不了 localStorage。新增要備份的資料時記得加進來 ——
  * 漏加的症狀是「還原之後某一種進度不見了」，而且不會有任何錯誤訊息。
  */
-export const BACKUP_KEYS = ['srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings'];
+export const BACKUP_KEYS = [
+  'srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings', 'reviews',
+];
 
 /**
  * 把目前的狀態組成一份備份。
@@ -129,6 +131,7 @@ export function backupSummary(data) {
     days: allDays.size,
     items,
     attempts: Array.isArray(data?.history) ? data.history.length : 0,
+    reviews: count(data?.reviews),
     hasSettings: Boolean(data?.settings),
   };
 }
@@ -140,6 +143,8 @@ export function summaryText(summary) {
     `每日紀錄 ${summary.days} 天`,
     `跟讀紀錄 ${summary.attempts} 筆`,
   ];
+  // 沒有 AI 修正紀錄時不寫這一行 —— 沒開這個功能的人看到「0 筆」只會困惑
+  if (summary.reviews) parts.push(`AI 修正 ${summary.reviews} 筆`);
   if (summary.hasSettings) parts.push('偏好設定');
   return parts.join('・');
 }

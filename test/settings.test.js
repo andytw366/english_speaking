@@ -111,3 +111,83 @@ test('聽力的單位是「組」，而且跟每日目標的選項對得起來',
   assert.equal(modeMeta('listening').unit, '組');
   assert.equal(modeMeta('listening').todayLabel, '今天練的題組');
 });
+
+// ─── AI 功能：三個開關搬到同一組選項 ─────────────────────────────────────
+
+test('三個 AI 功能預設都是自動', async () => {
+  await withStored(null, ({ aiMode }) => {
+    assert.equal(aiMode('narration'), 'auto');
+    assert.equal(aiMode('dialogue'), 'auto');
+    assert.equal(aiMode('translation'), 'auto');
+  });
+});
+
+test('舊的 geminiNarration=false 搬成「關」', async () => {
+  // 那時候沒有「手動」—— 關掉就是只看本地摘要。搬成 manual 會讓
+  // 「我明明關掉了，怎麼還是有一顆按鈕」變成一個沒人解釋得了的變化
+  await withStored({ geminiNarration: false }, ({ aiMode }) => {
+    assert.equal(aiMode('narration'), 'off');
+  });
+});
+
+test('舊的 dialogueAiReview=false 搬成「手動」', async () => {
+  // 那時候關掉之後結果卡上按鈕還在，那就是現在的「手動」
+  await withStored({ dialogueAiReview: false, translationAiReview: false }, ({ aiMode }) => {
+    assert.equal(aiMode('dialogue'), 'manual');
+    assert.equal(aiMode('translation'), 'manual');
+  });
+});
+
+test('沒設過的舊鍵不會把別的功能一起關掉', async () => {
+  await withStored({ geminiNarration: false }, ({ aiMode }) => {
+    assert.equal(aiMode('dialogue'), 'auto');
+    assert.equal(aiMode('translation'), 'auto');
+  });
+});
+
+test('只設過其中一個功能時，另外兩個是預設值而不是 undefined', async () => {
+  // `{...DEFAULTS, ...stored}` 是淺層的 —— 沒有特別併 `ai` 的話，
+  // 另外兩個會變成 undefined，畫面上就看不出目前選了哪個
+  await withStored({ ai: { dialogue: 'off' } }, ({ aiMode, getSettings }) => {
+    assert.equal(aiMode('dialogue'), 'off');
+    assert.equal(getSettings().ai.narration, 'auto');
+    assert.equal(getSettings().ai.translation, 'auto');
+  });
+});
+
+test('新的值蓋得過舊的布林值（搬過家之後改設定要生效）', async () => {
+  await withStored({ geminiNarration: false, ai: { narration: 'manual' } }, ({ aiMode }) => {
+    assert.equal(aiMode('narration'), 'manual');
+  });
+});
+
+test('認不得的值當成自動 —— 功能整個消失比多花幾次呼叫難查得多', async () => {
+  await withStored({ ai: { narration: '亂寫的' } }, ({ aiMode }) => {
+    assert.equal(aiMode('narration'), 'auto');
+  });
+});
+
+test('setAiMode 存得住，而且不會動到別的功能', async () => {
+  // updateSettings() 會發一個 CustomEvent 給畫面 —— node 裡沒有 window，
+  // 補一個最小的假的（這幾行不是在測事件，是為了讓存檔那一段跑得完）
+  globalThis.window = { dispatchEvent: () => {} };
+  globalThis.CustomEvent = class { constructor(type, init) { this.type = type; Object.assign(this, init); } };
+
+  await withStored({}, ({ setAiMode, aiMode }) => {
+    setAiMode('translation', 'off');
+    assert.equal(aiMode('translation'), 'off');
+    assert.equal(aiMode('dialogue'), 'auto');
+  });
+});
+
+test('三個功能的說明文字每一個模式都有一句', async () => {
+  // 少一句的話那個選項按下去之後畫面上什麼都不會說 —— 而「選了會怎樣」
+  // 正是使用者按下去之前想知道的事
+  const { AI_FEATURES, AI_MODES } = await import('../public/lib/settings.js');
+  assert.equal(AI_FEATURES.length, 3);
+  for (const feature of AI_FEATURES) {
+    for (const [mode] of AI_MODES) {
+      assert.ok(feature[mode], `${feature.id} 少了「${mode}」的說明`);
+    }
+  }
+});

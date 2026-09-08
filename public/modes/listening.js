@@ -1,7 +1,7 @@
 import { h, append } from '../lib/dom.js';
 import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
-import { filterBySettings } from '../lib/settings.js';
+import { filterBySettings, getSettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { shuffleOptions } from '../lib/practice.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
@@ -41,6 +41,9 @@ function pick(item) {
   current = { ...item, questions: item.questions.map((q) => shuffleOptions(q)) };
   counted = false;
   restart();
+  // 「換一題就自動播」（設定 → 練習偏好）。預設是關的：自動播放在別人旁邊
+  // 練習時很惱人，而且第一次進來時使用者還沒準備好要聽
+  if (getSettings().autoPlayListening && ttsSupported()) play();
 }
 
 /**
@@ -171,6 +174,8 @@ function onKey(key) {
 
   if (key === 'p') { root.querySelector('#btn-play')?.click(); return true; }
   if (key === 'n') { nextItem(); return true; }
+  // 看原文。已經在看了就不必再接（那顆按鈕已經消失）
+  if (key === 't' && !showTranscript) { showTranscript = true; render(); return true; }
 
   if (key === 'enter') {
     if (submitted) { nextItem(); return true; }

@@ -572,6 +572,63 @@ export function clearHistory() {
   write('history', []);
 }
 
+// ─── 情境對話的 AI 修正 ──────────────────────────────────────────────────
+//
+// 存這個有兩個理由，而**第二個才是主要的**：
+//
+//   1. 重新整理不會消失（本來按一次「對答案」拿到的修正，換頁就沒了）
+//   2. **同一句話不要付第二次錢。** 這是整個 App 唯一「打字就花錢」的地方，
+//      而「再試一次」按下去、答案一個字都沒改是很常見的動作。
+//      鍵是「哪個模式的哪一題」（`lib/ai-review.js` 的 `reviewKey()`），
+//      值裡存著當時寫的句子 —— 句子一樣就直接拿舊的，不一樣才去要新的。
+//
+// 為什麼要進備份與同步（`BACKUP_KEYS` / `SYNC_KEYS`）：它是花錢換來的東西。
+// 換一台裝置就重新付一次錢的話，這份快取等於只在原本那台上有用。
+
+/** 留幾筆修正。一段對話大約 7 句，200 筆大約是 30 段對話或 200 題中翻英。 */
+const REVIEW_LIMIT = 200;
+
+export function getReviews() {
+  const all = read('reviews', {});
+  return all && typeof all === 'object' && !Array.isArray(all) ? all : {};
+}
+
+/**
+ * 存一次修正。**同一格直接覆蓋** —— 使用者改了句子再要一次時，
+ * 舊的那份講的是另一句話，留著只會在下次比對時給出錯的快取。
+ *
+ * @param {string} key `reviewKey()` 的回傳值
+ * @param {{input: string, corrected?: string|null, verdict?: string,
+ *   notes?: string[], label?: string}} entry
+ */
+export function saveReview(key, entry, now = Date.now()) {
+  const all = getReviews();
+  all[key] = { ...entry, at: new Date(now).toISOString() };
+
+  // 超過上限就丟掉最舊的。用 `at` 排序而不是插入順序 ——
+  // 物件的鍵順序在同步合併之後不保證還是時間順序
+  const keys = Object.keys(all);
+  if (keys.length > REVIEW_LIMIT) {
+    const keep = new Set(
+      keys.sort((a, b) => sortableAt(all[b]) - sortableAt(all[a]) || (a < b ? -1 : 1))
+        .slice(0, REVIEW_LIMIT)
+    );
+    for (const k of keys) if (!keep.has(k)) delete all[k];
+  }
+
+  write('reviews', all);
+  return all;
+}
+
+function sortableAt(entry) {
+  const t = Date.parse(entry?.at ?? '');
+  return Number.isFinite(t) ? t : 0;
+}
+
+export function clearReviews() {
+  write('reviews', {});
+}
+
 /** 練習次數與平均分。只計入有分數的紀錄。 */
 export function summarise(history) {
   const scored = history.filter((r) => typeof r.score === 'number');

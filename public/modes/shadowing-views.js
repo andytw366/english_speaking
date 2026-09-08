@@ -5,6 +5,7 @@
 // 抽出來之後測試可以直接餵資料進去驗。
 
 import { h, append } from '../lib/dom.js';
+import { toggleChip } from '../lib/fields.js';
 import { statTile } from '../lib/stat-tile.js';
 import { buildTrendChart } from '../lib/trend-chart.js';
 import { summarise } from '../lib/storage.js';
@@ -27,12 +28,12 @@ export const GOAL_CHOICES = [3, 5, 10, 20];
  */
 export function renderToday(goal, onGoalChange) {
   return renderDailyCard('shadowing', {
-    control: h('label', { class: 'field field--inline today__goal' },
+    // chip 而不是下拉：只有五個值，而下拉要多按一下才看得到自己有哪些選擇。
+    // 設定頁的每日目標也是同一種控制項（`lib/fields.js`）
+    control: h('div', { class: 'field today__goal' },
       h('span', { class: 'field__label' }, '每日目標'),
-      h('select', {
-        class: 'select',
-        onchange: (e) => onGoalChange(Number(e.target.value)),
-      }, GOAL_CHOICES.map((n) => h('option', { value: String(n), selected: n === goal }, `${n} 句`))),
+      h('div', { class: 'chips' },
+        GOAL_CHOICES.map((n) => toggleChip(`${n} 句`, n === goal, () => onGoalChange(n)))),
     ),
   });
 }

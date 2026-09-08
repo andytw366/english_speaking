@@ -579,19 +579,14 @@ export function clearHistory() {
 //   1. 重新整理不會消失（本來按一次「對答案」拿到的修正，換頁就沒了）
 //   2. **同一句話不要付第二次錢。** 這是整個 App 唯一「打字就花錢」的地方，
 //      而「再試一次」按下去、答案一個字都沒改是很常見的動作。
-//      鍵是「哪一段對話的第幾句」，值裡存著當時寫的句子 ——
-//      句子一樣就直接拿舊的，不一樣才去要新的（見 modes/dialogue.js）。
+//      鍵是「哪個模式的哪一題」（`lib/ai-review.js` 的 `reviewKey()`），
+//      值裡存著當時寫的句子 —— 句子一樣就直接拿舊的，不一樣才去要新的。
 //
 // 為什麼要進備份與同步（`BACKUP_KEYS` / `SYNC_KEYS`）：它是花錢換來的東西。
 // 換一台裝置就重新付一次錢的話，這份快取等於只在原本那台上有用。
 
-/** 留幾筆修正。一段對話大約 7 句，200 筆大約是 30 段練過的對話。 */
+/** 留幾筆修正。一段對話大約 7 句，200 筆大約是 30 段對話或 200 題中翻英。 */
 const REVIEW_LIMIT = 200;
-
-/** 一句台詞在快取裡的鍵。 */
-export function reviewKey(dialogueId, turnIndex) {
-  return `${dialogueId}:${turnIndex}`;
-}
 
 export function getReviews() {
   const all = read('reviews', {});

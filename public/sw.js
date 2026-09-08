@@ -46,6 +46,7 @@ const SHELL = [
   '/lib/daily.js',
   '/lib/device.js',
   '/lib/dom.js',
+  '/lib/fields.js',
   '/lib/grade.js',
   '/lib/keys.js',
   '/lib/labels.js',

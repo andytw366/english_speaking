@@ -14,7 +14,7 @@ import {
 // 同名的話 handler 裡的 const 會遮住 import，而錯誤是執行期的
 // `narrate is not a function`，只有真的送一次錄音才會發現。
 import { narrate as generateNarration, narrationProvider, modelAvailability } from './narrator.js';
-import { parseReviewRequest, reviewDialogueAnswer } from './coach.js';
+import { parseReviewRequest, reviewAnswer } from './coach.js';
 import { limitsFromEnv, judgeCall, usageKey, describeBlock } from './quota.js';
 import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { localSummary, wantsNarration } from './narration.js';
@@ -307,7 +307,76 @@ function quotaInfo(verdict) {
 }
 
 /**
- * 情境對話的 AI 修正：收一句使用者寫的英文，回「更自然的說法 + 為什麼」。
+ * 中文講評的「手動」那條路：收一份**已經算好的**評估結果，回一段中文講評。
+ *
+ * 為什麼要有它：講評原本只能在送出錄音時一起要（`narrate` 欄位），而那是
+ * 「全有或全無」—— 想省時間就得整個關掉，然後遇到真的想知道的那一句時
+ * 沒有辦法補要。三個 AI 功能現在都是**自動／手動／關**三選一（見
+ * `public/lib/settings.js` 的 `AI_FEATURES`），手動就是靠這個端點。
+ *
+ * 為什麼收的是評估結果而不是重新評一次：Azure 的分數已經在使用者的畫面上了，
+ * 再送一次錄音等於**再花一次 Azure 的錢**，而講評要的只是那幾個數字。
+ *
+ * 送上來的東西是使用者自己的畫面資料，所以不必也不能信任它的大小 ——
+ * `words` 截到 100 個字（一句練習句不會超過 30 字），其餘欄位由 prompt 自己容錯。
+ */
+app.post('/api/narration', async (req, res) => {
+  const assessment = req.body?.assessment;
+  if (!assessment || typeof assessment !== 'object' || !assessment.scores) {
+    return res.status(400).json({
+      error: 'no_assessment',
+      message: '沒有收到評估結果，請重新整理頁面後再試一次。',
+    });
+  }
+
+  const availability = modelAvailability();
+  if (!availability.ready) {
+    return res.json({
+      ok: false,
+      reason: 'no_key',
+      message: `中文講評需要一個能呼叫的模型，但${availability.problem}。` +
+        '請到「設定」的「AI 金鑰與模型」補上（要擁有者的帳號）。',
+    });
+  }
+
+  const model = typeof req.body?.model === 'string' ? req.body.model.trim() || undefined : undefined;
+  const quota = await spendQuota(req, callTarget(model));
+  if (!quota.allowed) {
+    return res.json({
+      ok: false,
+      reason: 'quota',
+      message: describeBlock(quota, { what: '中文講評' }),
+      quota: quotaInfo(quota),
+    });
+  }
+
+  const startedAt = Date.now();
+  const narration = await generateNarration(
+    { ...assessment, words: Array.isArray(assessment.words) ? assessment.words.slice(0, 100) : [] },
+    { model }
+  );
+  const ms = Date.now() - startedAt;
+  console.log(
+    `[narration] ${req.user.username} 手動要了一次講評：${availability.label}` +
+      `（${(ms / 1000).toFixed(1)} 秒）${narration ? '' : '沒回來'}`
+  );
+
+  if (!narration) {
+    return res.json({
+      ok: false,
+      reason: 'failed',
+      message: '這次的講評沒有回來。分數不受影響，可以直接繼續練；' +
+        '一直失敗的話請看伺服器 console。',
+      quota: quotaInfo(quota),
+    });
+  }
+
+  res.json({ ok: true, feedback_zh: narration, label: availability.label, ms, quota: quotaInfo(quota) });
+});
+
+/**
+ * AI 修正：收一句使用者寫的英文，回「更自然的說法 + 為什麼」。
+ * **情境對話與中翻英共用**（`mode` 決定上下文怎麼組，見 server/coach.js）。
  *
  * ─── 為什麼失敗不是 HTTP 錯誤 ─────────────────────────────────────────────
  *
@@ -319,7 +388,7 @@ function quotaInfo(verdict) {
  * `reason` 分得比 ok:false 細，因為每一種原因該做的事不一樣：
  *   no_key → 去設定頁（只有擁有者做得到）；failed → 再按一次就好。
  */
-app.post('/api/dialogue-review', async (req, res) => {
+app.post('/api/answer-review', async (req, res) => {
   const parsed = parseReviewRequest(req.body ?? {});
   if (!parsed.ok) {
     return res.status(400).json({ error: parsed.error, message: parsed.message });
@@ -351,12 +420,13 @@ app.post('/api/dialogue-review', async (req, res) => {
   }
 
   const startedAt = Date.now();
-  const review = await reviewDialogueAnswer(parsed.task, { model });
+  const review = await reviewAnswer(parsed.task, { model });
   const ms = Date.now() - startedAt;
 
   console.log(
-    `[coach] ${req.user.username} 的情境對話修正：${availability.label}` +
-      `（${(ms / 1000).toFixed(1)} 秒）${review ? `判定 ${review.verdict}` : '沒回來'}`
+    `[coach] ${req.user.username} 的${parsed.task.mode === 'translation' ? '中翻英' : '情境對話'}` +
+      `修正：${availability.label}（${(ms / 1000).toFixed(1)} 秒）` +
+      `${review ? `判定 ${review.verdict}` : '沒回來'}`
   );
 
   if (!review) {

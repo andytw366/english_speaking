@@ -23,8 +23,9 @@ async function withStorage(fn, { initial = {} } = {}) {
 }
 
 test('存了就讀得回來，而且帶著時間', async () => {
-  await withStorage(({ saveReview, getReviews, reviewKey }) => {
-    saveReview(reviewKey(7, 3), {
+  await withStorage(({ saveReview, getReviews }) => {
+    // 鍵的形狀是 lib/ai-review.js 的 reviewKey('dialogue', 7, 3)
+    saveReview('dialogue:7:3', {
       input: 'I want a latte',
       corrected: 'Can I get a latte, please?',
       verdict: 'minor',
@@ -32,7 +33,7 @@ test('存了就讀得回來，而且帶著時間', async () => {
       label: 'router.huggingface.co',
     }, Date.parse('2026-09-08T03:00:00.000Z'));
 
-    const entry = getReviews()['7:3'];
+    const entry = getReviews()['dialogue:7:3'];
     assert.equal(entry.corrected, 'Can I get a latte, please?');
     assert.equal(entry.input, 'I want a latte');
     assert.equal(entry.at, '2026-09-08T03:00:00.000Z');
@@ -43,10 +44,10 @@ test('同一格再存一次是覆蓋，不是留兩份', async () => {
   // 使用者改了句子再問一次時，舊的那份講的是另一句話 —— 留著只會在下次比對時
   // 給出錯的快取
   await withStorage(({ saveReview, getReviews }) => {
-    saveReview('7:3', { input: 'a', corrected: 'A.' });
-    saveReview('7:3', { input: 'b', corrected: 'B.' });
+    saveReview('dialogue:7:3', { input: 'a', corrected: 'A.' });
+    saveReview('dialogue:7:3', { input: 'b', corrected: 'B.' });
     assert.equal(Object.keys(getReviews()).length, 1);
-    assert.equal(getReviews()['7:3'].input, 'b');
+    assert.equal(getReviews()['dialogue:7:3'].input, 'b');
   });
 });
 
@@ -87,7 +88,7 @@ test('壞掉的值當成沒有（localStorage 是使用者改得到的）', asyn
 
 test('清得掉', async () => {
   await withStorage(({ saveReview, clearReviews, getReviews }) => {
-    saveReview('1:1', { input: 'x' });
+    saveReview('translation:1', { input: 'x' });
     clearReviews();
     assert.deepEqual(getReviews(), {});
   });
@@ -100,7 +101,7 @@ test('進得了備份（BACKUP_KEYS 裡有它）', async () => {
 
   assert.ok(BACKUP_KEYS.includes('reviews'));
 
-  const backup = buildBackup({ reviews: { '1:1': { input: 'x' }, '1:3': { input: 'y' } } });
+  const backup = buildBackup({ reviews: { 'dialogue:1:1': { input: 'x' }, 'translation:12': { input: 'y' } } });
   assert.equal(Object.keys(backup.data.reviews).length, 2);
 
   const summary = backupSummary(backup.data);

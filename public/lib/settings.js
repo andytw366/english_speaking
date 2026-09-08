@@ -22,13 +22,73 @@ export const DEFAULTS = {
   autoPlayListening: false,
   vocabDeck: 'curated',  // 目前選的單字牌組
   geminiModel: '',       // 空字串 = 用後端的預設值
-  geminiNarration: true, // 要不要等 Gemini 寫中文講評。關掉改用本地摘要，送出後快很多
-  // 情境對話按「對答案」之後，要不要自動讓 AI 看你寫的那一句。
-  // 關掉之後結果卡上仍有一個按鈕，按了才會呼叫 —— 這是唯一「打字就花錢」的地方，
-  // 所以要留得住「我今天不想花這個錢」這個選擇
-  dialogueAiReview: true,
-  shadowingWeighted: true, // 跟讀：依成績與間隔加權抽句
+  // 三個會呼叫模型的功能，**用同一組選項**：自動 / 手動 / 關。
+  //
+  // 為什麼三個都要有「手動」：這些是整個 App 唯一會花錢、也唯一要等的東西。
+  // 只給「開／關」的話，想要「今天先不花錢、但這一句我真的想知道」就沒有辦法表達
+  // —— 而那正是最常見的狀態。手動模式下畫面上留一個按鈕，按了才呼叫。
+  //
+  // 為什麼三個各自一個而不是一個總開關：花錢的速度差一個數量級
+  // （中翻英一題一次、情境對話一段七次、跟讀一句一次），
+  // 很可能只想讓其中一個自動。
+  ai: {
+    narration: 'auto',    // 跟讀的中文講評
+    dialogue: 'auto',     // 情境對話的 AI 修正
+    translation: 'auto',  // 中翻英的 AI 修正
+  },
+  autoPlayListening: false, // 聽力：換一題就自動播放
+  shadowingWeighted: true,  // 跟讀：依成績與間隔加權抽句
 };
+
+/** 會呼叫模型的功能。**設定頁與各模式共用這一份**，順序就是畫面上的順序。 */
+export const AI_FEATURES = [
+  {
+    id: 'narration',
+    label: '跟讀的中文講評',
+    mode: 'shadowing',
+    auto: '送出錄音時一起要 —— 分數之後會多等講評那幾秒。',
+    manual: '先看分數，想要建議時在結果卡上按「要中文講評」。',
+    off: '一律用本地摘要（照樣會指出最弱的面向與唸不好的字），完全不呼叫模型。',
+  },
+  {
+    id: 'dialogue',
+    label: '情境對話的 AI 修正',
+    mode: 'dialogue',
+    auto: '每按一次「對答案」就讓模型看你寫的那一句。',
+    manual: '結果卡上留一個「讓 AI 看我這一句」的按鈕，按了才呼叫。',
+    off: '只用本地批改與教材的參考說法。',
+  },
+  {
+    id: 'translation',
+    label: '中翻英的 AI 修正',
+    mode: 'translation',
+    auto: '每按一次「對答案」就讓模型看你寫的那一句。',
+    manual: '結果卡上留一個「讓 AI 看我這一句」的按鈕，按了才呼叫。',
+    off: '只用本地批改與教材的參考答案。',
+  },
+];
+
+/** 三種模式。**順序有意義**（花最多錢 → 完全不花），畫面上照這個順序排。 */
+export const AI_MODES = [
+  ['auto', '自動'],
+  ['manual', '手動'],
+  ['off', '關'],
+];
+
+/**
+ * 某個 AI 功能現在是自動、手動、還是關。
+ *
+ * 認不得的值當成自動 —— 手改過 localStorage、或退版之後留下舊值時，
+ * 「功能整個消失」比「多花了幾次呼叫」難查得多。
+ */
+export function aiMode(feature) {
+  const value = getSettings().ai?.[feature];
+  return AI_MODES.some(([id]) => id === value) ? value : 'auto';
+}
+
+export function setAiMode(feature, mode) {
+  return updateSettings({ ai: { ...getSettings().ai, [feature]: mode } });
+}
 
 let cache = null;
 
@@ -58,7 +118,13 @@ export function getSettings() {
  * 舊鍵留在 localStorage 裡不刪：萬一要退版，資料還在。
  */
 function migrate(stored) {
-  const settings = { ...DEFAULTS, ...stored };
+  // `ai` 跟 `dailyGoals` 一樣是巢狀的，而展開是淺層的 —— 只設過其中一個功能時，
+  // 另外兩個會變成 undefined（然後 `aiMode()` 回預設值，但畫面上會看不出選了哪個）
+  const settings = { ...DEFAULTS, ...stored, ai: { ...DEFAULTS.ai, ...(stored.ai ?? {}) } };
+  // **在分支之前算好**：下面聽力那一段有一個提早 return，
+  // 而只在最後一個 return 併 ai 的話，還沒搬過聽力目標的人（也就是所有舊資料）
+  // 三個 AI 開關就會通通吃預設值 —— 「我明明關掉了卻又自動送出去」
+  const ai = migrateAi(stored, settings.ai);
   const legacyVocab = settings.vocabDailyGoal ?? settings.sessionLimit;
   const goals = { ...DEFAULTS.dailyGoals, ...(stored.dailyGoals ?? {}) };
 
@@ -83,10 +149,35 @@ function migrate(stored) {
     if (typeof old === 'number' && old > 0) {
       goals.listening = Math.max(1, Math.round(old / 3));
     }
-    return { ...settings, dailyGoals: goals, listeningGoalInSets: true };
+    return { ...settings, ai, dailyGoals: goals, listeningGoalInSets: true };
   }
 
-  return { ...settings, dailyGoals: goals };
+  return { ...settings, ai, dailyGoals: goals };
+}
+
+/**
+ * 三個 AI 功能的開關從各自的布林值搬到一個 `ai` 物件（自動／手動／關）。
+ *
+ * **搬的是「使用者真的設過」的值**，所以看的是 `stored` 而不是併好預設值的版本
+ * —— 看併好的版本會把預設值也當成使用者的選擇，而那兩件事在這裡剛好相反：
+ * `geminiNarration` 沒設過是「要」，設過 false 才是「不要」。
+ *
+ * 對應關係刻意不對稱：
+ *   `geminiNarration: false`  → `off`（那時候沒有「手動」，關掉就是只看本地摘要）
+ *   `dialogueAiReview: false` → `manual`（那時候關掉之後按鈕還在，就是手動）
+ */
+function migrateAi(stored, current) {
+  const ai = { ...current };
+  if (stored.ai?.narration === undefined && stored.geminiNarration === false) {
+    ai.narration = 'off';
+  }
+  if (stored.ai?.dialogue === undefined && stored.dialogueAiReview === false) {
+    ai.dialogue = 'manual';
+  }
+  if (stored.ai?.translation === undefined && stored.translationAiReview === false) {
+    ai.translation = 'manual';
+  }
+  return ai;
 }
 
 /** 某個模式的每日目標。0（或沒設）代表不設目標。 */

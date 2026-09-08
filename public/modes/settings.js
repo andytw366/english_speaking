@@ -1,7 +1,10 @@
 import { h, append } from '../lib/dom.js';
 import { grid } from '../lib/layout.js';
 import { loadVoices, speak } from '../lib/tts.js';
-import { getSettings, updateSettings, resetSettings, setGoal, DEFAULTS } from '../lib/settings.js';
+import {
+  getSettings, updateSettings, resetSettings, setGoal, DEFAULTS,
+  aiMode, setAiMode, AI_FEATURES, AI_MODES,
+} from '../lib/settings.js';
 import { getUser, logout } from '../lib/session.js';
 import {
   ConflictError, applyRemote, describe, describeLocal, fetchRemote, isAutoSyncOn,
@@ -18,6 +21,9 @@ import { CATEGORY_LABEL, DIFFICULTY_LABEL, DIFFICULTY_ORDER, formatTime } from '
 import { QUIZ_TYPES } from '../lib/quiz.js';
 import { PRACTICE_MODES } from '../lib/modes.js';
 import { forgetAiReviewAvailability } from '../lib/ai-review.js';
+import {
+  toggleChip, chipField, multiChipField, textField, numberField, selectField,
+} from '../lib/fields.js';
 
 export const meta = { id: 'settings', label: '設定', icon: '⚙️' };
 
@@ -105,20 +111,82 @@ function render() {
   if (!root) return;
   // 這些卡沒有一張比別張重要，所以是多欄的網格而不是主 / 輔 ——
   // 單欄排下來 1440×900 要捲三個螢幕才看得完
+  // 排法是「先講這台機器會做什麼，再講它拿什麼做的，最後才是我的資料」：
+  //   AI 四張排在一起（功能 → 金鑰 → 模型 → 上限）—— 它們原本散在三個地方，
+  //   而使用者要調整的時候，四件事幾乎一定是一起看的
+  //   接著是練習本身（目標、偏好、語音），最後是帳號與資料
   append(grid(root),
-    apiCard(), isOwner && narrationCard(), quotaCard(), goalCard(), practiceCard(),
-    voiceCard(), syncCard(), dataCard());
+    aiCard(), isOwner && keysCard(), isOwner && modelCard(), quotaCard(),
+    goalCard(), practiceCard(), voiceCard(), syncCard(), dataCard());
 }
 
-// ─── API 金鑰 ────────────────────────────────────────────────────────────
+// ─── AI 功能：三個會呼叫模型的東西，用同一組選項 ─────────────────────────
+//
+// 為什麼要有這張卡：這三個開關原本散在三個地方（跟讀的講評在「練習偏好」裡、
+// 情境對話的修正在它旁邊、而「現在走哪個模型」在另一張卡），
+// 但使用者心裡它們是同一件事：**這個 App 什麼時候會去花錢、花多久**。
+//
+// 三個都是自動／手動／關，而不是開／關：這些是唯一會花錢也唯一要等的功能，
+// 「今天先不自動，但這一句我真的想知道」是最常見的狀態，而開／關表達不出來。
+function aiCard() {
+  const card = h('div', { class: 'card' },
+    h('p', { class: 'card__title' }, '🤖 AI 功能'),
+    h('p', { class: 'hint' },
+      '三個會呼叫模型的功能。自動＝每次都要（要等幾秒、每次都算一次額度）；' +
+      '手動＝畫面上留一個按鈕，按了才呼叫；關＝完全不呼叫（改用本地的批改與摘要）。'),
+  );
+
+  for (const feature of AI_FEATURES) {
+    const current = aiMode(feature.id);
+    append(card, chipField(
+      feature.label,
+      AI_MODES,
+      current,
+      (mode) => { setAiMode(feature.id, mode); render(); },
+      { hint: feature[current] ?? '' },
+    ));
+  }
+
+  append(card,
+    aiStatusLine(),
+    // 這裡只放一行「今天用了幾次」。細節（分模型、怎麼調）在下面那張卡 ——
+    // 同一頁上把同一組數字寫兩次，第二次就變成雜訊
+    usageLine({ compact: true }),
+    h('p', { class: 'hint' },
+      '已經拿到的修正會存下來，同一句話再問一次不會重複呼叫（設定 → 學習資料看得到有幾筆）。'),
+  );
+  return card;
+}
+
+/**
+ * 「現在真的接得到哪個模型」。**讀的是伺服器狀態**，不是這台裝置的設定。
+ *
+ * 為什麼一定要有：上面三個開關只決定「什麼時候要」，能不能要是伺服器決定的。
+ * 少了這一行，設好了卻沒生效時，畫面上完全看不出原因。
+ */
+function aiStatusLine() {
+  const ai = caps?.aiReview ?? null;
+  if (!ai) return h('p', { class: 'hint' }, '（讀不到伺服器狀態，無法確認現在接得到哪個模型。）');
+
+  const where = isOwner ? '下面的「講評與修正用的模型」' : '伺服器的設定（要擁有者的帳號才改得動）';
+  if (!ai.ready) {
+    return h('p', { class: 'hint hint--warn' },
+      `⚠️ 現在沒有可以呼叫的模型（${ai.problem}）—— 上面選「自動」也不會有東西出現。` +
+      `請到${where}補上。`);
+  }
+  return h('p', { class: 'hint' },
+    `目前由 ${ai.label}${ai.model ? ` 的 ${ai.model}` : ''} 產生（要換請看${where}）。`);
+}
+
+// ─── AI 金鑰 ─────────────────────────────────────────────────────────────
 //
 // 這張卡**只有擁有者看得到內容**（第一個註冊的帳號）。以前這裡擋的是
 // 「請求是不是從 localhost 來的」，走 Docker／網域時一律 403 —— 手機上設不了，
 // 只能 ssh 進伺服器編輯 .env 再重啟。有帳號之後那一關換成
 // 「要登入 + 要是擁有者」，所以現在手機上也設得了。詳見 server/settings.js。
-function apiCard() {
+function keysCard() {
   const card = h('div', { class: 'card' },
-    h('p', { class: 'card__title' }, 'API 金鑰（發音評分用）'),
+    h('p', { class: 'card__title' }, '🔑 AI 金鑰'),
     h('p', { class: 'hint' },
       '這些是選用的 —— 不填也能正常使用單字卡、聽力與中翻英，跟讀也還是可以錄音比對。'),
   );
@@ -153,18 +221,18 @@ function apiCard() {
   const gemini = serverSettings.GEMINI_API_KEY;
 
   append(card,
-    field('Azure Speech 金鑰', 'azure-key', {
+    textField('Azure Speech 金鑰', 'azure-key', {
       type: 'password',
       placeholder: azureKey.configured ? `目前已設定（${azureKey.preview}）` : '尚未設定',
       note: '到 Azure 入口網站建立「語音服務」資源，在「金鑰與端點」複製 KEY 1。',
     }),
-    field('Azure 區域', 'azure-region', {
+    textField('Azure 區域', 'azure-region', {
       type: 'text',
       value: serverSettings.AZURE_SPEECH_REGION.value,
       placeholder: '例如 eastasia',
       note: '必須跟建立資源時選的區域一致，填錯會認證失敗。',
     }),
-    field('Gemini API 金鑰', 'gemini-key', {
+    textField('Gemini API 金鑰', 'gemini-key', {
       type: 'password',
       placeholder: gemini.configured ? `目前已設定（${gemini.preview}）` : '尚未設定',
       note: '選用。有的話會把 Azure 的分數寫成中文教練建議；沒有就用本地摘要。',
@@ -209,18 +277,22 @@ function serverStatusLine() {
     (bad ? '⚠️ 兩組金鑰都沒設定，送出錄音一定會失敗。目前 —— ' : '目前 ') + parts.join('，'));
 }
 
-// ─── 講評端點（換一個更快的模型）────────────────────────────────────────
+// ─── 講評與修正用的模型 ──────────────────────────────────────────────────
 //
-// 為什麼值得放進設定頁：設定好 Azure 之後，實際練起來唯一有感的等待就是講評
-// 那一段（分數一兩秒，Gemini 幾秒到十幾秒）。換成任何 OpenAI 相容的端點就會
-// 快很多，而換的動作原本只能編輯 .env 再重啟 —— 手機上根本做不了。
+// **上面那三個 AI 功能全部走這一條路**（跟讀的中文講評、情境對話與中翻英的
+// AI 修正）。所以這張卡的標題不叫「講評端點」了 —— 那個名字只講到三分之一，
+// 而使用者會以為換這裡只影響跟讀。
+//
+// 為什麼值得放進設定頁：設定好 Azure 之後，實際練起來唯一有感的等待就是這一段
+// （分數一兩秒，Gemini 幾秒到十幾秒）。換成任何 OpenAI 相容的端點就會快很多，
+// 而換的動作原本只能編輯 .env 再重啟 —— 手機上根本做不了。
 //
 // 四個一起設才會生效，缺一個會退回本地摘要。這張卡的順序就是照這件事排的。
-function narrationCard() {
+function modelCard() {
   const card = h('div', { class: 'card' },
-    h('p', { class: 'card__title' }, '講評端點（選用，換一個更快的模型）'),
+    h('p', { class: 'card__title' }, '🧠 講評與修正用的模型'),
     h('p', { class: 'hint' },
-      '中文講評可以改走任何「OpenAI 相容」的 /chat/completions 端點 —— ' +
+      '上面三個 AI 功能都走這一條路。可以指到任何「OpenAI 相容」的 /chat/completions 端點 —— ' +
       'Hugging Face 的 Inference Providers、Groq、或自己機器上的 Ollama。' +
       '留空就是用 Gemini。'),
   );
@@ -231,44 +303,56 @@ function narrationCard() {
   const key = serverSettings.NARRATION_API_KEY;
 
   append(card,
-    h('div', { class: 'field' },
-      h('label', { class: 'field__label', for: 'narration-provider' }, '講評來源'),
-      h('select', { class: 'field__input', id: 'narration-provider' },
-        [
-          ['', '自動（有 Gemini 金鑰就用 Gemini）'],
-          ['gemini', 'Gemini'],
-          ['openai', 'OpenAI 相容端點（下面三格）'],
-          ['local', '只用本地摘要（完全不呼叫模型，最快）'],
-        ].map(([value, label]) =>
-          h('option', { value, selected: provider === value || null }, label)),
-      ),
-    ),
-    field('端點 base URL', 'narration-base-url', {
+    selectField('來源', 'narration-provider', [
+      ['', '自動（有 Gemini 金鑰就用 Gemini）'],
+      ['gemini', 'Gemini'],
+      ['openai', 'OpenAI 相容端點（下面三格）'],
+      ['local', '完全不呼叫模型（跟讀退回本地摘要，AI 修正整個不能用）'],
+    // 沒有 onPick：這一格跟下面三格是一起按「儲存模型設定」送出去的
+    ], provider, null, {
+      note: '選 local 的話 AI 修正沒有替代品可以退 —— 那三個功能都會停在「不能用」。',
+    }),
+    textField('端點 base URL', 'narration-base-url', {
       type: 'text',
       value: serverSettings.NARRATION_BASE_URL.value,
       placeholder: 'https://router.huggingface.co/v1',
       note: '填到 /v1 就好，/chat/completions 那一段伺服器會自己接。' +
         'Hugging Face 要用 router.huggingface.co（api-inference 那個舊端點有冷啟動，會更慢）。',
     }),
-    field('端點金鑰', 'narration-key', {
+    textField('端點金鑰', 'narration-key', {
       type: 'password',
       placeholder: key.configured ? `目前已設定（${key.preview}）` : '尚未設定',
       note: '供應商給的 token。Ollama 這種本機端點隨便填一個非空字串就行。',
     }),
-    field('model', 'narration-model', {
+    textField('model', 'narration-model', {
       type: 'text',
       value: serverSettings.NARRATION_MODEL.value,
       placeholder: '照供應商列的 id 完整填',
       note: 'HF 的 router 可以在後面加「:供應商」指定要轉給誰（例如 :groq）。',
     }),
     h('div', { class: 'row' },
-      h('button', { class: 'btn btn--primary', onclick: saveNarration }, '儲存講評端點'),
+      h('button', { class: 'btn btn--primary', onclick: saveNarration }, '儲存模型設定'),
       narrationSaveState &&
         h('span', { class: `hint ${saveTone(narrationSaveState)}` }, narrationSaveState),
     ),
     h('p', { class: 'hint' },
       '存了立刻生效。這條路失敗不會自動改打 Gemini —— 會退回本地摘要，' +
       '而上面那行「目前」就會寫出缺什麼或哪裡不通。'),
+
+    // Gemini 的 model 是**這台裝置的偏好**（存在 localStorage，不是伺服器），
+    // 但它跟上面那四格回答的是同一個問題「要用哪個模型」——
+    // 放在兩張不同的卡上，換模型的人一定會漏掉其中一個
+    models.length > 0 && selectField(
+      '走 Gemini 時用哪個 model',
+      'gemini-model',
+      models.map((m) => [m.id, m.label ?? m.id]),
+      getSettings().geminiModel,
+      (value) => { updateSettings({ geminiModel: value }); render(); },
+      {
+        note: (models.find((m) => m.id === getSettings().geminiModel)?.note ?? '') +
+          '　這是這台裝置的選擇（清單寫死在後端，送上來的值也會再驗一次）。',
+      },
+    ),
   );
   return card;
 }
@@ -297,13 +381,13 @@ function quotaCard() {
   if (serverError || !serverSettings) return card;
 
   append(card,
-    field('每天最多幾次（全部模式）', 'quota-total', {
+    textField('每天最多幾次（全部模式）', 'quota-total', {
       type: 'text',
       value: serverSettings.AI_DAILY_LIMIT?.value ?? '',
       placeholder: '留空 = 預設 200；填 off = 不限制',
       note: '扣的時機是「呼叫之前」—— 所以就算模型沒回來，那一次也算用掉了（錢真的花了）。',
     }),
-    field('個別模型的上限（選填）', 'quota-per-model', {
+    textField('個別模型的上限（選填）', 'quota-per-model', {
       type: 'text',
       value: serverSettings.AI_DAILY_LIMITS?.value ?? '',
       placeholder: 'gemini=50; openai/gpt-oss-120b:groq=500; azure=off',
@@ -321,11 +405,17 @@ function quotaCard() {
 }
 
 /** 今天用了幾次 / 上限。`caps.usage` 是這個帳號的，`caps.quota` 是伺服器的設定。 */
-function usageLine() {
+function usageLine({ compact = false } = {}) {
   const usage = caps?.usage;
   const limit = caps?.quota?.total ?? null;
   if (!usage) {
     return h('p', { class: 'hint' }, '（讀不到今天的用量，連上線之後重新整理就會出現。）');
+  }
+
+  const headline = `今天已經用了 ${usage.total} 次` +
+    (limit === null ? '（沒有上限）' : ` / 上限 ${limit} 次`);
+  if (compact) {
+    return h('p', { class: 'hint' }, `${headline}（所有模式一起算，細節見下面「每天的呼叫上限」）。`);
   }
 
   const byKey = Object.entries(usage.byKey ?? {})
@@ -335,8 +425,7 @@ function usageLine() {
     .join('・');
 
   return h('div', {},
-    h('p', { class: 'field__label' },
-      `今天已經用了 ${usage.total} 次` + (limit === null ? '（沒有上限）' : ` / 上限 ${limit} 次`)),
+    h('p', { class: 'field__label' }, headline),
     byKey && h('p', { class: 'hint' }, `分別是：${byKey}`),
     h('p', { class: 'hint' }, '每天從 0 開始（伺服器的日期），數字存在伺服器上 —— ' +
       '換裝置或清除瀏覽器資料都不會重新計算。'),
@@ -370,17 +459,6 @@ function saveTone(state) {
   if (state.startsWith('✅')) return 'hint--ok';
   if (state.startsWith('⚠️')) return 'hint--error';
   return '';   // 「儲存中…」「沒有變更」是中性訊息，不要標成錯誤
-}
-
-function field(label, id, { type = 'text', value = '', placeholder = '', note = '' } = {}) {
-  return h('div', { class: 'field' },
-    h('label', { class: 'field__label', for: id }, label),
-    h('input', {
-      class: 'field__input', id, type, value, placeholder,
-      autocomplete: 'off', spellcheck: 'false',
-    }),
-    note && h('p', { class: 'hint' }, note),
-  );
 }
 
 async function saveKeys() {
@@ -478,9 +556,10 @@ function goalCard() {
       '每個模式每天練幾個。練滿了會告訴你今天完成了，但不會擋著不讓你繼續練 ——' +
       '目標是拿來知道自己完成了，不是拿來鎖門的。0 表示不設目標。'),
 
+    // 每個模式一組快速選項 + 一個數字框。**快速選項用的是跟別處一樣的 chip**
+    // （按下去就生效），數字框給的是「我就是要 37」那種情況
     PRACTICE_MODES.map((mode) => h('div', { class: 'field' },
-      h('label', { class: 'field__label', for: `goal-${mode.id}` },
-        `${mode.icon} ${mode.label}`),
+      h('span', { class: 'field__label' }, `${mode.icon} ${mode.label}`),
       h('div', { class: 'chips' },
         GOAL_CHOICES[mode.id].map((n) => toggleChip(
           `${n} ${mode.unit}`,
@@ -489,6 +568,7 @@ function goalCard() {
         ))),
       h('input', {
         class: 'field__input', id: `goal-${mode.id}`, type: 'number', min: '0', max: '500',
+        'aria-label': `${mode.label}每天練幾${mode.unit}`,
         value: String(s.dailyGoals?.[mode.id] ?? 0),
         onchange: (e) => { setGoal(mode.id, e.target.value); render(); },
       }),
@@ -501,183 +581,57 @@ function goalCard() {
 }
 
 // ─── 練習偏好 ────────────────────────────────────────────────────────────
+//
+// 這張卡只放**跟內容有關**的選擇（練什麼、怎麼出題），不放 AI ——
+// AI 那三個開關在最上面那張卡，理由見那裡。
 function practiceCard() {
   const s = getSettings();
 
   return h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '練習偏好'),
 
-    h('div', { class: 'field' },
-      h('span', { class: 'field__label' }, '只練這些情境'),
-      h('div', { class: 'chips' }, CATEGORIES.map(([id, label]) =>
-        toggleChip(label, s.categories.includes(id), () => {
-          const next = s.categories.includes(id)
-            ? s.categories.filter((c) => c !== id)
-            : [...s.categories, id];
-          updateSettings({ categories: next });
-          render();
-        }))),
-      h('p', { class: 'hint' }, s.categories.length === 0 ? '目前：全部情境' : `目前：${s.categories.length} 個情境`),
-    ),
+    multiChipField('只練這些情境', CATEGORIES, s.categories,
+      (next) => { updateSettings({ categories: next }); render(); },
+      { hint: s.categories.length === 0 ? '目前：全部情境' : `目前：${s.categories.length} 個情境` }),
 
-    h('div', { class: 'field' },
-      h('span', { class: 'field__label' }, '只練這些難度'),
-      h('div', { class: 'chips' }, DIFFICULTIES.map(([id, label]) =>
-        toggleChip(label, s.difficulties.includes(id), () => {
-          const next = s.difficulties.includes(id)
-            ? s.difficulties.filter((d) => d !== id)
-            : [...s.difficulties, id];
-          updateSettings({ difficulties: next });
-          render();
-        }))),
-      h('p', { class: 'hint' }, s.difficulties.length === 0 ? '目前：全部難度' : `目前：${s.difficulties.length} 種難度`),
-    ),
+    multiChipField('只練這些難度', DIFFICULTIES, s.difficulties,
+      (next) => { updateSettings({ difficulties: next }); render(); },
+      { hint: s.difficulties.length === 0 ? '目前：全部難度' : `目前：${s.difficulties.length} 種難度` }),
 
-    narrationField(s),
-
-    aiReviewField(s),
-
-    models.length > 0 && h('div', { class: 'field' },
-      h('label', { class: 'field__label', for: 'gemini-model' }, '講評用的 Gemini model'),
-      h('select', {
-        class: 'select', id: 'gemini-model',
-        onchange: (e) => { updateSettings({ geminiModel: e.target.value }); render(); },
-      }, models.map((m) => h('option', {
-        value: m.id,
-        selected: m.id === s.geminiModel,
-      }, m.label ?? m.id))),
-      h('p', { class: 'hint' },
-        (models.find((m) => m.id === s.geminiModel)?.note ?? '') +
-        '　清單寫死在後端，送上來的值也會再驗一次 —— 選單是 UI，不是權限。'),
-    ),
-
-    h('div', { class: 'field' },
-      h('span', { class: 'field__label' }, '單字卡的題型'),
-      h('div', { class: 'chips' }, QUIZ_TYPES.map((t) =>
-        toggleChip(t.label, s.vocabQuizTypes.includes(t.id), () => {
-          const next = s.vocabQuizTypes.includes(t.id)
-            ? s.vocabQuizTypes.filter((id) => id !== t.id)
-            : [...s.vocabQuizTypes, t.id];
-          updateSettings({ vocabQuizTypes: next });
-          render();
-        }))),
-      h('p', { class: 'hint' },
-        s.vocabQuizTypes.length === 0
+    multiChipField('單字卡的題型', QUIZ_TYPES.map((t) => [t.id, t.label]), s.vocabQuizTypes,
+      (next) => { updateSettings({ vocabQuizTypes: next }); render(); },
+      {
+        hint: s.vocabQuizTypes.length === 0
           ? '一種都沒選 —— 會用翻卡（自己判斷記不記得）。'
-          : `勾幾種就混哪幾種出題。選擇題是四選一，干擾項只會從同一級裡挑` +
-            `跟答案完全不同義的字，所以不會出現兩個都對的選項。`),
-    ),
+          : '勾幾種就混哪幾種出題。選擇題是四選一，干擾項只會從同一級裡挑' +
+            '跟答案完全不同義的字，所以不會出現兩個都對的選項。',
+      }),
 
-    h('div', { class: 'field' },
-      h('span', { class: 'field__label' }, '中翻英題型'),
-      h('div', { class: 'chips' },
-        [['all', '兩種都要'], ['cloze', '只練填空'], ['sentence', '只練整句']].map(([id, label]) =>
-          toggleChip(label, s.translationType === id, () => { updateSettings({ translationType: id }); render(); }))),
-    ),
+    chipField('中翻英題型',
+      [['all', '兩種都要'], ['cloze', '只練填空'], ['sentence', '只練整句']],
+      s.translationType,
+      (value) => { updateSettings({ translationType: value }); render(); }),
+
+    chipField('聽力的錄音',
+      [[false, '按了才播'], [true, '換一題就自動播']],
+      s.autoPlayListening === true,
+      (value) => { updateSettings({ autoPlayListening: value }); render(); },
+      {
+        hint: s.autoPlayListening
+          ? '換到新的一組就自動唸一次（還是可以按 P 重聽）。'
+          : '自己按播放。想連著練的時候可以改成自動。',
+      }),
+
+    chipField('跟讀抽句',
+      [[true, '優先練弱點'], [false, '完全隨機']],
+      s.shadowingWeighted !== false,
+      (value) => { updateSettings({ shadowingWeighted: value }); render(); },
+      {
+        hint: s.shadowingWeighted !== false
+          ? '分數低的、久沒練的、以及練得到你常錯的音的句子會比較常出現。'
+          : '每一句機率一樣。覺得「怎麼一直抽到同幾句」的時候用這個。',
+      }),
   );
-}
-
-/**
- * 中文講評的開關。
- *
- * 為什麼值得有這個開關：跟讀送出一次錄音要等兩段 —— Azure 給分數（快），
- * Gemini 把分數寫成中文建議（慢，實測幾秒到十幾秒，看 model）。
- * 想連著練十句的時候，後面那段就是純粹的等待，而分數與逐音素標色
- * 在沒有講評的情況下已經看得到了。關掉之後改用後端的本地摘要
- * （server/narration.js），一樣會指出最弱的面向與唸不好的字。
- */
-function narrationField(s) {
-  const on = s.geminiNarration !== false;
-  const azure = caps?.azureConfigured === true;
-
-  // 講評走哪一條路是**伺服器**決定的（NARRATION_PROVIDER），不是這裡。
-  // 顯示它的唯一理由：改了設定卻沒生效時，「畫面上寫的跟實際跑的一樣」
-  // 是使用者自己查得出問題的唯一方式 —— 不然只會覺得「換了還是一樣慢」。
-  const narration = caps?.narration ?? null;
-
-  return h('div', { class: 'field' },
-    h('span', { class: 'field__label' }, '跟讀的中文講評'),
-    h('div', { class: 'chips' },
-      [[true, '要（AI 講評）'], [false, '不要（本地摘要，最快）']].map(([value, label]) =>
-        toggleChip(label, on === value, () => {
-          updateSettings({ geminiNarration: value });
-          render();
-        }))),
-    h('p', { class: 'hint' },
-      on
-        ? '送出錄音後要多等講評那一段，換來「th 要把舌尖輕觸上齒」這種具體建議。'
-        : '送出後直接看分數，講評改用本地摘要（照樣會指出最弱的面向與唸不好的字）。'),
-    on && narration && narrationStatus(narration),
-    !azure && h('p', { class: 'hint' },
-      caps
-        ? '⚠️ 目前沒有設定 Azure，跟讀的分數本身就是 Gemini 給的 —— ' +
-          '這個開關要等設定了 Azure 金鑰才省得到時間。'
-        : '（讀不到伺服器狀態，無法判斷目前的評分來源。）'),
-  );
-}
-
-/**
- * 講評實際會走哪一條路。**這幾行讀的是伺服器狀態**，不是這台裝置的設定 ——
- * 上面那個開關只決定「要不要等講評」，走哪一條路是伺服器決定的。
- *
- * 擁有者可以在「講評端點」那張卡改；別人只看得到現在的狀態。
- */
-function narrationStatus(narration) {
-  const where = isOwner ? '上面的「講評端點」那張卡' : '伺服器的設定（要擁有者的帳號才改得動）';
-
-  if (narration.id === 'local') {
-    return h('p', { class: 'hint' },
-      `目前設定成只用本地摘要（NARRATION_PROVIDER=local），不會呼叫任何模型。要改請看${where}。`);
-  }
-  if (!narration.ready) {
-    return h('p', { class: 'hint hint--warn' },
-      `⚠️ 講評設定成走 ${narration.label}，但${narration.problem} —— ` +
-      `現在會退回本地摘要。請到${where}補上。`);
-  }
-  if (narration.id === 'openai') {
-    return h('p', { class: 'hint' },
-      `講評由 ${narration.label} 的 ${narration.model} 產生（要換請看${where}）。`);
-  }
-  return null;
-}
-
-/**
- * 情境對話的 AI 修正開關。
- *
- * 跟上面那個開關的差別值得寫下來：跟讀的講評開關是在買**時間**
- * （分數本來就會出現，關掉只是不等講評）；這一個是在買**錢** ——
- * 情境對話原本一毛都不花（關鍵字比對在瀏覽器裡跑），開了之後每按一次
- * 「對答案」就是一次呼叫。所以關掉之後結果卡上仍留著一個按鈕：
- * 想要的那一句還是要得到，只是不再每一句都自動送出去。
- */
-function aiReviewField(s) {
-  const on = s.dialogueAiReview !== false;
-  const ai = caps?.aiReview ?? null;
-
-  return h('div', { class: 'field' },
-    h('span', { class: 'field__label' }, '情境對話的 AI 修正'),
-    h('div', { class: 'chips' },
-      [[true, '自動（對完答案就送出）'], [false, '手動（按了才送出）']].map(([value, label]) =>
-        toggleChip(label, on === value, () => {
-          updateSettings({ dialogueAiReview: value });
-          render();
-        }))),
-    h('p', { class: 'hint' },
-      on
-        ? '每按一次「對答案」就讓模型看你寫的那一句，回一句更自然的說法與原因。' +
-          '教材的參考答案照樣會出現 —— AI 修正是多的，不是取代。'
-        : '結果卡上會有一個「讓 AI 看我這一句」的按鈕，按了才呼叫模型。'),
-    ai && !ai.ready && h('p', { class: 'hint hint--warn' },
-      `⚠️ 目前沒有可以呼叫的模型（${ai.problem}）—— 這個開關要等${
-        isOwner ? '上面的「講評端點」設定好' : '擁有者設定好模型'
-      }才有作用。`),
-    ai && ai.ready && ai.model && h('p', { class: 'hint' },
-      `修正由 ${ai.label} 的 ${ai.model} 產生。`),
-  );
-}
-
-function toggleChip(label, active, onclick) {
-  return h('button', { class: 'togglechip' + (active ? ' togglechip--on' : ''), onclick }, label);
 }
 
 // ─── 語音 ────────────────────────────────────────────────────────────────
@@ -692,20 +646,16 @@ function voiceCard() {
     );
   }
 
-  const select = h('select', {
-    class: 'field__input', id: 'voice',
-    onchange: (e) => { updateSettings({ ttsVoice: e.target.value }); render(); },
-  },
-    h('option', { value: '' }, '自動挑選（優先 en-US）'),
-    voices.map((v) => h('option', { value: v.name, selected: v.name === s.ttsVoice || null },
-      `${v.name}（${v.lang}）`)),
-  );
-
   return h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '語音'),
-    h('div', { class: 'field' },
-      h('label', { class: 'field__label', for: 'voice' }, `示範發音的聲音（找到 ${voices.length} 個英語語音）`),
-      select,
+    // 語音清單可能有幾十個，是這個 App 裡唯一真的需要 select 的地方
+    // （其餘幾個選項都是三四個值，用 chip 才看得到自己有哪些選擇）
+    selectField(
+      `示範發音的聲音（找到 ${voices.length} 個英語語音）`,
+      'voice',
+      [['', '自動挑選（優先 en-US）'], ...voices.map((v) => [v.name, `${v.name}（${v.lang}）`])],
+      s.ttsVoice,
+      (value) => { updateSettings({ ttsVoice: value }); render(); },
     ),
     h('div', { class: 'field' },
       h('label', { class: 'field__label', for: 'rate' }, `語速：${s.ttsRate.toFixed(2)}×`),

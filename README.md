@@ -174,6 +174,50 @@ NARRATION_MODEL=<到供應商的 model 列表複製一個>
 本機的 Ollama 是 `http://localhost:11434/v1`（金鑰欄位隨便填一個非空字串）。
 **model 的 id 請到供應商自己的列表複製**，不要照抄任何文件裡的範例 —— 那些會過期。
 
+#### 「會先想再答」的 model：`content` 是空的，畫面上只寫著講評沒出現
+
+換 model 的時候最容易踩到、也最難自己看出來的一種失敗。**HTTP 是 200，
+金鑰沒問題，端點沒問題**，但回來的 `content` 是空字串。
+
+原因是 gpt-oss、DeepSeek-R1、Qwen 的 thinking 版這些模型會先輸出一段思考，
+而**想的過程也算在 `max_tokens` 裡**。預設的 400 是照「四行中文」抓的 ——
+額度在它想完之前就用光，正式的答案一個字都還沒輪到。
+
+三條路，由省事排到麻煩：
+
+| | 怎麼做 | 代價 |
+|---|---|---|
+| **換一個不推理的 model** | 例如 Groq 的 `llama-3.1-8b-instant` | 沒有 —— 講評只是把幾個數字寫成四行中文，本來就不需要推理 |
+| 叫它少想一點 | `NARRATION_REASONING_EFFORT=low` | 要供應商支援才有用（gpt-oss 在 Groq 上支援）；**不推理的 model 收到這個參數會直接回 400**，所以留空時我們不送 |
+| 給它想的額度 | `NARRATION_MAX_TOKENS=1200` | 每次呼叫多花 token，也多等一點 |
+
+兩個變數都是**選填**，不填完全維持原本的行為（`max_tokens` 400、不送
+`reasoning_effort`）。設定頁的「OpenAI 相容端點」那張卡上就有這兩格，
+跟 model 同一條路 —— 撞到這件事的時候人多半在手機上。
+
+`NARRATION_MAX_TOKENS` 是**蓋掉呼叫端要的額度**，不是取大的那一個：講評（400）
+與情境對話的 AI 修正（300）兩條路一起調。一個會先想再答的 model 兩邊都會不夠，
+分開調沒有意義。
+
+撞到的時候不必自己猜 —— 伺服器 log 會認出來（回應裡有 `reasoning` 欄位，
+或 `finish_reason` 是 `length`），然後把上面這三條路直接寫出來。
+
+還有一種變形：有些供應商不把思考放進獨立的 `reasoning` 欄位，而是用
+`<think>…</think>` 包在正文裡送回來。那段**思考裡常常有草稿條列**，不處理的話
+模型自言自語的那幾行會被當成講評貼到畫面上。`stripReasoning()`
+（`server/narration.js`）在解析之前先把它拿掉，講評與 AI 修正兩條路都套用；
+沒有結尾標籤的（＝話講到一半被截斷）整段丟掉，退回本地摘要 ——
+比把半截思考貼給使用者誠實。
+
+一個完整的 Groq 設定長這樣：
+
+```bash
+NARRATION_PROVIDER=openai
+NARRATION_BASE_URL=https://api.groq.com/openai/v1
+NARRATION_API_KEY=gsk_xxxxxxxxxxxx
+NARRATION_MODEL=llama-3.1-8b-instant   # 不推理，上面兩個旋鈕都不用動
+```
+
 幾個刻意的設計決定：
 
 - **prompt 只有一份**（`server/narration.js` 的 `buildNarrationPrompt()`），
@@ -193,7 +237,7 @@ NARRATION_MODEL=<到供應商的 model 列表複製一個>
 
 **這條路在開發容器裡驗不到真的呼叫**（egress 擋掉 `huggingface.co`、
 `api.groq.com`、`api.openai.com`，跟 Azure 一樣的處境）。已驗過的是：
-請求的形狀、回應的解析、超時、各種錯誤碼（`test/narrator.test.js`，25 條），
+請求的形狀、回應的解析、超時、各種錯誤碼（`test/narrator.test.js`，32 條），
 以及**把整條路真的跑一次** —— 用 loader 把 Azure 換成假的、`NARRATION_BASE_URL`
 指到 loopback 上一個假的 OpenAI 端點，走真的 fetch、真的 HTTP：
 
@@ -1791,7 +1835,7 @@ npm test
 | `text-diff.test.js` | 目標句與聽到的內容逐字比對。特別測「漏唸中間一個字時只有那個字被標紅」（逐字對位的寫法會讓後面全部偏移、整句標紅） |
 | `phonetics.test.js` | 自動標音。特別測「只有 w 沒有 v 的句子不可以標成 `v_w`」，因為那正是人工標的時候犯過的錯 |
 | `gemini.test.js` | Gemini 回應的整理與防禦。structured output 有 schema，但 schema 是「請模型照這個格式」，不是「保證一定是這個格式」 |
-| `narrator.test.js` | 講評走哪一條路，以及 OpenAI 相容端點。**真正的呼叫在開發容器裡跑不到**（egress 擋掉 HF／Groq／OpenAI），所以用假的 fetch 把能驗的全部驗過：請求形狀（URL、Bearer、model、單一 user 訊息、不串流、不要求 JSON）、回應整理（開場白與 markdown 圍欄要丟掉、只有符號的行不算一行）、每一種失敗都回 `null` 而不是丟例外（分數還是要回給使用者）、超時用 `AbortController` 而不是 `Promise.race`。另外釘住「設定不完整時要講得出缺哪一個」—— 三個變數少一個的症狀都是「講評沒出現」 |
+| `narrator.test.js` | 講評走哪一條路，以及 OpenAI 相容端點。**真正的呼叫在開發容器裡跑不到**（egress 擋掉 HF／Groq／OpenAI），所以用假的 fetch 把能驗的全部驗過：請求形狀（URL、Bearer、model、單一 user 訊息、不串流、不要求 JSON）、回應整理（開場白與 markdown 圍欄要丟掉、只有符號的行不算一行）、每一種失敗都回 `null` 而不是丟例外（分數還是要回給使用者）、超時用 `AbortController` 而不是 `Promise.race`。另外釘住「設定不完整時要講得出缺哪一個」—— 三個變數少一個的症狀都是「講評沒出現」。**「會先想再答」的 model** 那兩個旋鈕也釘在這裡：`NARRATION_REASONING_EFFORT` 沒設定就不送（不推理的 model 收到會回 400）、設了要小寫化、`NARRATION_MAX_TOKENS` 蓋掉呼叫端的額度而看不懂的值當作沒設定，以及「200 但 content 是空的」也要回 null |
 | `coach.test.js` | AI 修正（**兩個模式共用一份**）：prompt 帶不帶得到各自的上下文、兩邊的輸出格式與規則是同一份、填空題要模型回「填好的整句」、認不得的 `mode` 回錯誤而不是默默當成對話、模型各種不照格式回時解析得出什麼（markdown 圍欄、粗體、全形冒號、把「判定」寫成一段散文）、以及送上來的東西怎麼擋（空白答案是唯一的 4xx，其餘過長一律截掉）。**每一種不照格式在畫面上都是同一個症狀**（「AI 修正沒出現」），只有測試分得出是哪一種 |
 | `quota.test.js` | 每天的呼叫上限。規則那一半驗「0 與 off 都是不限制」（把 0 當上限的話整個 App 直接不能用）、「看不懂的值要退回預設值而不是靜靜變成不限制」、總量與逐模型兩道的先後；計數那一半用暫存目錄真的寫檔，驗「擋下來的那一次不算用掉」、每人每天各自算、以及**十個同時進來的請求只有 N 個會過**（先讀再寫的寫法在這裡會過頭） |
 | `reviews.test.js` | AI 修正的本機快取。重點是快取那一半：同一格是覆蓋不是留兩份、超過上限丟掉的是**時間**最舊的（同步合併之後鍵的順序不再是時間順序）、壞掉的值當成沒有、以及它真的在 `BACKUP_KEYS` 裡（漏掉的話換一台裝置就要重新付一次錢） |

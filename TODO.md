@@ -35,7 +35,7 @@
 | 🔐 帳號 | 全部 `/api` 都要登入；進度存在伺服器上，**跨裝置自動合併**（手動整包覆蓋留著當逃生門） | 完成 |
 | 🤖 LLM 即時對話 | 沒有腳本的自由對話 —— **只有規劃，還沒實作**（見「第四階段」） | 規劃 |
 
-驗證狀態：`npm test` 465 項全過、`npm run test:ui` 273 項全過、
+驗證狀態：`npm test` 474 項全過、`npm run test:ui` 273 項全過、
 `npm run test:e2e` 全過（【3】【5】要金鑰，會自動跳過）、
 `npm run test:layout` 是尺不是測試（見 README「版面盤點」）。
 CI（`.github/workflows/ci.yml`）跑 `npm test`、`test:ui` 與 `test:e2e`
@@ -119,6 +119,16 @@ merge 拒收、`importState()` 要把寫入通知關掉不然同步會餵自己�
 但整條路有真的跑過一次：用 loader 把 Azure 換成假的、`NARRATION_BASE_URL`
 指到 loopback 上一個假的 OpenAI 端點 —— 走的是真的 fetch、真的 HTTP。
 指令在 README 那一節。這招也抓到一個只有跑起來才看得到的 bug（見下面的雷）。
+
+後來補的：**「會先想再答」的 model**（gpt-oss、DeepSeek-R1…）多兩個選填的旋鈕，
+`NARRATION_MAX_TOKENS` 與 `NARRATION_REASONING_EFFORT`（設定頁的端點那一區也有）。
+它們解的是一種很難自己認出來的失敗 —— **HTTP 200 但 `content` 是空字串**，
+因為想的過程也算在 `max_tokens` 裡，預設的 400 在它想完之前就用光了。
+畫面上的症狀跟金鑰打錯一模一樣，所以伺服器 log 會認出來（回應裡有 `reasoning`
+欄位，或 `finish_reason` 是 `length`）並直接把修法寫出來。另一種變形是思考被
+`<think>…</think>` 包在正文裡送回來，`stripReasoning()`（`server/narration.js`）
+在解析前先拿掉 —— 不然思考裡的草稿條列會被當成講評貼上畫面。
+**最省事的還是挑一個不推理的 model**：講評只是把幾個數字寫成四行中文。
 
 再前一件：**中翻英題庫從 279 題擴到 2,159 題**（分支
 `claude/expand-question-bank-model-swap-84rc5q`）。用的是**同一批** Tatoeba 語料 ——

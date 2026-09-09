@@ -147,6 +147,24 @@ test('講評端點要是 http(s) 網址，而且不要含 /chat/completions', ()
   );
 });
 
+test('token 上限要是正整數 —— 0 或 abc 換來的是端點的 400，跟金鑰錯了長得一樣', () => {
+  assert.equal(valueProblem('NARRATION_MAX_TOKENS', ''), null);      // 留空＝用預設
+  assert.equal(valueProblem('NARRATION_MAX_TOKENS', '1200'), null);
+  for (const bad of ['0', '-1', 'abc', '1.5', '999999']) {
+    assert.match(valueProblem('NARRATION_MAX_TOKENS', bad), /整數/, `${bad} 應該被擋`);
+  }
+});
+
+test('reasoning_effort 只收一個英文單字，但不寫死 low/medium/high 的白名單', () => {
+  // 白名單寫死的話，下一個供應商多一個值（minimal、none…）就得改程式碼，
+  // 而這一整條路存在的理由就是「換供應商不用改程式碼」
+  for (const ok of ['', 'low', 'medium', 'high', 'minimal', 'none']) {
+    assert.equal(valueProblem('NARRATION_REASONING_EFFORT', ok), null, `${ok} 應該收`);
+  }
+  assert.match(valueProblem('NARRATION_REASONING_EFFORT', '想少一點'), /英文單字/);
+  assert.match(valueProblem('NARRATION_REASONING_EFFORT', 'low effort'), /英文單字/);
+});
+
 // ─── 寫檔 ────────────────────────────────────────────────────────────────
 
 test('寫進 DATA_DIR/settings.env，不是專案的 .env', async () => {

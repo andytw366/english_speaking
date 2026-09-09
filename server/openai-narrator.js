@@ -17,6 +17,13 @@
 //   - `api-inference.huggingface.co`（舊的 serverless）—— **不要用**。模型
 //     沒被載入時會冷啟動，實測要 20 秒以上，比 Gemini 還慢，換過去等於白換。
 //
+// ⚠️ **「會先想再答」的 model 要多兩個設定。** gpt-oss、DeepSeek-R1、Qwen 的
+// thinking 版這些，想的過程也算在 `max_tokens` 裡 —— 預設的 400 會在它想完之前
+// 就用光，回來的 `content` 是空字串，畫面上就只是「講評沒出現」。
+// `NARRATION_MAX_TOKENS`（調高額度）與 `NARRATION_REASONING_EFFORT`（少想一點）
+// 就是為此而有的，兩個都選填，不設就完全維持原本的行為。
+// 撞到的時候伺服器 log 會直接把這三條路寫出來（見 `describeEmptyContent()`）。
+//
 // ─── 這條路在開發容器裡驗不到 ────────────────────────────────────────────
 //
 // 容器的 egress 是逐主機允許清單，`huggingface.co`、`api.groq.com`、
@@ -39,17 +46,59 @@ const TIMEOUT_MS = 20_000;
 /** 講評很短，給足夠寫四行中文的額度就好 —— 上限開太大只會讓模型寫更長。 */
 const MAX_TOKENS = 400;
 
+/** `NARRATION_MAX_TOKENS` 收得下的範圍。上界只是別讓人手滑打成一整串數字。 */
+const MAX_TOKENS_CEILING = 32_000;
+
 /**
- * 這條路的設定。三個都要有才算設定完成。
+ * 這條路的設定。**前三個**都要有才算設定完成，後兩個是選填的旋鈕。
  *
- * 分成三個變數而不是一個「provider=groq」的列舉，是因為這樣**不必為了支援
+ * 分成幾個變數而不是一個「provider=groq」的列舉，是因為這樣**不必為了支援
  * 新的供應商改程式碼** —— 換一家就是換 base URL 與 model，跟 App 無關。
+ *
+ * 後兩個（`NARRATION_MAX_TOKENS`、`NARRATION_REASONING_EFFORT`）是為了
+ * 「會先想再答」的 model 才有的，理由見 `describeEmptyContent()`。同樣做成
+ * 環境變數而不是寫死在程式碼裡：換一個要想的 model 也還是只改設定，不改 App。
  */
 export function openAIConfig() {
   const baseUrl = process.env.NARRATION_BASE_URL?.trim() ?? '';
   const apiKey = process.env.NARRATION_API_KEY?.trim() ?? '';
   const model = process.env.NARRATION_MODEL?.trim() ?? '';
-  return { baseUrl: baseUrl.replace(/\/+$/, ''), apiKey, model };
+  return {
+    baseUrl: baseUrl.replace(/\/+$/, ''),
+    apiKey,
+    model,
+    maxTokens: parseMaxTokens(process.env.NARRATION_MAX_TOKENS),
+    // 小寫化：供應商收的是 low／medium／high，而在設定頁打成 Low 的人
+    // 只會得到一個 400，跟「講評沒出現」長得一模一樣
+    reasoningEffort: process.env.NARRATION_REASONING_EFFORT?.trim().toLowerCase() ?? '',
+  };
+}
+
+/** 看不懂就當作沒設定（回 null）—— 但要講出來，不然症狀是「改了卻沒反應」。 */
+function parseMaxTokens(raw) {
+  const v = String(raw ?? '').trim();
+  if (v === '') return null;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_TOKENS_CEILING) {
+    warnOnce(
+      `[narration] NARRATION_MAX_TOKENS="${v}" 不是 1～${MAX_TOKENS_CEILING} 的整數，已忽略`
+    );
+    return null;
+  }
+  return n;
+}
+
+/**
+ * 同一句警告只講一次。
+ *
+ * `openAIConfig()` 每個請求會被呼叫好幾次（設定頁問一次、真的要打時再問一次），
+ * 每次都印的話，一個打錯的值就會把 log 洗到看不到別的東西。
+ */
+const warned = new Set();
+function warnOnce(message) {
+  if (warned.has(message)) return;
+  warned.add(message);
+  console.warn(message);
 }
 
 /** 設定齊了沒。缺哪一項要講清楚 —— 三個變數少一個的症狀都是「講評沒出現」。 */
@@ -96,6 +145,13 @@ export async function completeViaOpenAI(prompt, {
     return null;
   }
 
+  // `NARRATION_MAX_TOKENS` **蓋掉呼叫端要的額度**，不是取大的那一個。
+  //
+  // 呼叫端填的數字（講評 400、AI 修正 300）算的是「答案有多長」，而會先想再答的
+  // model 是把想的過程也記在同一個額度裡 —— 兩個用途都會不夠，所以這個旋鈕
+  // 一設就是兩條路一起調。不需要想的 model 就別設它，維持呼叫端自己的判斷。
+  const budget = config.maxTokens ?? maxTokens;
+
   // 用 AbortController 而不是 Promise.race：race 贏了之後那個請求還是掛在背景
   // 跑完才放掉連線，連續超時幾次就會累積一堆沒人要的請求。
   const controller = new AbortController();
@@ -111,10 +167,14 @@ export async function completeViaOpenAI(prompt, {
       body: JSON.stringify({
         model: config.model,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: maxTokens,
+        max_tokens: budget,
         // 不需要創意，要的是穩定 —— 同樣的輸入每次講差不多的話才好比較
         temperature,
         stream: false,
+        // **只有設定了才送。** 不會推理的 model 收到不認得的參數多半直接回 400，
+        // 而那個 400 的症狀跟金鑰打錯一模一樣（講評沒出現）。預設不送，
+        // 就不會有人為了一個他根本用不到的參數去查半天。
+        ...(config.reasoningEffort ? { reasoning_effort: config.reasoningEffort } : {}),
       }),
       signal: controller.signal,
     });
@@ -131,12 +191,15 @@ export async function completeViaOpenAI(prompt, {
 
     const data = await res.json();
     // OpenAI 相容的形狀就是這一個；有些供應商會多包東西，但 choices[0] 是共同點
-    const content = data?.choices?.[0]?.message?.content;
+    const choice = data?.choices?.[0];
+    const content = choice?.message?.content;
     if (typeof content !== 'string' || !content.trim()) {
       console.error(
         '[narration] 回應裡找不到文字內容：',
         JSON.stringify(data)?.slice(0, 500)
       );
+      const hint = describeEmptyContent(choice, budget);
+      if (hint) console.error(hint);
       return null;
     }
     return content;
@@ -167,9 +230,46 @@ export async function narrateViaOpenAI(assessment, { fetchImpl = fetch } = {}) {
   return cleaned;
 }
 
+/**
+ * 「200 但一個字都沒有」的提示。
+ *
+ * 這是換到「會先想再答」的 model（gpt-oss、DeepSeek-R1、Qwen 的 thinking 版…）
+ * 最容易撞到、也最難自己看出來的一種失敗：HTTP 是 200、金鑰沒問題、端點沒問題，
+ * 但 `content` 是空字串，畫面上就只是「講評沒出現」。
+ *
+ * 原因是**想的過程也算在 `max_tokens` 裡**。額度 400 對四行中文很夠，
+ * 對「先想三百字再寫四行」完全不夠 —— 額度在想完之前就用光，正式的答案
+ * 一個字都還沒輪到。所以這裡不只說「找不到文字」，還要說怎麼修。
+ *
+ * @param {object} choice 回應裡的 choices[0]
+ * @param {number} maxTokens 這次真的送出去的額度
+ */
+function describeEmptyContent(choice, maxTokens) {
+  // reasoning 放哪個欄位各家不一樣（Groq 是 reasoning，另一些是 reasoning_content），
+  // 兩個都看一下；finish_reason=length 則是「話沒講完就被截斷」的共同訊號
+  const reasoning = choice?.message?.reasoning ?? choice?.message?.reasoning_content;
+  const truncated = choice?.finish_reason === 'length';
+  if (!reasoning && !truncated) return '';
+
+  return (
+    '[narration] 這看起來是「會先想再答」的 model：' +
+    (reasoning ? '回應裡有 reasoning 欄位' : 'finish_reason 是 length') +
+    `，而想的過程也算在 max_tokens=${maxTokens} 裡，額度在它想完之前就用光了。三條路：\n` +
+    '  1. NARRATION_MAX_TOKENS 調高（1200 起跳）\n' +
+    '  2. NARRATION_REASONING_EFFORT=low（要供應商支援才有用）\n' +
+    '  3. 換一個不推理的 model —— 講評只是把幾個數字寫成四行中文，本來就不需要推理'
+  );
+}
+
 /** 常見錯誤碼的提示。只寫進伺服器 log，給設定的人看的。 */
 function describeStatus(status) {
   switch (status) {
+    case 400:
+    case 422:
+      // 換到會推理的 model 之前，這個狀態碼幾乎只會來自打錯的 model id；
+      // 之後最常見的來源是 reasoning_effort 送給了一個不吃它的 model
+      return '（端點看不懂這個請求 —— 有填 NARRATION_REASONING_EFFORT 的話先清掉，' +
+        '不會推理的 model 收到這個參數就是回這個；再來檢查 NARRATION_MODEL 拼對沒）';
     case 401:
     case 403:
       return '（金鑰無效或沒有這個 model 的權限 —— 檢查 NARRATION_API_KEY）';

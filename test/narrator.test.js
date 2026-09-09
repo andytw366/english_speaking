@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 import { buildNarrationPrompt, cleanNarration } from '../server/narration.js';
 import {
-  openAIConfig, openAIConfigProblem, narrateViaOpenAI,
+  openAIConfig, openAIConfigProblem, narrateViaOpenAI, completeViaOpenAI,
 } from '../server/openai-narrator.js';
 import {
   narrationProvider, narrate, complete, modelAvailability, PROVIDERS,
@@ -36,7 +36,8 @@ const ASSESSMENT = {
 /** 每條測試都要從乾淨的環境變數開始 —— 這些是 process 全域的，會互相污染。 */
 const KEYS = [
   'NARRATION_PROVIDER', 'NARRATION_BASE_URL', 'NARRATION_API_KEY',
-  'NARRATION_MODEL', 'GEMINI_API_KEY',
+  'NARRATION_MODEL', 'NARRATION_MAX_TOKENS', 'NARRATION_REASONING_EFFORT',
+  'GEMINI_API_KEY',
 ];
 function withEnv(values, fn) {
   const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
@@ -118,6 +119,16 @@ test('各種條列符號都收，統一成「• 」', () => {
 test('超過 4 行會截掉 —— prompt 說 4 行，但模型不一定聽', () => {
   const out = cleanNarration(['a', 'b', 'c', 'd', 'e', 'f'].map((x) => `• ${x}`).join('\n'));
   assert.equal(out.split('\n').length, 4);
+});
+
+test('<think> 裡的草稿不算講評 —— 會先想再答的 model 有些把它包在正文裡', () => {
+  const raw = '<think>使用者的 prosody 只有 55…\n• 先寫這句？不對，太籠統</think>\n' +
+    '• 語調偏平，句尾要往下收。';
+  assert.equal(cleanNarration(raw), '• 語調偏平，句尾要往下收。');
+});
+
+test('<think> 沒收尾＝話被截斷，整段丟掉回 null（不要把半截思考貼到畫面上）', () => {
+  assert.equal(cleanNarration('<think>先看看 prosody 55 代表什麼\n• 也許可以說'), null);
 });
 
 test('整理不出東西時回 null，讓呼叫端退回本地摘要', () => {
@@ -244,6 +255,70 @@ test('不要求 JSON —— 少一種「回來的不是合法 JSON」的失敗�
     const calls = [];
     await narrateViaOpenAI(ASSESSMENT, { fetchImpl: fakeFetch(okResponse('• 好'), calls) });
     assert.equal(calls[0].body.response_format, undefined);
+  });
+});
+
+test('沒設定 NARRATION_REASONING_EFFORT 就不送這個參數', async () => {
+  // 不會推理的 model 收到不認得的參數多半直接回 400，而那個 400 的症狀
+  // 跟金鑰打錯一模一樣。預設不送，換 Groq 的 llama 這種就完全不必知道它存在
+  await withEnv(OPENAI_ENV, async () => {
+    const calls = [];
+    await narrateViaOpenAI(ASSESSMENT, { fetchImpl: fakeFetch(okResponse('• 好'), calls) });
+    assert.equal(calls[0].body.reasoning_effort, undefined);
+    assert.equal(calls[0].body.max_tokens, 400);
+  });
+});
+
+test('設了 NARRATION_REASONING_EFFORT 才送，而且會小寫化', async () => {
+  // 在設定頁打成 Low 的人只會拿到一個 400，跟「講評沒出現」長得一模一樣
+  await withEnv({ ...OPENAI_ENV, NARRATION_REASONING_EFFORT: 'Low' }, async () => {
+    const calls = [];
+    await narrateViaOpenAI(ASSESSMENT, { fetchImpl: fakeFetch(okResponse('• 好'), calls) });
+    assert.equal(calls[0].body.reasoning_effort, 'low');
+  });
+});
+
+test('NARRATION_MAX_TOKENS 蓋掉呼叫端的額度 —— 想的過程也算在裡面', async () => {
+  await withEnv({ ...OPENAI_ENV, NARRATION_MAX_TOKENS: '1200' }, async () => {
+    const calls = [];
+    await narrateViaOpenAI(ASSESSMENT, { fetchImpl: fakeFetch(okResponse('• 好'), calls) });
+    assert.equal(calls[0].body.max_tokens, 1200);
+  });
+
+  // AI 修正那條路（呼叫端自己填 300）也要一起被蓋掉：
+  // 一個會先想再答的 model 兩條路都會不夠，分開調沒有意義
+  await withEnv({ ...OPENAI_ENV, NARRATION_MAX_TOKENS: '1200' }, async () => {
+    const calls = [];
+    await completeViaOpenAI('嗨', {
+      maxTokens: 300, fetchImpl: fakeFetch(okResponse('• 好'), calls),
+    });
+    assert.equal(calls[0].body.max_tokens, 1200);
+  });
+});
+
+test('看不懂的 NARRATION_MAX_TOKENS 當作沒設定，不是把請求打壞', async () => {
+  await withEnv({ ...OPENAI_ENV, NARRATION_MAX_TOKENS: '一千二' }, async () => {
+    const calls = [];
+    await narrateViaOpenAI(ASSESSMENT, { fetchImpl: fakeFetch(okResponse('• 好'), calls) });
+    assert.equal(calls[0].body.max_tokens, 400);
+  });
+});
+
+test('「200 但 content 是空的」也回 null —— 會先想再答的 model 最常見的失敗', async () => {
+  // 額度在模型想完之前就用光，正式的答案一個字都沒輪到。
+  // HTTP 是 200、金鑰沒問題，畫面上就只是「講評沒出現」
+  await withEnv(OPENAI_ENV, async () => {
+    const out = await narrateViaOpenAI(ASSESSMENT, {
+      fetchImpl: fakeFetch({
+        ok: true,
+        status: 200,
+        text: async () => '',
+        json: async () => ({
+          choices: [{ finish_reason: 'length', message: { content: '', reasoning: '嗯…' } }],
+        }),
+      }),
+    });
+    assert.equal(out, null);
   });
 });
 

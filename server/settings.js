@@ -44,6 +44,11 @@ const MANAGED_KEYS = [
   'NARRATION_BASE_URL',
   'NARRATION_API_KEY',
   'NARRATION_MODEL',
+  // 給「會先想再答」的 model 用的兩個旋鈕（選填，見 server/openai-narrator.js）。
+  // 放進來的理由跟 model 一樣：撞到「講評整段消失」的時候人多半在手機上，
+  // 而修法是改一個數字 —— 為了改一個數字 ssh 進伺服器太蠢了
+  'NARRATION_MAX_TOKENS',
+  'NARRATION_REASONING_EFFORT',
   // 每天的呼叫上限（所有模式一起算）。跟金鑰放同一條路是刻意的 ——
   // 它跟金鑰一樣是「會花錢的設定」，而且改它的時機正是「發現花太兇」的時候，
   // 那時候人多半在手機上，不會想 ssh 進伺服器改 .env
@@ -117,12 +122,14 @@ export function readSettings() {
     AZURE_SPEECH_KEY: mask(process.env.AZURE_SPEECH_KEY?.trim()),
     AZURE_SPEECH_REGION: plain(process.env.AZURE_SPEECH_REGION),
     GEMINI_API_KEY: mask(process.env.GEMINI_API_KEY?.trim()),
-    // 講評走哪一條路的四個變數。金鑰以外都不是機密 ——
-    // 而「現在指到哪個端點、哪個 model」是換模型時唯一能自己查的東西
+    // 講評走哪一條路的幾個變數。金鑰以外都不是機密 ——
+    // 而「現在指到哪個端點、哪個 model、送了什麼參數」是換模型時唯一能自己查的東西
     NARRATION_PROVIDER: plain(process.env.NARRATION_PROVIDER),
     NARRATION_BASE_URL: plain(process.env.NARRATION_BASE_URL),
     NARRATION_API_KEY: mask(process.env.NARRATION_API_KEY?.trim()),
     NARRATION_MODEL: plain(process.env.NARRATION_MODEL),
+    NARRATION_MAX_TOKENS: plain(process.env.NARRATION_MAX_TOKENS),
+    NARRATION_REASONING_EFFORT: plain(process.env.NARRATION_REASONING_EFFORT),
     // 呼叫上限不是機密，而且「現在的上限是多少」正是使用者要在畫面上看到的東西
     AI_DAILY_LIMIT: plain(process.env.AI_DAILY_LIMIT),
     AI_DAILY_LIMITS: plain(process.env.AI_DAILY_LIMITS),
@@ -158,6 +165,23 @@ export function valueProblem(key, value) {
 
   if (key === 'NARRATION_PROVIDER' && !PROVIDERS.includes(v)) {
     return `講評來源只能填 ${PROVIDERS.join(' / ')}，留空表示自動判斷。`;
+  }
+
+  // 這兩個是選填的，但填錯的症狀特別難認：max_tokens 打成 0 或
+  // reasoning_effort 打成一句話，端點回的是 400，而畫面上跟金鑰錯了一模一樣
+  if (key === 'NARRATION_MAX_TOKENS') {
+    const n = Number(v);
+    if (!/^\d+$/.test(v) || !Number.isInteger(n) || n < 1 || n > 32000) {
+      return '單次回應的 token 上限要填 1 到 32000 之間的整數，留空是用預設值（400）。' +
+        '會先想再答的 model（gpt-oss 這類）建議 1200 起跳 —— 想的過程也算在這個額度裡。';
+    }
+  }
+
+  if (key === 'NARRATION_REASONING_EFFORT' && !/^[A-Za-z]+$/.test(v)) {
+    // 不寫死 low/medium/high 的白名單：各家收的值不一樣（有的還有 minimal、none），
+    // 寫死的話下一個供應商多一個值就得改程式碼，而這裡本來就是為了不用改程式碼
+    return 'reasoning_effort 只能填一個英文單字（常見的是 low / medium / high），' +
+      '留空表示不送這個參數 —— 不會推理的 model 收到它會直接回 400。';
   }
 
   if (key === 'AI_DAILY_LIMIT' && parseLimit(v) === undefined) {

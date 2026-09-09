@@ -367,8 +367,23 @@ function endpointSection() {
       placeholder: '照供應商列的 id 完整填',
       note: '照供應商列的 id 完整填（HF 可以在後面加 :groq 指定轉給誰）。',
     }),
+    textField('單次回應的 token 上限（選填）', 'narration-max-tokens', {
+      type: 'text',
+      value: serverSettings.NARRATION_MAX_TOKENS.value,
+      placeholder: '留空＝預設 400',
+      note: '會先想再答的 model（gpt-oss 這類）要調高，1200 起跳 —— ' +
+        '想的過程也算在這個額度裡，不夠的話講評會整段消失。',
+    }),
+    textField('reasoning_effort（選填）', 'narration-reasoning-effort', {
+      type: 'text',
+      value: serverSettings.NARRATION_REASONING_EFFORT.value,
+      placeholder: '留空＝不送這個參數',
+      note: '只有會推理的 model 吃這個（low / medium / high）。' +
+        '不推理的 model 收到會直接回 400，所以預設不送。',
+    }),
     saveRow('endpoint', '儲存端點設定', saveEndpoint),
-    h('p', { class: 'hint' }, '三格要一起齊才會生效。'),
+    h('p', { class: 'hint' },
+      '上面三格要一起齊才會生效；下面兩格是選填的，只有換到會推理的 model 才需要。'),
   );
 }
 
@@ -560,6 +575,8 @@ async function saveEndpoint() {
   for (const [id, envKey] of [
     ['narration-base-url', 'NARRATION_BASE_URL'],
     ['narration-model', 'NARRATION_MODEL'],
+    ['narration-max-tokens', 'NARRATION_MAX_TOKENS'],
+    ['narration-reasoning-effort', 'NARRATION_REASONING_EFFORT'],
   ]) {
     const value = get(id).trim();
     if (value !== (serverSettings?.[envKey].value ?? '')) payload[envKey] = value;

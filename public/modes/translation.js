@@ -6,6 +6,7 @@ import { getSettings, aiMode } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
 import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
 import { createReviewer, reviewKey } from '../lib/ai-review.js';
+import { answerPair, sentenceRow, moreBox } from '../lib/answer-lines.js';
 import { bindKeys } from '../lib/keys.js';
 
 export const meta = { id: 'translation', label: '中翻英', icon: '✍️' };
@@ -155,62 +156,69 @@ function render() {
   if (!checked) requestAnimationFrame(() => root?.querySelector('#answer')?.focus());
 }
 
+/**
+ * 對完答案之後的那張卡。
+ *
+ * **順序是刻意的**：判定 → 兩句並列（AI 改的在上、參考答案在下）→ AI 的說明
+ * → 收起來的細節 → 按鈕。
+ *
+ * 為什麼 AI 那句排在最上面：使用者剛剛寫了一句話，他要的是「那到底該怎麼說」，
+ * 而最貼近他寫的那一句的答案是模型改出來的那一句 —— 教材的參考答案回答的是
+ * 「這題的標準說法」，是另一個問題。以前 AI 那段接在整張卡的最後面，
+ * 要先捲過逐字比對、其他說法、教材說明才看得到。
+ *
+ * 為什麼參考答案照樣在（而且緊接著）：它免費、離線、每次都一樣，
+ * 而模型的意見每次不同也可能出錯 —— 兩句擺在一起才對照得出來。
+ */
 function resultCard() {
   const { level, missing } = checked.result;
   const input = checked.input;
-
   const [title, tone] = RESULT_HEAD[level];
+  const ai = reviewer.render();
+
+  // 填空題的參考答案要**整句**（含填好的空格）—— 單獨一個字看不出它為什麼對
+  const reference = current.type === 'cloze'
+    ? current.sentence.replace('___', current.answer)
+    : current.answer;
 
   const card = h('div', { class: `card result--${tone}` },
     h('p', { class: 'result__title' }, title),
+    answerPair(
+      ai.row,
+      sentenceRow('📘 參考答案', reference, { tone: 'ref', speakText: reference }),
+    ),
+    ai.notes,
   );
 
-  if (level === 'close') {
-    append(card, h('p', { class: 'hint' }, '關鍵用字都有，只是說法跟參考答案不同 —— 這在翻譯裡很正常。'));
-  }
+  // 少了哪些關鍵用字：這一行直接指出下一步要補什麼，所以不收起來
   if (level === 'wrong' && missing?.length) {
-    append(card, h('p', { class: 'hint' }, `少了這些關鍵用字：${missing.join('、')}`));
+    append(card, h('p', { class: 'hint' }, `少了關鍵用字：${missing.join('、')}`));
   }
 
-  if (current.type === 'cloze') {
-    append(card, 
-      h('p', { class: 'trans__answer' },
-        current.sentence.replace('___', current.answer)),
-      level !== 'exact' && input
-        ? h('p', { class: 'hint' }, `你填的是「${input}」`)
-        : null,
-      current.accept.length > 1
-        ? h('p', { class: 'hint' }, `也可以填：${current.accept.filter((a) => a !== current.answer).join('、')}`)
-        : null,
+  // 其他說法留在外面（不收摺疊）：Tatoeba 匯入的題目每題平均 1.4 種、最多 8 種，
+  // 而且都是**真人寫的對等翻譯** —— 一句中文可以怎麼講，這裡是最有價值的一塊
+  const others = current.type === 'cloze'
+    ? current.accept.filter((a) => a !== current.answer)
+    : current.accept.slice(1);
+  if (others.length > 0) {
+    append(card,
+      h('p', { class: 'hint' }, `也可以說（${others.length} 種）：`),
+      h('ul', { class: 'trans__alts' }, others.map((a) => h('li', {}, a))),
     );
-  } else {
-    append(card, diffView(input || '（空白）', current.answer));
-    // 其他說法全部列出來，不是只列第一個。
-    //
-    // 從 Tatoeba 匯入的題目每題平均有 1.4 種說法、最多 8 種，而且那些都是
-    // **真人寫的對等翻譯** —— 一句中文可以怎麼講，這裡是最有價值的一塊。
-    // 只秀 accept[1] 的話，剩下的說法明明判得對卻看不到。
-    const others = current.accept.slice(1);
-    if (others.length > 0) {
-      append(card,
-        h('p', { class: 'hint' }, others.length === 1 ? '另一種說法：' : `其他說法（${others.length} 種）：`),
-        h('ul', { class: 'trans__alts' }, others.map((a) => h('li', {}, a))),
-      );
-    }
   }
 
-  // explain_zh 是手寫題目才有的欄位。從語料匯入的題目沒有 ——
-  // 與其硬湊一句沒有內容的說明，不如把版面留給上面那些真正的說法。
-  // （少了這道判斷會印出一個空的 <p>，畫面上是一段莫名其妙的空白。）
-  if (current.explain_zh) {
-    append(card, h('p', { class: 'explain explain--neutral' }, current.explain_zh));
-  }
+  // 剩下的是「想追究的時候才看」的東西 —— 每一題都攤在畫面上的話，
+  // 看第二十次就只是把按鈕擠到螢幕外面
+  append(card, moreBox('看詳細比對',
+    current.type === 'cloze'
+      ? (level !== 'exact' && input ? h('p', { class: 'hint' }, `你填的是「${input}」`) : null)
+      : diffView(input || '（空白）', current.answer),
+    // explain_zh 是手寫題目才有的欄位，從語料匯入的沒有（少了這道判斷會印出空的 <p>）
+    current.explain_zh && h('p', { class: 'explain explain--neutral' }, current.explain_zh),
+    ai.credit,
+  ));
 
-  // AI 修正接在參考答案**後面**，不是取代它 —— 兩者回答的是不同的問題：
-  // 參考答案是「教材建議怎麼翻」，AI 修正是「我這樣翻行不行」
-  append(card, reviewer.view());
-
-  append(card, 
+  append(card,
     h('div', { class: 'row' },
       ttsSupported() && h('button', {
         class: 'btn btn--ghost', id: 'btn-speak',

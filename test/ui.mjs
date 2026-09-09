@@ -22,6 +22,7 @@ import { chromium } from '@playwright/test';
 // 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
 // 所以直接用 App 用的同一份，而不是在這裡再抄一次切義項的邏輯。
 import { firstSense } from '../public/lib/quiz.js';
+import { MODE_IDS } from '../public/lib/modes.js';
 import {
   TEST_USER, addCookieToContext, apiGetter, authenticate, resetServerProgress,
 } from './login.mjs';
@@ -148,10 +149,12 @@ await page.goto(BASE);
 await page.waitForSelector('#nav .tab');
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【1】七個分頁都載入得起來');
+console.log('\n【1】每個分頁都載入得起來');
 
+// 數量讀 App 自己那份登錄表（`lib/modes.js`），不在測試裡再寫死一個 ——
+// 那個數字前後寫錯過兩次，兩次都是加了一個模式之後只改了三支測試裡的兩支
 const tabs = await page.locator('#nav .tab').allTextContents();
-check('分頁有七個（首頁 + 五個練習 + 設定）', tabs.length === 7, tabs.join(' | '));
+check(`分頁有 ${MODE_IDS.length} 個`, tabs.length === MODE_IDS.length, tabs.join(' | '));
 
 for (const tab of tabs) {
   const name = tab.split(' ').pop();
@@ -163,7 +166,7 @@ for (const tab of tabs) {
   // h() 會過濾 false 子元素，但裸的 el.append() 不會 —— 這一類 bug 在中翻英出現過
   check(`${name} 沒有殘留的 false / undefined`, !/\bfalse\b|\bundefined\b|\[object /.test(body));
 }
-await shot(page, 'ui-01-六個模式');
+await shot(page, 'ui-01-所有分頁');
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【2】跟讀：今天的進度與連續天數');
@@ -1035,21 +1038,86 @@ if (await partnerButton.count()) {
 check('對方講的那句不算進度', (await text('.card--today')).startsWith('0 /'),
   (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 16));
 
-// AI 修正：**不管這台伺服器有沒有設定模型**，那一段都要在畫面上有位置 ——
-// 有修正就顯示修正，沒有模型就講出原因。靜靜不見是最糟的一種（看起來像壞了），
-// 所以這裡驗的是「🤖 那一段在」而不是某一種特定文字。
-// 同一張卡上教材的參考答案照樣要在 —— AI 修正是多的，不是取代
+// 結果卡的**順序**：🤖 AI 改的那句在上、📘 教材的參考答案在下，兩句並列。
+//
+// 為什麼要釘住順序而不只是「兩個都在」：使用者剛剛寫了一句話，最貼近那一句的
+// 答案是模型改出來的那一句 —— 排在逐字比對與其他說法後面的話，等於沒有。
+//
+// **不管這台伺服器有沒有設定模型**，AI 那一行都要在：有修正就顯示修正，
+// 沒有模型就講出原因。靜靜不見是最糟的一種（看起來像壞了），
+// 所以驗的是「那一行在、而且排在參考答案上面」，不是某一種特定文字。
 const answerBox = page.locator('#view #answer');
 if (await answerBox.count()) {
   await answerBox.fill('I want a coffee please');
   await page.locator('#view button', { hasText: '對答案' }).click();
   await page.waitForTimeout(600);
   const afterCheck = await viewText();
-  check('對完答案仍然看得到教材的參考答案', afterCheck.includes('參考答案'));
-  check('AI 修正在結果卡上有位置（有修正、或講得出為什麼沒有）',
+  check('對完答案仍然看得到教材的參考說法', afterCheck.includes('參考說法'));
+  check('AI 那一行在結果卡上有位置（有修正、或講得出為什麼沒有）',
     afterCheck.includes('🤖'),
-    afterCheck.replace(/\s+/g, ' ').replace(/^.*(?=🤖)/, '').slice(0, 60));
+    afterCheck.replace(/^.*(?=🤖)/, '').slice(0, 60));
+
+  // DOM 順序：AI 那一行要排在參考答案那一行前面
+  const pairOrder = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('#view .pair .pair__row')];
+    return rows.map((r) => r.querySelector('.pair__label')?.textContent ?? '');
+  });
+  check('情境對話：AI 那句排在參考說法上面',
+    pairOrder.length === 2 && pairOrder[0].includes('🤖') && pairOrder[1].includes('📘'),
+    pairOrder.join(' → '));
+
+  // 細節收在摺疊裡（逐字比對、教材說明、AI 出處）—— 每一題都攤開的話，
+  // 那幾段會把「繼續對話」擠到螢幕外面
+  check('詳細比對預設是收起來的',
+    (await page.locator('#view details.more').count()) === 1
+    && !(await page.locator('#view details.more').first().evaluate((el) => el.open)));
 }
+
+// 中翻英也是同一個版面 —— 兩個模式共用 lib/answer-lines.js，
+// 一邊改了另一邊沒改是最容易發生的事
+await seed({ mode: 'translation' });
+await page.waitForSelector('#answer');
+await page.fill('#answer', 'this is my answer');
+await page.locator('#view button', { hasText: '對答案' }).click();
+await page.waitForTimeout(600);
+const transOrder = await page.evaluate(() =>
+  [...document.querySelectorAll('#view .pair .pair__row')]
+    .map((r) => r.querySelector('.pair__label')?.textContent ?? ''));
+check('中翻英：AI 那句排在參考答案上面',
+  transOrder.length === 2 && transOrder[0].includes('🤖') && transOrder[1].includes('📘'),
+  transOrder.join(' → '));
+check('中翻英的參考答案照樣看得到', (await viewText()).includes('參考答案'));
+await shot(page, 'ui-17-兩句並列');
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【17b】說明 / Q&A 頁');
+
+// 這一頁是設定頁與各練習畫面那些小字的去處。**進得去**是它唯一的前提 ——
+// 手機上側欄不會畫出來，所以頁首那顆 ❓ 是唯一的入口
+await seed({ mode: 'help' });
+await page.waitForSelector('#view .qa');
+const helpBody = await viewText();
+check('說明頁載得起來', (await page.locator('#view .qa').count()) >= 10,
+  `${await page.locator('#view .qa').count()} 組問答`);
+check('說明頁講得出 AI 那句跟參考答案的差別', helpBody.includes('回答的是'));
+check('說明頁沒有錯誤橫幅', (await page.locator('#view .banner--error').count()) === 0);
+
+// 手機寬度：頁首那顆 ❓ 是唯一的入口（側欄不會畫出來，下方那一列只放
+// 五個練習模式 + 今天）。**先 seed 再縮視窗** —— seed 會等 `#nav .tab` 可見，
+// 而手機寬度下側欄整個藏起來，那一等永遠等不到
+await seed({ mode: 'home' });
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(300);
+check('手機上頁首有 ❓ 進得去說明', await page.locator('#helpBtn').isVisible());
+await page.locator('#helpBtn').click();
+await page.waitForTimeout(600);
+check('❓ 真的切到說明頁', (await text('#pageTitle')).includes('說明'), await text('#pageTitle'));
+check('說明沒有擠進下方那一列',
+  !(await page.textContent('#dock')).includes('說明'), await page.textContent('#dock'));
+await shot(page, 'ui-17c-說明頁');
+await page.setViewportSize({ width: 1440, height: 900 });
+await page.waitForTimeout(300);
+await seed({ mode: 'home' });
 
 // 每天的呼叫上限：**每個帳號都要看得到今天用了幾次**。
 // 看不到數字的話，「今天的 AI 修正怎麼不見了」是額度用完、金鑰壞了、還是

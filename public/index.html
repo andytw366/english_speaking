@@ -36,18 +36,22 @@
             <h2 class="page__title" id="pageTitle">載入中…</h2>
             <p class="page__subtitle" id="subtitle"></p>
           </div>
-          <!-- 沒有側欄的寬度才看得到：設定沒有進下方那一列 -->
-          <button class="page__gear" id="gear" type="button" aria-label="設定">⚙️</button>
+          <!-- 沒有側欄的寬度才看得到：設定與說明都沒有進下方那一列 -->
+          <div class="page__tools">
+            <button class="page__gear" id="helpBtn" type="button" aria-label="說明">❓</button>
+            <button class="page__gear" id="gear" type="button" aria-label="設定">⚙️</button>
+          </div>
         </header>
 
         <div id="view"></div>
 
+        <!--
+          頁尾只留一行指路。原本這裡寫著麥克風權限與 localStorage 的細節 ——
+          兩件事都是真的，但它們在**每一個**畫面的最下面重複出現，
+          而真正需要知道的時機只有兩個（錄不了音、要換裝置）。現在收在說明頁裡。
+        -->
         <footer class="page__foot">
-          <p class="hint">
-            跟讀模式的錄音需要麥克風權限，且必須從 <code>localhost</code> 開啟（區網 IP
-            不算 secure context，瀏覽器會擋掉麥克風）。學習進度存在瀏覽器的
-            <code>localStorage</code>，換瀏覽器或清除資料就會消失。
-          </p>
+          <p class="hint">有問題？<button class="linkbtn" id="footHelp" type="button">看說明</button></p>
         </footer>
       </main>
     </div>

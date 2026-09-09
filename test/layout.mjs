@@ -13,6 +13,7 @@
 // 跟讀要捲 2.0 個螢幕、設定 3.3 個。
 import { chromium } from '@playwright/test';
 import { addCookieToContext, apiGetter, authenticate } from './login.mjs';
+import { MODE_IDS } from '../public/lib/modes.js';
 
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const OUT = process.env.SHOTS;
@@ -55,7 +56,9 @@ await page.evaluate(({ h, r, a }) => {
   localStorage.setItem('speaking-coach:settings', JSON.stringify({ vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'] }));
 }, { h: history, r: srs, a: activity });
 
-const MODES = ['home', 'vocabulary', 'listening', 'translation', 'dialogue', 'shadowing', 'settings'];
+// 量的是每一個模式，清單讀 App 自己那份登錄表 —— 在這裡再抄一份的話，
+// 新加的模式會安靜地量不到（而這支沒有斷言，不會有任何徵兆）
+const MODES = MODE_IDS;
 const SIZES = [['desktop', 1440, 900], ['laptop', 1280, 800], ['mobile', 390, 844]];
 
 for (const [name, w, hgt] of SIZES) {

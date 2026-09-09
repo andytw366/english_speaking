@@ -70,7 +70,7 @@ function render() {
     h('div', { class: 'card' },
       h('p', { class: 'card__title' }, '今天的目標'),
       h('div', { class: 'homelist' }, rows.map(({ mode, state }) => modeRow(mode, state))),
-      h('p', { class: 'hint' }, '每個模式練幾個可以在「設定 → 每日目標」調整。'),
+      h('p', { class: 'hint' }, '練幾個可以在「設定 → 每日目標」調整。'),
     ),
   );
 
@@ -78,7 +78,7 @@ function render() {
 }
 
 function headline(goalCount, doneCount, total) {
-  if (goalCount === 0) return '沒有設每日目標。到「設定 → 每日目標」設一個，這裡就會有進度可以看。';
+  if (goalCount === 0) return '沒有設每日目標。到「設定 → 每日目標」設一個就會有進度可以看。';
   if (doneCount === goalCount) return `今天的目標都完成了 🎉 想再多練都可以。`;
   if (total === 0) return '今天還沒開始。從下面挑一個開始就好，不必全部做完。';
   return `${goalCount} 個目標裡完成了 ${doneCount} 個。`;
@@ -122,10 +122,8 @@ function reviewCard() {
   return h('div', { class: 'card' },
     h('p', { class: 'card__title' }, '複習排程'),
     due > 0
-      ? h('p', { class: 'hint' },
-          `有 ${due} 個字到期了。單字卡會把它們排在最前面，所以直接開始練就會先複習到。`)
-      : h('p', { class: 'hint' },
-          '目前沒有到期的字。練過的字會依照 1 天 → 3 天 → 7 天 → 21 天的間隔回來。'),
+      ? h('p', { class: 'hint' }, `有 ${due} 個字到期了 —— 單字卡會把它們排在最前面。`)
+      : h('p', { class: 'hint' }, '目前沒有到期的字。'),
     h('div', { class: 'row' },
       h('button', { class: 'btn btn--primary', onclick: () => goTo('vocabulary') },
         due > 0 ? '去複習' : '練新的字'),

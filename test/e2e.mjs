@@ -29,6 +29,8 @@ import fs from 'node:fs';
 import {
   addCookieToContext, apiGetter, authenticate, resetServerProgress,
 } from './login.mjs';
+// 分頁數讀 App 自己那份登錄表，不在測試裡再寫死一個數字（見【1】的說明）
+import { MODE_IDS } from '../public/lib/modes.js';
 
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const MODEL = process.env.MODEL ?? 'gemini-3.1-flash-lite';
@@ -147,14 +149,17 @@ async function recordOnce(page, ms = 2500) {
 const text = async (page, sel) => (await page.locator(sel).first().textContent() ?? '').trim();
 
 // ═════════════════════════════════════════════════════════════════════════
-console.log('\n【1】六個模式與跟讀的初始狀態');
+console.log('\n【1】所有分頁與跟讀的初始狀態');
 {
   const { browser, page, errors } = await openWith(SPEECH);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#nav .tab');
-  // 六個練習模式 + 「今天」+「設定」= 七個。這個數字在「今天」那一頁做出來之後
-  // 就變了，而這支測試從帳號上線之後一直跑不動，所以沒人發現它還寫著六
-  check('分頁有七個', (await page.locator('#nav .tab').count()) === 7,
+  // **數字從 `MODE_IDS` 長出來，不再寫死。** 這一條前後寫錯過兩次（做完「今天」
+  // 那一頁之後還寫著六、加了「說明」之後還寫著七），而兩次都是 CI 才抓到 ——
+  // ui.mjs 與 layout.mjs 改了、這支漏掉，因為它在本機要有麥克風才跑得動。
+  // 讀同一份登錄表就不會再有第三次。
+  check(`分頁有 ${MODE_IDS.length} 個`,
+    (await page.locator('#nav .tab').count()) === MODE_IDS.length,
     (await page.locator('#nav .tab').allTextContents()).join(' | '));
 
   await gotoShadowing(page);

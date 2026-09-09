@@ -22,6 +22,7 @@ import { chromium } from '@playwright/test';
 // 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
 // 所以直接用 App 用的同一份，而不是在這裡再抄一次切義項的邏輯。
 import { firstSense } from '../public/lib/quiz.js';
+import { MODE_IDS } from '../public/lib/modes.js';
 import {
   TEST_USER, addCookieToContext, apiGetter, authenticate, resetServerProgress,
 } from './login.mjs';
@@ -148,10 +149,12 @@ await page.goto(BASE);
 await page.waitForSelector('#nav .tab');
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n【1】八個分頁都載入得起來');
+console.log('\n【1】每個分頁都載入得起來');
 
+// 數量讀 App 自己那份登錄表（`lib/modes.js`），不在測試裡再寫死一個 ——
+// 那個數字前後寫錯過兩次，兩次都是加了一個模式之後只改了三支測試裡的兩支
 const tabs = await page.locator('#nav .tab').allTextContents();
-check('分頁有八個（首頁 + 五個練習 + 設定 + 說明）', tabs.length === 8, tabs.join(' | '));
+check(`分頁有 ${MODE_IDS.length} 個`, tabs.length === MODE_IDS.length, tabs.join(' | '));
 
 for (const tab of tabs) {
   const name = tab.split(' ').pop();
@@ -163,7 +166,7 @@ for (const tab of tabs) {
   // h() 會過濾 false 子元素，但裸的 el.append() 不會 —— 這一類 bug 在中翻英出現過
   check(`${name} 沒有殘留的 false / undefined`, !/\bfalse\b|\bundefined\b|\[object /.test(body));
 }
-await shot(page, 'ui-01-八個分頁');
+await shot(page, 'ui-01-所有分頁');
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【2】跟讀：今天的進度與連續天數');

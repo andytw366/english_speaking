@@ -30,7 +30,7 @@
 // 全形冒號、把「修正」寫成「建議」、講評寫成三段散文）。`parseReview()`
 // 就是在收這些，而它是純函式 —— 每一種不聽話都測得到（`test/coach.test.js`）。
 
-import { stripFences, bulletLines } from './narration.js';
+import { stripFences, stripReasoning, bulletLines } from './narration.js';
 import { complete } from './narrator.js';
 
 /** 可以要修正的模式。**不在這裡面的一律回 400**，不是默默當成對話。 */
@@ -178,7 +178,9 @@ function translationContext(task) {
  * @param {{ input?: string }} options 沒有判定那一行時，用「有沒有真的改動」推一個
  */
 export function parseReview(raw, { input = '' } = {}) {
-  const text = stripFences(raw);
+  // stripReasoning 先跑：`<think>` 裡面有「修正：」這種字樣的話，
+  // 逐行解析會把模型的草稿當成正式答案（跟 cleanNarration 同一個理由）
+  const text = stripFences(stripReasoning(raw));
   if (!text) return null;
 
   const corrected = pickCorrected(text);

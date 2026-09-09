@@ -73,6 +73,30 @@ export function stripFences(raw) {
 }
 
 /**
+ * 去掉「會先想再答」的 model 吐在正文裡的思考段落。
+ *
+ * 為什麼需要：reasoning 放哪裡各家不一樣 —— 有的放在 `message.reasoning`
+ * 這個獨立欄位（那我們根本看不到，很好），有的直接用 `<think>…</think>`
+ * 包在 `content` 裡送回來。後面這種如果不處理，思考過程裡的**草稿條列**
+ * 會被 `bulletLines()` 當成真的講評撿走 —— 畫面上會出現模型自言自語的那幾行。
+ *
+ * 沒有結尾標籤的情況也要收：那代表額度用光、話講到一半被截斷，
+ * 後面本來要寫的答案根本不存在。整段丟掉、回退本地摘要，
+ * 比把半截思考貼到畫面上誠實。
+ *
+ * 跟 `stripFences()` 分成兩個函式而不是合成一個：它們處理的是**不同模型的
+ * 不同壞習慣**，而只有走 OpenAI 相容端點時才需要這一個（Gemini 那條路是
+ * structured output）。合起來的話，將來只想要其中一半就沒得選。
+ */
+export function stripReasoning(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .replace(/<(think|thinking|reasoning)>[\s\S]*?<\/\1>/gi, '')  // 完整的一段
+    .replace(/<(think|thinking|reasoning)>[\s\S]*$/i, '')          // 沒收尾＝被截斷
+    .trim();
+}
+
+/**
  * 從模型回來的文字裡挑出條列，回傳**不含符號**的字串陣列。
  *
  * 「什麼算一條」的規則刻意只有這一份 —— 講評與情境對話的 AI 修正都在解析
@@ -105,7 +129,7 @@ export function bulletLines(text, max = Infinity) {
  * 的失敗方式之外沒有任何好處，而且不是每個供應商都支援 JSON mode。
  */
 export function cleanNarration(raw) {
-  const text = stripFences(raw);
+  const text = stripFences(stripReasoning(raw));
   if (!text) return null;
 
   const lines = bulletLines(text, MAX_NARRATION_LINES).map((line) => `• ${line}`);

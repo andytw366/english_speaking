@@ -194,7 +194,12 @@ function render() {
   append(side, deckCard(deck, summary), renderDailyCard('vocabulary'));
 
   // 今天的份練完了。**不擋著不讓練** —— 目標是拿來知道自己完成了，不是拿來鎖門的。
-  if (daily.remaining <= 0) {
+  //
+  // `!picked` 這個條件是必要的：成績在**選下去的當下**就記了（`submitChoice()`），
+  // 所以答完今天最後一題時 `daily.remaining` 立刻變 0 —— 少了這個條件的話，
+  // 這一題的正確答案、背面與「其他選項」會被「今天練完了」整個蓋掉，
+  // 最後一題等於白答。停在作答完的卡上，等使用者自己按「完成今天的份」再切過來。
+  if (daily.remaining <= 0 && !picked) {
     append(main,
       h('div', { class: 'card empty' },
         h('p', { class: 'empty__title' }, `今天的 ${daily.goal} 個字練完了 🎉`),
@@ -253,7 +258,10 @@ function render() {
           h('p', { class: 'card__title' }, picked.correct ? '答對了 ✅' : `答錯了 —— 正確答案是「${answerText(question)}」`),
           cardBack(card),
           h('div', { class: 'row' },
-            h('button', { class: 'btn btn--primary', onclick: nextCard }, '下一題'),
+            // 這一題就是今天的最後一張時，按下去看到的是「今天練完了」而不是下一題，
+            // 所以按鈕自己要講清楚 —— 不然會像是被莫名其妙踢出練習。
+            h('button', { class: 'btn btn--primary', onclick: nextCard },
+              daily.remaining <= 0 ? '完成今天的份' : '下一題'),
             ttsSupported() && h('button', {
               class: 'btn btn--ghost',
               onclick: (e) => playWord(card, e.currentTarget),

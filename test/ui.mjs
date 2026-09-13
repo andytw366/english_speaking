@@ -797,6 +797,30 @@ check('中→英：答完也列出其他選項的意思',
   (await page.locator('.quiz__other-meaning').allTextContents()).join(' / '));
 await shot(page, 'ui-13-其他選項');
 
+// ── 今天的最後一題 ───────────────────────────────────────────────────────
+// 每日目標設 1，所以第一題答完 remaining 就變 0。**答案要先看得到**：
+// 成績在選下去的當下就記了，若這時直接切去「今天練完了」，這一題的正確答案、
+// 背面與其他選項全部被蓋掉，等於白答（這正是修掉的那個 bug）。
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 1 }, vocabQuizTypes: ['en2zh'] },
+});
+await page.waitForSelector('.quiz__options');
+const lastPrompt = (await text('.quiz__prompt')).trim();
+await page.locator('.quiz__option', { hasText: meaningOf(lastPrompt) }).first().click();
+await page.waitForTimeout(250);
+check('今天最後一題答完，答案不會被「今天練完了」蓋掉',
+  (await text('.card__title')).includes('答對了') &&
+  !(await viewText()).includes('練完了'), (await viewText()).slice(0, 60).replace(/\s+/g, ' '));
+check('最後一題答完也列得出其他選項', (await page.locator('.quiz__other').count()) === 3);
+check('今天的份已經記進去了', (await text('.card--today')).includes('1 / 1'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+check('按鈕講清楚按下去會發生什麼',
+  (await page.locator('#view button', { hasText: '完成今天的份' }).count()) === 1);
+await page.locator('#view button', { hasText: '完成今天的份' }).click();
+await page.waitForTimeout(300);
+check('按了才切到「今天練完了」', (await viewText()).includes('今天的 1 個字練完了'));
+
 // 一種都沒勾就退回翻卡，不是整個不能用
 await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] } });
 await page.waitForSelector('#view .card');

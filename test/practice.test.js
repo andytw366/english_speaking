@@ -24,6 +24,7 @@ import {
   dayKey,
   streakFromDays,
   summariseSet,
+  nextSentenceAction,
   weakIssues,
   focusBoost,
   matchedWeakIssues,
@@ -490,6 +491,26 @@ test('summariseSet：空的或壞掉的輸入回一份空總結', () => {
     assert.equal(summary.average, null);
     assert.deepEqual(summary.issues, []);
   }
+});
+
+// ─── 「換一句」按下去該做什麼（一組練完的總結擋在前面）────────────────────
+//
+// 這是一個狀態機，而它錯掉的方式不會有錯誤訊息：兩個判斷的順序寫反的話，
+// 看完總結按下一句會再進總結一次，永遠出不去。
+
+test('nextSentenceAction：沒有總結就是單純換下一句', () => {
+  assert.equal(nextSentenceAction({ pendingSummary: null, showingSummary: false }), 'next');
+  assert.equal(nextSentenceAction({}), 'next');
+  assert.equal(nextSentenceAction(), 'next');
+});
+
+test('nextSentenceAction：一組練完了，先停下來看總結', () => {
+  // 總結原本畫在講評下面，實際用起來是一路按「換一句」、一次也沒看到過
+  assert.equal(nextSentenceAction({ pendingSummary: {}, showingSummary: false }), 'summary');
+});
+
+test('nextSentenceAction：已經在總結那一頁時是「再練一組」，不會再進去一次', () => {
+  assert.equal(nextSentenceAction({ pendingSummary: {}, showingSummary: true }), 'dismiss');
 });
 
 // ─── 依弱點音抽句 ────────────────────────────────────────────────────────

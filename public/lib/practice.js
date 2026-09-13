@@ -379,6 +379,25 @@ export function streakFromDays(days, now = Date.now()) {
 export const SET_SIZE = 5;
 
 /**
+ * 按下「換一句」（或按 N）的時候該做什麼。
+ *
+ * **一組練完的總結擋在「換一句」前面。** 原本總結是畫在講評下面的第四張卡，
+ * 而那個位置在手機上要再捲兩三個螢幕 —— 實際用起來就是一路按「換一句」，
+ * 那張總結一次也沒被看到過。
+ *
+ * 寫成純函式是因為它是一個**狀態機**，而它錯掉的方式不會有錯誤訊息：
+ * 兩個 if 的順序寫反的話，看完總結按下一句會再進總結一次，永遠出不去
+ * （寫的時候真的踩到過，鍵盤那條路）。
+ *
+ * @returns {'summary'|'dismiss'|'next'}
+ *   summary = 先停下來看總結；dismiss = 看完了，收起來並換下一句；next = 直接換下一句
+ */
+export function nextSentenceAction({ pendingSummary, showingSummary } = {}) {
+  if (showingSummary) return 'dismiss';
+  return pendingSummary ? 'summary' : 'next';
+}
+
+/**
  * 一組練完之後的總結。
  *
  * 重點是 `issues`：一組裡重複出現的錯誤類型，比單看某一句的分數有用得多 ——

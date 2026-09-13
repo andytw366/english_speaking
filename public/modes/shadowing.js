@@ -22,7 +22,7 @@ import { createWaveform } from '../lib/waveform.js';
 import { categoryLabel, difficultyLabel, issueLabel, relativeTime } from '../lib/labels.js';
 import {
   sentenceStats, pickSentence, isDue, practisedOn, weakIssues, matchedWeakIssues,
-  summariseSet, SET_SIZE,
+  summariseSet, nextSentenceAction, SET_SIZE,
 } from '../lib/practice.js';
 import { problemWordsFromAssessment, prosodyIssue } from '../lib/azure-issues.js';
 import { renderAssessment } from './assessment-view.js';
@@ -50,7 +50,8 @@ let history = [];
 let stats = new Map();   // 依句子彙整的成績；history 一變就重算
 let weak = new Map();    // 最近哪些音出問題出得最多
 let setRecords = [];     // 這一組練到第幾句（只存在記憶體：一組是「這次坐下來練的」）
-let lastSetSummary = null;
+let pendingSummary = null;  // 這一組的總結，還沒給使用者看
+let showingSummary = false; // 現在停在總結那一頁（擋在「換一句」前面，見 onNextSentence）
 // 手動要來的中文講評：null（還沒要）| { phase: 'loading'|'done'|'error', … }。
 // 跟著 lastResult 走 —— 換一句、或重新送出一次錄音都要清掉
 let narration = null;
@@ -86,12 +87,20 @@ export async function mount(container) {
  */
 function onKey(key) {
   if (!root || !current) return false;
+
+  // 停在總結那一頁時畫面上只有一顆「再練一組」。**空白鍵尤其要攔**：
+  // 那一頁沒有錄音的按鈕，照原本的規則按下去會在背後開始錄音
+  if (showingSummary) {
+    if (key === 'enter' || key === 'space' || key === 'n') { dismissSummary(); return true; }
+    return false;
+  }
+
   const recording = Boolean(recorder?.isRecording);
 
   if (key === 'space') { toggleRecord(); return true; }
   if (recording) return false;
   if (key === 'p') { playDemo(); return true; }
-  if (key === 'n') { nextSentence(); return true; }
+  if (key === 'n') { onNextSentence(); return true; }
   // 錄好了就送出 —— Enter 在每個模式都是「這個畫面的主要動作」
   if (key === 'enter') {
     const btn = root.querySelector('#btn-submit');
@@ -152,7 +161,43 @@ function dailyGoal() {
   return saved > 0 ? saved : DEFAULT_GOAL;
 }
 
+/**
+ * 使用者按「換一句」（或按 N）。
+ *
+ * **一組練完的總結擋在這裡。** 原本它是畫在講評下面的第四張卡，而那個位置
+ * 在手機上要再捲兩三個螢幕才看得到 —— 實際用起來就是一路按「換一句」，
+ * 那張總結一次也沒被看到過。現在按下去先停在總結，那一頁自己有「再練一組」接回去，
+ * 所以只多一次點擊，而且是在使用者本來就要按的那顆按鈕上。
+ *
+ * 不自動彈出來、也不插在講評上面：剛錄完最想看的是自己這一句幾分，
+ * 總結是「這一組」的結論，等他要往下走的那一刻才是它的位置。
+ */
+function onNextSentence() {
+  // 三種情況（規則與理由在 `nextSentenceAction()`，那裡測得到）：
+  // 已經在總結那一頁 → 當成「再練一組」，不然總結沒被清掉，
+  // 下一句的按鈕又會變回「看總結」，永遠出不去
+  switch (nextSentenceAction({ pendingSummary, showingSummary })) {
+    case 'dismiss':
+      return dismissSummary();
+    case 'summary':
+      showingSummary = true;
+      render();
+      root?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    default:
+      return nextSentence();
+  }
+}
+
+/** 看完總結，開下一組。 */
+function dismissSummary() {
+  pendingSummary = null;
+  showingSummary = false;
+  nextSentence();
+}
+
 function nextSentence() {
+  showingSummary = false;
   narration = null;
   outOfPoolNote = '';
   // 加權的規則在 practice.js，這裡只負責把目前的狀態餵進去。
@@ -171,6 +216,9 @@ function practiseSentence(id) {
   const target = allSentences.find((s) => s.id === id);
   if (!target) return;
   current = target;
+  // 他自己挑了一句要練，就別再停在總結那一頁 ——
+  // 總結本身留著，「換一句」那顆按鈕還是進得去
+  showingSummary = false;
 
   // 篩選條件不動 —— 偷偷改掉使用者選的條件比句子跑出範圍更難理解。
   // 但要講清楚，不然按「換一句」時會覺得句子莫名其妙跳走。
@@ -218,6 +266,20 @@ function render() {
     return;
   }
 
+  // 一組練完的總結**自己占一頁**（側欄的今天與紀錄照舊留著）。
+  // 跟單字卡的「選難度 / 複習盒」是同一個做法：要使用者停下來看的東西，
+  // 就不要跟他正在做的事擠在同一欄
+  if (showingSummary && pendingSummary) {
+    append(main, renderSetSummary(pendingSummary, dismissSummary));
+    append(side, renderHistory(history, {
+      sentences: allSentences,
+      onReplay: practiseSentence,
+      onClear: onClearHistory,
+      replayDisabled: false,
+    }));
+    return;
+  }
+
   append(main, sentenceCard(), recordCard());
 
   if (lastResult) {
@@ -227,13 +289,6 @@ function render() {
       if (target) target.replaceWith(el);
     }, { narration: narrationBox() });
     append(main, card);
-  }
-
-  if (lastSetSummary) {
-    append(main, renderSetSummary(lastSetSummary, () => {
-      lastSetSummary = null;
-      nextSentence();
-    }));
   }
 
   append(side, renderHistory(history, {
@@ -269,11 +324,13 @@ function sentenceCard() {
 
     h('div', { class: 'row' },
       ttsSupported() && h('button', { class: 'btn btn--ghost', onclick: playDemo }, '🔊 播放正確發音'),
+      // 總結還沒看的時候，這顆按鈕就是去看總結的入口 ——
+      // 使用者本來就會按這裡，而總結原本躲在整頁的最下面
       h('button', {
-        class: 'btn btn--ghost',
+        class: pendingSummary ? 'btn btn--primary' : 'btn btn--ghost',
         disabled: Boolean(recorder?.isRecording),
-        onclick: nextSentence,
-      }, '🔀 換一句'),
+        onclick: onNextSentence,
+      }, pendingSummary ? `✅ 這一組 ${SET_SIZE} 句練完了，看總結` : '🔀 換一句'),
       setRecords.length > 0 &&
         h('span', { class: 'hint' }, `這一組：${setRecords.length} / ${SET_SIZE} 句`),
     ),
@@ -683,9 +740,10 @@ function saveAttempt(payload) {
   addToSet({ ...record, at: history[0]?.at });
 
   if (setRecords.length >= SET_SIZE) {
-    // 總結畫出來之後就把計數歸零：使用者沒按「再練一組」也照樣可以繼續練，
-    // 那些句子要算進下一組，不然第 6 句一送出又會再彈一次總結。
-    lastSetSummary = summariseSet(setRecords);
+    // 算好先放著，等使用者按「換一句」的時候才擋下來給他看（`onNextSentence()`）。
+    // 計數立刻歸零：他沒去看總結也照樣可以繼續練，那些句子要算進下一組，
+    // 不然第 6 句一送出又會再生一份總結。
+    pendingSummary = summariseSet(setRecords);
     setRecords = [];
   }
 }
@@ -717,6 +775,7 @@ function onClearHistory() {
   stats = new Map();
   weak = new Map();
   setRecords = [];
-  lastSetSummary = null;
+  pendingSummary = null;
+  showingSummary = false;
   render();
 }

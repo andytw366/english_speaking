@@ -22,6 +22,8 @@ import { chromium } from '@playwright/test';
 // 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
 // 所以直接用 App 用的同一份，而不是在這裡再抄一次切義項的邏輯。
 import { firstSense } from '../public/lib/quiz.js';
+// 一組幾句從 App 自己那份拿（`lib/practice.js`），測試裡不要再寫死一個
+import { SET_SIZE as SET_SIZE_UI } from '../public/lib/practice.js';
 import { MODE_IDS } from '../public/lib/modes.js';
 import {
   TEST_USER, addCookieToContext, apiGetter, authenticate, resetServerProgress,
@@ -57,9 +59,15 @@ if (!Array.isArray(sentences) || sentences.length < 10) {
   process.exit(1);
 }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM || undefined,
+  // 假的麥克風。【9b】要真的錄五次音才走得到「一組練完」那條路 ——
+  // 錄音本身在 e2e.mjs 用真的音檔＋真的 API 測，這裡只需要有東西錄得起來
+  // （沒有檔案時 Chromium 自己產生一段嗶聲，不是靜音，所以過得了無人聲偵測）
+  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+});
 // acceptDownloads：備份那一段會真的下載一個檔案再讀回來
-const context = await browser.newContext({ acceptDownloads: true });
+const context = await browser.newContext({ acceptDownloads: true, permissions: ['microphone'] });
 
 // 把登入的 cookie 塞進瀏覽器，其餘的測試就跟以前一樣不必管登入。
 // 登入畫面本身另外有一段測（【21】）
@@ -455,6 +463,82 @@ await page.evaluate(async () => {
 });
 check('都唸對時講的是好消息，不是一片空白',
   (await text('#probe4')).includes('沒有被點名'));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【9b】跟讀：一組 5 句練完之後');
+
+// 真的錄五次音（假麥克風）＋ 攔掉評分的那一趟，走完整條「一組」的路。
+//
+// **為什麼值得這樣測**：總結原本是畫在講評下面的第四張卡，在手機上要再捲
+// 兩三個螢幕才看得到 —— 實際用起來就是一路按「換一句」，那張總結一次也沒被
+// 看到過。現在它擋在「換一句」前面，而那是一個狀態機（規則在
+// `nextSentenceAction()`，那裡測得到），這一段驗的是它真的接對了。
+let fakeScoreCalls = 0;
+await page.route('**/api/pronunciation-feedback', (route) => {
+  fakeScoreCalls += 1;
+  route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      provider: 'azure',
+      speech_detected: true,
+      referenceText: 'x',
+      recognizedText: 'x',
+      scores: { pronunciation: 60 + fakeScoreCalls, accuracy: 70, fluency: 80, completeness: 100, prosody: 50 },
+      words: [{ word: 'x', accuracy: 60, errorType: 'None', phonemes: [{ phoneme: 'x', accuracy: 60 }] }],
+      feedback_zh: 'ok',
+    }),
+  });
+});
+
+await seed({ mode: 'shadowing', history: [] });
+await page.waitForSelector('#sentence');
+
+/** 錄一次、送出一次。 */
+const recordOnce = async () => {
+  await page.locator('#view button', { hasText: '開始錄音' }).click();
+  await page.waitForTimeout(600);
+  await page.locator('#view button', { hasText: '停止' }).click();
+  await page.waitForTimeout(500);
+  await page.locator('#btn-submit').click();
+  await page.waitForTimeout(500);
+};
+
+for (let i = 1; i <= SET_SIZE_UI; i += 1) {
+  await recordOnce();
+  if (i < SET_SIZE_UI) {
+    await page.locator('#view button', { hasText: '換一句' }).click();
+    await page.waitForTimeout(300);
+  }
+}
+
+check('五句都送出去了', fakeScoreCalls === SET_SIZE_UI, `${fakeScoreCalls} 次`);
+check('練完一組之後，「換一句」變成看總結的入口',
+  (await page.locator('#view button', { hasText: '看總結' }).count()) === 1,
+  (await viewText()).slice(0, 60).replace(/\s+/g, ' '));
+// 不自動彈出來：剛錄完最想看的是自己這一句幾分
+check('總結不會自己插進講評裡', !(await viewText()).includes('這一組練完了'));
+
+await page.locator('#view button', { hasText: '看總結' }).click();
+await page.waitForTimeout(400);
+check('按下去就停在總結那一頁', (await viewText()).includes('這一組練完了'));
+check('總結自己占一頁，不用捲', (await page.locator('#sentence').count()) === 0);
+check('側欄的今天與紀錄還在', (await page.locator('.card--today').count()) === 1 &&
+  (await page.locator('.history__item').count()) === SET_SIZE_UI);
+check('總結算的是這五句', (await text('.card--set')).includes(`${SET_SIZE_UI} 句`),
+  (await text('.card--set')).replace(/\s+/g, ' ').slice(0, 40));
+await shot(page, 'ui-09b-一組練完了');
+
+await page.locator('#view button', { hasText: '再練一組' }).click();
+await page.waitForTimeout(500);
+check('「再練一組」接回下一句', (await page.locator('#sentence').count()) === 1);
+check('接回去之後按鈕變回「換一句」',
+  (await page.locator('#view button', { hasText: '換一句' }).count()) === 1);
+// 一句算一次：五句五個句子，而且每一句都只送出過一次
+check('今天的進度是 5 句', (await text('.today__value')).startsWith(`${SET_SIZE_UI} /`),
+  await text('.today__value'));
+
+await page.unroute('**/api/pronunciation-feedback');
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【10】設定頁');

@@ -207,6 +207,12 @@ function toPlainResult(result, referenceText) {
   const words = (detail?.Words ?? []).map((w) => ({
     word: w.Word ?? '',
     accuracy: numOrNull(w.PronunciationAssessment?.AccuracyScore),
+    // 這個字在錄音裡的位置（秒）。**語調圖要靠它把曲線對到字上面** ——
+    // 沒有它的話 x 軸只是「第幾秒」，看不出「是哪個字唸高了」。
+    // Azure 給的單位是 100 奈秒（ticks），而且是從音檔開頭算起，
+    // 跟我們自己抽的曲線同一個時間軸
+    start: ticksToSec(w.Offset),
+    duration: ticksToSec(w.Duration),
     // None / Mispronunciation / Omission / Insertion / UnexpectedBreak / MissingBreak / Monotone
     errorType: w.PronunciationAssessment?.ErrorType ?? 'None',
     phonemes: (w.Phonemes ?? []).map((p) => ({
@@ -237,6 +243,12 @@ function safeDetail(pa) {
     console.error('[azure] 解析 detailResult 失敗：', err);
     return null;
   }
+}
+
+/** Azure 的時間單位是 100 奈秒。讀不到就回 null —— 圖會退回沒有字標的版本。 */
+function ticksToSec(ticks) {
+  const n = Number(ticks);
+  return Number.isFinite(n) && n >= 0 ? n / 10_000_000 : null;
 }
 
 function numOrNull(v) {

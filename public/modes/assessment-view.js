@@ -1,6 +1,7 @@
 import { h, append } from '../lib/dom.js';
 import { diffWords, normalizeWord, problemWordText } from '../lib/text-diff.js';
 import { issueLabel } from '../lib/labels.js';
+import { buildPitchChart } from '../lib/pitch-chart.js';
 import { speak } from '../lib/tts.js';
 
 // 發音評估結果的呈現。Azure 有逐字、逐音素分數；Gemini 退路只有主觀分數。
@@ -132,9 +133,11 @@ function geminiProblemWords(list) {
  * @param {object} data /api/pronunciation-feedback 的回應
  * @param {string} targetText 目標句
  * @param {(el: HTMLElement) => void} replaceSentence 用標色版本換掉畫面上的句子
- * @param {{narration?: object}} options
+ * @param {{narration?: object, pitch?: object}} options
  *   narration 是「手動要講評」那顆按鈕的狀態（見 modes/shadowing.js 的 narrationBox）。
- *   沒給就是舊行為 —— 講評是什麼就顯示什麼
+ *   沒給就是舊行為 —— 講評是什麼就顯示什麼。
+ *   pitch 是這段錄音的語調曲線（`lib/pitch.js` 的 `pitchContour()`），
+ *   沒給、或有聲的格子太少（太短、太小聲）就不畫那張圖
  */
 export function renderAssessment(container, data, targetText, replaceSentence, options = {}) {
   replaceSentence?.(buildHighlightedSentence(targetText, data));
@@ -200,6 +203,11 @@ export function renderAssessment(container, data, targetText, replaceSentence, o
     append(container, geminiProblemWords(data.problem_words));
   }
 
+  // 語調圖放在分數與細節之後、講評之前：它是**證據**，中文講評是結論。
+  // 兩個 provider 共用這一段 —— Azure 有逐字時間就標得出字，Gemini 那條路
+  // 沒有逐字資料，就只畫曲線（曲線是我們自己從錄音算的，跟 provider 無關）
+  append(container, pitchFigure(options.pitch, data.words));
+
   // 手動要來的講評會蓋掉本地摘要 —— 那正是使用者按那顆按鈕的目的
   const manual = options.narration ?? null;
   append(container, h('p', { class: 'coach' },
@@ -215,6 +223,23 @@ export function renderAssessment(container, data, targetText, replaceSentence, o
   }
 
   if (options.narration?.view) append(container, options.narration.view);
+}
+
+/**
+ * 語調圖那一塊。畫不出來（沒有曲線、太短、太小聲）就回 null，**不留一塊空白**
+ * 也不寫「無法顯示」—— 這張圖是加分的，不是這個畫面的主角。
+ */
+function pitchFigure(contour, words) {
+  if (!contour) return null;
+  const chart = buildPitchChart(contour, { words, titleId: 'pitch-caption' });
+  if (!chart) return null;
+
+  return h('figure', { class: 'pitch' },
+    h('figcaption', { class: 'pitch__caption', id: 'pitch-caption' }, chart.caption),
+    h('div', { class: 'pitch__chart' }, chart.svg),
+    h('p', { class: 'hint' },
+      '高低是相對於你自己這一句的平均，斷開的地方是沒有聲音的子音或停頓。'),
+  );
 }
 
 // 講評是誰寫的、為什麼。四種情況要講四句不同的話 ——

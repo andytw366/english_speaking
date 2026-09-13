@@ -44,6 +44,7 @@ let waveform = null;
 let waveformCanvas = null;   // render() 會重建 DOM，波形要跟著換到新的 canvas
 let wavBlob = null;
 let wavStats = null;
+let wavPitch = null;   // 這段錄音的語調曲線（blobToWav() 順手算好的）
 let playbackUrl = null;
 let lastResult = null;
 let history = [];
@@ -235,6 +236,7 @@ function resetAttempt() {
   waveform?.reset();
   wavBlob = null;
   wavStats = null;
+  wavPitch = null;
   lastResult = null;
   revokePlayback();
   render();
@@ -287,7 +289,7 @@ function render() {
     renderAssessment(card, lastResult, current.text, (el) => {
       const target = root.querySelector('#sentence');
       if (target) target.replaceWith(el);
-    }, { narration: narrationBox() });
+    }, { narration: narrationBox(), pitch: wavPitch });
     append(main, card);
   }
 
@@ -444,6 +446,7 @@ async function toggleRecord() {
   lastResult = null;
   wavBlob = null;
   wavStats = null;
+  wavPitch = null;
   revokePlayback();
 
   recorder = new Recorder({
@@ -523,6 +526,7 @@ async function stopRecording() {
 
   wavBlob = result.wav;
   wavStats = result.stats ?? null;
+  wavPitch = result.pitch ?? null;
   playbackUrl = URL.createObjectURL(result.wav);
   setRecordingUI(false);
   render();

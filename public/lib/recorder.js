@@ -70,7 +70,7 @@ export function describeMicError(err) {
  *
  * const rec = new Recorder({ onTick, onAutoStop });
  * await rec.start();          // 可能 throw（權限、裝置）
- * const result = await rec.stop();   // { wav, raw, durationSec, sampleRate, recordedType }
+ * const result = await rec.stop();   // { wav, raw, durationSec, sampleRate, recordedType, stats, pitch }
  */
 export class Recorder {
   constructor({ onTick, onAutoStop } = {}) {
@@ -147,6 +147,9 @@ export class Recorder {
               // 「這段錄音幾乎沒有聲音」的即時提示就做不到，
               // 使用者要等送出後才被後端擋下來。
               stats: converted.stats,
+              // 語調曲線（每 10 ms 一格的基頻）。跟 stats 一樣是 blobToWav()
+              // 順手算好的 —— 那是唯一手上有 PCM 的地方
+              pitch: converted.pitch,
             });
           } catch (err) {
             // 讓呼叫端還能播放原始錄音，至少判斷得出有沒有錄到聲音

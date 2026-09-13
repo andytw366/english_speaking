@@ -6,6 +6,8 @@
 // audio/wav 在兩份文件裡都明確支援，所以一律轉成 WAV 再送。
 // 附帶好處：Safari 吐的是 mp4/aac，但走 decodeAudioData 這條路兩邊就統一了。
 
+import { pitchContour } from './pitch.js';
+
 const TARGET_SAMPLE_RATE = 16000;
 
 // 無人聲判斷的門檻。這幾個值跟 server/audio.js 的必須一致 —— 兩邊要一起改。
@@ -22,7 +24,8 @@ const QUIET_PEAK = 0.08;
 /**
  * 解碼任意瀏覽器錄音格式，重新取樣成 16 kHz 單聲道，編成 WAV。
  * @param {Blob} blob MediaRecorder 產生的錄音
- * @returns {Promise<{blob: Blob, durationSec: number, sampleRate: number, stats: object}>}
+ * @returns {Promise<{blob: Blob, durationSec: number, sampleRate: number,
+ *   stats: object, pitch: object}>}
  */
 export async function blobToWav(blob) {
   const arrayBuffer = await blob.arrayBuffer();
@@ -62,6 +65,10 @@ export async function blobToWav(blob) {
     durationSec: rendered.duration,
     sampleRate: TARGET_SAMPLE_RATE,
     stats: analyseSamples(samples, TARGET_SAMPLE_RATE),
+    // 語調曲線。**在這裡算而不是把 samples 往外傳**：這裡是唯一手上有 PCM 的地方，
+    // 而傳一個 Float32Array 出去就要有人負責在對的時機放掉它。
+    // 三秒的錄音大約 30 毫秒（降到 8 kHz 再算，見 lib/pitch.js）。
+    pitch: pitchContour(samples, TARGET_SAMPLE_RATE),
   };
 }
 

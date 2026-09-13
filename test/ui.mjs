@@ -15,6 +15,7 @@
 //           CHROMIUM（Chromium 執行檔路徑，機器上已經有一份時可以指過去）
 
 import fs from 'node:fs';
+import path from 'node:path';
 import os from 'node:os';
 
 import { chromium } from '@playwright/test';
@@ -59,12 +60,19 @@ if (!Array.isArray(sentences) || sentences.length < 10) {
   process.exit(1);
 }
 
+// 假的麥克風，餵的是 repo 裡那段真人語音（e2e.mjs 用同一招）。
+//
+// **一定要餵檔案，不能用 Chromium 自己產生的嗶聲**：那個嗶聲是「一秒響一下」，
+// 中間全是靜音，抽出來的語調曲線只有三、四格有聲 —— 而語調圖需要至少八格
+// 才畫得出來，所以【9b】的「錄完會畫出語調圖」會莫名其妙紅掉。踩過。
+const FAKE_AUDIO = path.join(import.meta.dirname, 'fixtures', 'speech-16k.wav');
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM || undefined,
-  // 假的麥克風。【9b】要真的錄五次音才走得到「一組練完」那條路 ——
-  // 錄音本身在 e2e.mjs 用真的音檔＋真的 API 測，這裡只需要有東西錄得起來
-  // （沒有檔案時 Chromium 自己產生一段嗶聲，不是靜音，所以過得了無人聲偵測）
-  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+  args: [
+    '--use-fake-ui-for-media-stream',
+    '--use-fake-device-for-media-stream',
+    `--use-file-for-fake-audio-capture=${FAKE_AUDIO}`,
+  ],
 });
 // acceptDownloads：備份那一段會真的下載一個檔案再讀回來
 const context = await browser.newContext({ acceptDownloads: true, permissions: ['microphone'] });
@@ -429,6 +437,55 @@ const oldNote = await narrationNote({ narrationSource: 'local' });
 check('舊回應（只有 narrationSource）也還有說明', oldNote.includes('本地摘要'), oldNote);
 
 // ─────────────────────────────────────────────────────────────────────────
+console.log('\n【8b】語調圖');
+
+// 直接餵一條造好的曲線進去 —— 抽 F0 的規則本身在 test/pitch.test.js 用合成音
+// 與真人錄音測得更準，這裡驗的是「拿到這樣的曲線時畫成什麼」。
+await page.evaluate(async () => {
+  const { buildPitchChart } = await import('/lib/pitch-chart.js');
+  const points = [];
+  for (let i = 0; i < 40; i += 1) {
+    // 第 20、21 格無聲（中間的停頓），其餘從 -5 半音一路升到 +5
+    points.push(i === 20 || i === 21
+      ? null
+      : { t: i * 0.01, hz: 200, st: (i - 20) / 4 });
+  }
+  const contour = {
+    hopSec: 0.01, points, medianHz: 200, voicedRatio: 0.95, rangeSt: [-5, 4.75],
+  };
+  const chart = buildPitchChart(contour, {
+    words: [
+      { word: 'hello', start: 0, duration: 0.2, errorType: 'None' },
+      { word: 'there', start: 0.2, duration: 0.19, errorType: 'Monotone' },
+    ],
+  });
+  const box = document.createElement('div');
+  box.id = 'pitchprobe';
+  box.append(chart.svg, Object.assign(document.createElement('p'), { textContent: chart.caption }));
+  document.getElementById('view').append(box);
+});
+
+check('畫得出曲線', (await page.locator('#pitchprobe .pitch__line').count()) > 0);
+// 停頓不可以被連起來 —— 一條橫跨停頓的線看起來像「你這裡拖了一個長音」
+check('停頓把曲線切成兩段', (await page.locator('#pitchprobe .pitch__line').count()) === 2,
+  `${await page.locator('#pitchprobe .pitch__line').count()} 段`);
+check('字標在下面', (await text('#pitchprobe')).includes('hello') &&
+  (await text('#pitchprobe')).includes('there'));
+check('Azure 點名的字標出來', (await page.locator('#pitchprobe .pitch__word--flag').count()) === 1);
+check('有中線當基準', (await page.locator('#pitchprobe .pitch__grid--mid').count()) === 1);
+check('說明文字講得出起伏多大', /高低差約 \d+ 個半音/.test(await text('#pitchprobe')),
+  (await text('#pitchprobe')).slice(0, 80));
+await shot(page, 'ui-08b-語調圖');
+
+// 資料不夠時不留一塊空白，也不寫「無法顯示」—— 這張圖是加分的，不是主角
+const tooShort = await page.evaluate(async () => {
+  const { buildPitchChart } = await import('/lib/pitch-chart.js');
+  const points = [{ t: 0, hz: 200, st: 0 }, { t: 0.01, hz: 201, st: 0.1 }];
+  return buildPitchChart({ hopSec: 0.01, points, medianHz: 200, voicedRatio: 1, rangeSt: [0, 0.1] });
+});
+check('資料太少就不畫（回 null）', tooShort === null);
+
+// ─────────────────────────────────────────────────────────────────────────
 console.log('\n【9】一組練完的總結');
 
 await page.evaluate(async () => {
@@ -497,7 +554,8 @@ await page.waitForSelector('#sentence');
 /** 錄一次、送出一次。 */
 const recordOnce = async () => {
   await page.locator('#view button', { hasText: '開始錄音' }).click();
-  await page.waitForTimeout(600);
+  // 1.2 秒：假音檔本身是 1.5 秒（前後有靜音），錄太短會剛好落在沒有人聲的那一段
+  await page.waitForTimeout(1200);
   await page.locator('#view button', { hasText: '停止' }).click();
   await page.waitForTimeout(500);
   await page.locator('#btn-submit').click();
@@ -513,6 +571,10 @@ for (let i = 1; i <= SET_SIZE_UI; i += 1) {
 }
 
 check('五句都送出去了', fakeScoreCalls === SET_SIZE_UI, `${fakeScoreCalls} 次`);
+// 錄音 → 抽曲線 → 畫圖 整條線真的接起來了（假麥克風是一段固定頻率的嗶聲，
+// 所以一定抽得到音高）。規則本身在 test/pitch.test.js，這裡驗的是接線
+check('錄完會畫出語調圖', (await page.locator('.pitch__svg').count()) === 1,
+  (await page.locator('.pitch__caption').textContent().catch(() => '（沒有圖）')));
 check('練完一組之後，「換一句」變成看總結的入口',
   (await page.locator('#view button', { hasText: '看總結' }).count()) === 1,
   (await viewText()).slice(0, 60).replace(/\s+/g, ' '));

@@ -55,6 +55,8 @@ const SHELL = [
   '/lib/layout.js',
   '/lib/merge.js',
   '/lib/modes.js',
+  '/lib/pitch-chart.js',
+  '/lib/pitch.js',
   '/lib/practice.js',
   '/lib/quiz.js',
   '/lib/recorder.js',

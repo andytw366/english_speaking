@@ -3,13 +3,13 @@ import { columns, single } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel, formatTime } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import {
-  boxBreakdown, buildQueue, recordAnswer, srsSummary, getCardState, resetSrs,
-  getSrsState, tierProgress,
+  boxBreakdown, boxInterval, buildQueue, newTodayCount, recordAnswer, srsSummary,
+  getCardState, resetSrs, getSrsState, tierProgress,
 } from '../lib/storage.js';
 import { dailyState as modeDaily, recordPractice, renderDailyCard } from '../lib/daily.js';
 import { pickType, buildQuestion, briefMeaning, senses } from '../lib/quiz.js';
 import { bindKeys, indexOfKey } from '../lib/keys.js';
-import { filterBySettings, getSettings, updateSettings } from '../lib/settings.js';
+import { filterBySettings, getSettings, newWordsPerDay, updateSettings } from '../lib/settings.js';
 
 export const meta = { id: 'vocabulary', label: '單字卡', icon: '🗂️' };
 
@@ -144,9 +144,43 @@ function dailyState(now = Date.now()) {
   };
 }
 
+/**
+ * 今天還能發幾個新字。設定裡沒設上限時是 Infinity。
+ *
+ * 跨牌組算（跟每日目標同一個道理）：在「入門」發了 10 個新字之後換去「進階」，
+ * 今天的新字額度已經用完了 —— 不然換一級就等於多領一份。
+ */
+function freshLeftToday() {
+  const cap = newWordsPerDay();
+  if (!Number.isFinite(cap)) return Infinity;
+  // 「再多練 10 個」按幾次就多發幾個新字。上限是預設的護欄，不是鎖 ——
+  // 按了「再多練」卻只拿到已經複習過的字，那顆按鈕就等於壞的
+  return Math.max(0, cap + extra - newTodayCount(getSrsState()));
+}
+
+/**
+ * 排今天要練的隊伍。
+ *
+ * 兩個額度：**新字先保留一部分名額**，剩下的才給到期要複習的。
+ * 到期的有 50 個、今天的份 20 個、新字上限 10 個 → 10 複習 ＋ 10 新字，
+ * 而不是 20 個複習、進度條一動也不動。
+ *
+ * **保留的名額最多是今天的一半**：複習仍然優先（欠的複習會生利息，
+ * 拖一天就多一天的遺忘），保留區只是不讓它把新字整個吃光。少了這個上限，
+ * 今天的份設 3、新字上限設 10 的人會變成三張全是新字，到期的字一張都排不進來。
+ *
+ * 沒設新字上限（Infinity）時不保留，行為跟以前一樣：到期的先排滿，再補新字。
+ * 最後那一刀是必要的 —— 上面兩個額度各自成立，加起來仍可能超過今天的份。
+ */
 function startSession() {
   const { remaining } = dailyState();
-  queue = buildQueue(currentPool());
+  const fresh = freshLeftToday();
+  const reserve = Number.isFinite(fresh) && Number.isFinite(remaining)
+    ? Math.min(fresh, Math.floor(remaining / 2))
+    : 0;
+  const reviews = Number.isFinite(remaining) ? Math.max(0, remaining - reserve) : Infinity;
+
+  queue = buildQueue(currentPool(), { reviews, fresh });
   if (Number.isFinite(remaining)) queue = queue.slice(0, remaining);
   index = 0;
   prepareCard();
@@ -219,29 +253,43 @@ function render() {
     return;
   }
 
-  if (queue.length === 0) {
-    append(main,
-      h('div', { class: 'card empty' },
-        h('p', { class: 'empty__title' }, '這一級目前沒有需要複習的卡片 🎉'),
-        h('p', { class: 'hint' }, `${summary.total} 張都排進了複習排程，時間到了會再出現。`),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn btn--primary', onclick: () => { picking = true; render(); } }, '換一個難度'),
-          h('button', { class: 'btn btn--ghost', onclick: () => { resetSrs(); startSession(); } }, '重設所有進度'),
-        ),
-      ),
-    );
-    return;
-  }
-
+  // 今天的份還沒滿，但已經沒有卡可以發了。**三個原因要分得出來** ——
+  // 都寫成「練完了 🎉」的話，「今天的份 2 / 20」卻練不到東西，看起來就像 App 壞了。
+  //   1. 新字的每日上限用完了（這一級還有沒學過的字）
+  //   2. 這一級真的沒有到期的字，而且每個字都學過了
+  //   3. 中途抽完了（到期的複習完、新字也發完）
   if (index >= queue.length) {
-    // 今天的份還沒滿，但這一級能抽的字抽完了（到期的都複習過、新字也發完）
+    const capped = freshLeftToday() <= 0 && summary.fresh > 0;
+    const nothingDue = !capped && summary.fresh === 0;
+
     append(main,
       h('div', { class: 'card empty' },
-        h('p', { class: 'empty__title' }, `這一級今天能練的都練完了（${queue.length} 張）`),
-        h('p', { class: 'hint' }, '換一個難度就能繼續累積今天的進度。'),
+        h('p', { class: 'empty__title' },
+          // 不寫「練了 N 張」—— 這裡的 queue 是重排過的，N 常常是 0，
+          // 而「今天練了幾張」側欄那張卡已經在講了
+          capped ? '今天的新字已經發到上限了'
+            : nothingDue ? '這一級目前沒有需要複習的卡片 🎉'
+              : `這一級今天能練的都練完了（${queue.length} 張）`),
+        h('p', { class: 'hint' },
+          capped ? '上限在「設定 → 每日目標」可以改。這是刻意的 —— ' +
+            '今天發多少新字，明天就要回來複習多少。'
+            : nothingDue ? `${summary.total} 張都排進了複習排程，時間到了會再出現。`
+              : '到期要複習的都複習完了，沒學過的也發完了。'),
         h('div', { class: 'row' },
-          h('button', { class: 'btn btn--primary', onclick: () => { picking = true; render(); } }, '換難度'),
-          h('button', { class: 'btn btn--ghost', onclick: startSession }, '再看一次'),
+          capped && h('button', {
+            class: 'btn btn--primary',
+            onclick: () => { extra += EXTRA_BATCH; startSession(); },
+          }, `再多練 ${EXTRA_BATCH} 個`),
+          h('button', {
+            class: capped ? 'btn btn--ghost' : 'btn btn--primary',
+            onclick: () => { picking = true; render(); },
+          }, nothingDue ? '換一個難度' : '換難度'),
+          nothingDue && h('button', {
+            class: 'btn btn--ghost',
+            onclick: () => { resetSrs(); startSession(); },
+          }, '重設所有進度'),
+          !capped && !nothingDue &&
+            h('button', { class: 'btn btn--ghost', onclick: startSession }, '再看一次'),
         ),
       ),
     );
@@ -267,10 +315,7 @@ function render() {
               onclick: (e) => playWord(card, e.currentTarget),
             }, '🔊 唸這個字'),
           ),
-          h('p', { class: 'hint' },
-            picked.correct
-              ? '這張卡進到下一個盒子，間隔會拉長。'
-              : '答錯的卡會回到第 1 盒，明天再出現。'),
+          h('p', { class: 'hint' }, boxNote(picked.from, picked.to)),
           otherOptions(question),
         ),
       );
@@ -288,7 +333,8 @@ function render() {
           h('button', { class: 'btn btn--danger', onclick: () => answer(card, false) }, '還不熟'),
           h('button', { class: 'btn btn--primary', onclick: () => answer(card, true) }, '記得'),
         ),
-        h('p', { class: 'hint' }, '「還不熟」會把這張卡放回第 1 盒，明天再出現。'),
+        h('p', { class: 'hint' },
+          '「記得」進到下一盒、間隔拉長；「還不熟」退一盒、間隔縮短。'),
       ),
     );
   }
@@ -385,10 +431,27 @@ function optionState(option) {
  */
 function submitChoice(card, option) {
   if (picked) return;
-  picked = { id: option.id, correct: option.correct };
-  recordAnswer(card, option.correct);
+  // 前後的盒號都留著 —— 「退到第 3 盒」與「留在第 1 盒」是兩句不同的話，
+  // 而答完之後只看得到現在這一盒
+  const from = getCardState(card).box;
+  const to = recordAnswer(card, option.correct).box;
+  picked = { id: option.id, correct: option.correct, from, to };
   recordPractice('vocabulary');
   render();
+}
+
+/**
+ * 答完之後那一句「這張卡接下來會怎樣」。
+ *
+ * 盒號與間隔都是**實際存下來的值**，不是寫死的句子 —— 寫死的話，
+ * 改了盒子數或間隔，畫面會繼續用有自信的語氣講一件已經不成立的事。
+ */
+function boxNote(from, to) {
+  const days = boxInterval(to);
+  const when = days > 0 ? `${days} 天後再複習` : '今天之內就會再出現';
+  if (to > from) return `這張卡進到第 ${to} 盒，${when}。`;
+  if (to < from) return `這張卡退到第 ${to} 盒，${when}。`;
+  return `這張卡留在第 ${to} 盒，${when}。`;
 }
 
 function nextCard() {
@@ -428,7 +491,7 @@ function deckCard(deck, summary) {
       stat('已熟練', summary.mastered, 'mastered'),
     ),
 
-    h('p', { class: 'hint' }, '抽卡順序：到期要複習的優先，再補沒學過的。'),
+    h('p', { class: 'hint' }, queueNote()),
 
     // 數字回答不了「那些字是哪些」——練過的字在這一級裡才列得出來
     // （其他級的卡片沒載下來，只有 id）
@@ -448,6 +511,21 @@ function deckCard(deck, summary) {
       }, `進到「${next.label}」`),
     ),
   );
+}
+
+/**
+ * 側欄那一句「這一輪是怎麼抽的」。
+ *
+ * 新字的額度要講出來：到期的字一多，畫面上就只會出現複習過的字，
+ * 而「今天怎麼都沒有新字」沒有別的地方看得出原因。
+ */
+function queueNote() {
+  const left = freshLeftToday();
+  if (!Number.isFinite(left)) return '抽卡順序：到期要複習的優先，再補沒學過的。';
+  return '抽卡順序：到期要複習的優先，再補沒學過的。' +
+    (left > 0
+      ? `今天還留著 ${left} 個名額給新字。`
+      : '今天的新字已經發完了，接下來只排到期要複習的。');
 }
 
 function shouldAdvance(summary) {
@@ -503,7 +581,9 @@ function renderBoxes() {
           onclick: () => { showingBoxes = false; render(); },
         }, '回去練'),
       ),
-      h('p', { class: 'hint' }, '間隔 1 天 → 3 天 → 7 天 → 21 天，答錯回第 1 盒。'),
+      h('p', { class: 'hint' },
+        '間隔 1 → 3 → 7 → 16 → 35 天。答對往上一盒，答錯退一盒（不是掉回第 1 盒）。'),
+      h('p', { class: 'hint' }, '「幾天後」算到那一天，不是滿 24 小時 —— 隔天一早就抽得到。'),
       view.fresh > 0 && h('p', { class: 'hint' },
         `這一級另外有 ${view.fresh.toLocaleString()} 個字還沒練過，不列在下面。`),
     ),

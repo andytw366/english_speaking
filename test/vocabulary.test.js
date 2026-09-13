@@ -16,6 +16,7 @@ import { TIERS, TIER_IDS, tierFor } from '../scripts/vocab-levels.js';
 import {
   boxBreakdown, migrateSrs, tierProgress, addActivity, activityCount, activityDays,
   activityToday, buildActivity, ACTIVITY_DAY_LIMIT, MODE_IDS,
+  BOX_COUNT, boxInterval, dueAfterDays, nextCardState, newTodayCount, planQueue,
 } from '../public/lib/storage.js';
 import { streakFromDays, dayKey } from '../public/lib/practice.js';
 import { todayNote } from '../public/lib/today-card.js';
@@ -166,7 +167,7 @@ test('band 的鍵搬到共用的 ecdict 命名空間', () => {
 });
 
 test('精選與跟讀的鍵不動', () => {
-  const before = { 'curated:1': { box: 2 }, 'ecdict:7': { box: 5 }, '12': { box: 1 } };
+  const before = { 'curated:1': { box: 2 }, 'ecdict:7': { box: 6 }, '12': { box: 1 } };
   assert.deepEqual(migrateSrs(before), before);
 });
 
@@ -214,9 +215,9 @@ test('沒有任何進度時，每一級都是「全部沒學過」', () => {
 
 test('依盒子分成學習中與已熟練，到期的另外算', () => {
   const state = {
-    'ecdict:1': box(5, -1000),   // 第 5 盒 = 熟練，而且已經到期
+    'ecdict:1': box(6, -1000),   // 最後一盒 = 熟練，而且已經到期
     'ecdict:2': box(2, 5000),    // 學習中，還沒到期
-    'ecdict:3': box(5, 5000),    // 第二級，熟練
+    'ecdict:3': box(6, 5000),    // 第二級，熟練
   };
   const [t1, t2] = tierProgress(state, MAP, NOW);
 
@@ -225,7 +226,7 @@ test('依盒子分成學習中與已熟練，到期的另外算', () => {
 });
 
 test('精選與跟讀的紀錄不會被算進分級進度', () => {
-  const state = { 'curated:1': box(5, -1), '12': box(5, -1), 'ecdict:1': box(5, -1) };
+  const state = { 'curated:1': box(6, -1), '12': box(6, -1), 'ecdict:1': box(6, -1) };
   const [t1] = tierProgress(state, MAP, NOW);
   assert.equal(t1.mastered, 1);
   assert.equal(t1.seen, 1);
@@ -233,7 +234,7 @@ test('精選與跟讀的紀錄不會被算進分級進度', () => {
 
 test('超出範圍的 id 被忽略而不是算到某一級去', () => {
   // 重建資料時字庫可能變短，舊進度會留著超出範圍的鍵
-  const [t1, t2] = tierProgress({ 'ecdict:9999': box(5, -1) }, MAP, NOW);
+  const [t1, t2] = tierProgress({ 'ecdict:9999': box(6, -1) }, MAP, NOW);
   assert.equal(t1.seen + t2.seen, 0);
 });
 
@@ -417,6 +418,143 @@ test('鼓勵的話裡不出現威脅 —— 用罰的推人回來只會讓人不
   }
 });
 
+// ─── 複習規則（盒子、間隔、排隊）──────────────────────────────────────────
+//
+// 這一段釘的是**規則本身**。症狀都是「不會報錯，只是複習得不對」：
+// 間隔算錯 → 該複習的字不出現；答錯的懲罰算錯 → 練一個月的字一次歸零；
+// 額度算錯 → 連續好幾天一個新字都發不出來。
+
+const ANSWERED_AT = new Date(2026, 2, 10, 23, 30).getTime();   // 3/10 晚上 11:30
+
+test('六個盒子，間隔 1 / 3 / 7 / 16 / 35 天', () => {
+  assert.equal(BOX_COUNT, 6);
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map(boxInterval), [0, 1, 3, 7, 16, 35]);
+});
+
+test('盒號壞掉時夾回合法範圍，不是回 undefined', () => {
+  // 畫面上那句「N 天後再複習」讀的就是這個值，回 undefined 會印出「undefined 天後」
+  assert.equal(boxInterval(99), 35);
+  assert.equal(boxInterval(0), 0);
+  assert.equal(boxInterval(null), 0);
+});
+
+test('到期算到「那一天」，不是滿 24 小時', () => {
+  // 這是改版的重點：晚上 11:30 答對的字，間隔 1 天 = 明天（3/11）一開始就到期，
+  // 而不是明天晚上 11:30 —— 不然隔天白天練，昨天的字一個都不算到期
+  const due = dueAfterDays(1, ANSWERED_AT);
+  assert.equal(dayKey(new Date(due)), '2026-03-11');
+  assert.equal(new Date(due).getHours(), 0);
+  assert.ok(due - ANSWERED_AT < 24 * 60 * 60 * 1000);
+});
+
+test('第 1 盒（0 天）是「今天之內」，不是明天', () => {
+  assert.equal(dueAfterDays(0, ANSWERED_AT), ANSWERED_AT);
+  assert.equal(dueAfterDays(-3, ANSWERED_AT), ANSWERED_AT);
+});
+
+test('跨月的間隔交給 Date 自己算', () => {
+  assert.equal(dayKey(new Date(dueAfterDays(35, new Date(2026, 1, 20, 9).getTime()))), '2026-03-27');
+});
+
+test('答對往上一盒，到最後一盒就停在那裡', () => {
+  assert.equal(nextCardState(undefined, true, ANSWERED_AT).box, 2);
+  assert.equal(nextCardState({ box: 5, seen: 5, correct: 5 }, true, ANSWERED_AT).box, 6);
+  assert.equal(nextCardState({ box: 6, seen: 9, correct: 9 }, true, ANSWERED_AT).box, 6);
+});
+
+test('答錯退一盒，不是掉回第 1 盒', () => {
+  // 練了一個月爬到第 6 盒的字，一次手滑不該從頭來過 ——
+  // 「一次答錯」跟「完全沒學過」明顯不是同一件事
+  assert.equal(nextCardState({ box: 6, seen: 9, correct: 9 }, false, ANSWERED_AT).box, 5);
+  assert.equal(nextCardState({ box: 2, seen: 2, correct: 1 }, false, ANSWERED_AT).box, 1);
+  // 連錯兩次就會退到第 1 盒 —— 真的沒記住的字還是會從頭來
+  assert.equal(nextCardState({ box: 1, seen: 3, correct: 1 }, false, ANSWERED_AT).box, 1);
+});
+
+test('答錯之後今天之內就會再出現（第 1 盒的間隔是 0 天）', () => {
+  const state = nextCardState({ box: 2, seen: 2, correct: 1 }, false, ANSWERED_AT);
+  assert.equal(state.due, ANSWERED_AT);
+});
+
+test('答對答錯都記一次 seen，只有答對加 correct', () => {
+  const wrong = nextCardState({ box: 3, seen: 4, correct: 3 }, false, ANSWERED_AT);
+  assert.deepEqual([wrong.seen, wrong.correct], [5, 3]);
+  const right = nextCardState({ box: 3, seen: 4, correct: 3 }, true, ANSWERED_AT);
+  assert.deepEqual([right.seen, right.correct], [5, 4]);
+});
+
+test('第一次練到的時間只在第一次寫，之後不會被蓋掉', () => {
+  // 被蓋掉的話「今天發了幾個新字」會把複習到的舊字也算成新字，
+  // 額度一下就用完，然後就再也發不出新字了
+  const first = nextCardState(undefined, true, ANSWERED_AT);
+  assert.equal(first.since, ANSWERED_AT);
+  const later = nextCardState(first, true, ANSWERED_AT + 3 * DAY);
+  assert.equal(later.since, ANSWERED_AT);
+});
+
+test('改版前練過的字不會被當成今天才發的新字', () => {
+  // 舊資料沒有 since 欄位，補一個「現在」上去的話，那些字會吃掉今天的新字額度
+  const old = nextCardState({ box: 2, seen: 3, correct: 2 }, true, ANSWERED_AT);
+  assert.equal('since' in old, false);
+});
+
+test('今天發了幾個新字，看的是 since 而不是練了幾次', () => {
+  const state = {
+    'ecdict:1': { box: 2, seen: 1, correct: 1, since: ANSWERED_AT },
+    'ecdict:2': { box: 3, seen: 5, correct: 4, since: ANSWERED_AT - 5 * DAY },
+    'ecdict:3': { box: 1, seen: 9, correct: 3 },              // 舊資料，沒有 since
+    'ecdict:4': { box: 2, seen: 1, correct: 0, since: ANSWERED_AT - 60 * 1000 },
+  };
+  assert.equal(newTodayCount(state, ANSWERED_AT), 2);
+  assert.equal(newTodayCount(state, ANSWERED_AT + 2 * DAY), 0);
+  assert.equal(newTodayCount(null, ANSWERED_AT), 0);
+});
+
+// 排隊：到期的先，再補新字，兩邊各有各的額度
+const pool = (n) => Array.from({ length: n }, (_, i) => ({ id: i + 1, word: `w${i + 1}` }));
+const words = (queue) => queue.map((c) => c.word);
+
+test('到期的排前面，越早到期越前面，再接沒學過的', () => {
+  const srs = {
+    1: { box: 2, due: NOW - 1000 },
+    2: { box: 2, due: NOW - 9000 },     // 更早到期
+    3: { box: 3, due: NOW + DAY },      // 還沒到期，不排
+  };
+  assert.deepEqual(words(planQueue(pool(5), srs, { now: NOW })), ['w2', 'w1', 'w4', 'w5']);
+});
+
+test('新字有自己的額度，到期的字再多也擠不掉', () => {
+  // 這是「兩個上限」的重點：共用一條隊伍的話，到期的一多就連續好幾天
+  // 一個新字都看不到，進度條動也不動
+  const srs = {};
+  for (let i = 1; i <= 30; i++) srs[i] = { box: 2, due: NOW - i };
+  const queue = planQueue(pool(50), srs, { reviews: 10, fresh: 3, now: NOW });
+
+  assert.equal(queue.length, 13);
+  assert.deepEqual(words(queue).slice(10), ['w31', 'w32', 'w33']);
+});
+
+test('新字額度用完就只排到期的', () => {
+  const srs = { 1: { box: 2, due: NOW - 1 }, 2: { box: 2, due: NOW - 2 } };
+  assert.deepEqual(words(planQueue(pool(10), srs, { reviews: 5, fresh: 0, now: NOW })),
+    ['w2', 'w1']);
+});
+
+test('沒給額度就是不限（跟以前一樣）', () => {
+  assert.equal(planQueue(pool(40), {}, { now: NOW }).length, 40);
+});
+
+test('剛好到期的那一刻算到期', () => {
+  // boxBreakdown() 用的也是 `due <= now`，兩邊不一致的話清單會說「還沒到期」，
+  // 但那張卡已經被抽出來考了
+  assert.equal(planQueue(pool(1), { 1: { box: 2, due: NOW } }, { now: NOW }).length, 1);
+});
+
+test('壞掉的 due 當成 0（早就該複習），不是永遠不出現', () => {
+  assert.equal(planQueue(pool(1), { 1: { box: 2, due: null } }, { now: NOW }).length, 1);
+  assert.equal(planQueue(null, null, { now: NOW }).length, 0);
+});
+
 // ─── 複習盒（哪些字在哪個盒子）────────────────────────────────────────────
 //
 // 這一段釘的是「畫面上那份清單跟側欄那四個數字說的是同一件事」。
@@ -440,7 +578,7 @@ function deck(entries) {
 test('練過的字照盒子分開，沒練過的只算數量', () => {
   const { cards, srs } = deck([
     ['alpha', { box: 1, due: NOW - DAY, seen: 3, correct: 1 }],
-    ['bravo', { box: 5, due: NOW + 20 * DAY, seen: 6, correct: 6 }],
+    ['bravo', { box: 6, due: NOW + 30 * DAY, seen: 7, correct: 7 }],
     ['charlie', null],
     ['delta', null],
   ]);
@@ -449,9 +587,9 @@ test('練過的字照盒子分開，沒練過的只算數量', () => {
   assert.equal(view.total, 4);
   assert.equal(view.practised, 2);
   assert.equal(view.fresh, 2);
-  assert.deepEqual(view.boxes.map((b) => b.cards.length), [1, 0, 0, 0, 1]);
+  assert.deepEqual(view.boxes.map((b) => b.cards.length), [1, 0, 0, 0, 0, 1]);
   assert.equal(view.boxes[0].cards[0].card.word, 'alpha');
-  assert.equal(view.boxes[4].cards[0].card.word, 'bravo');
+  assert.equal(view.boxes[5].cards[0].card.word, 'bravo');
 });
 
 test('到期的算進 due，而且盒子裡標得出來', () => {
@@ -484,12 +622,13 @@ test('同一盒裡最快要複習的排前面，同時間的照字母排', () =>
 });
 
 test('「已熟練」那一盒跟 srsSummary 算的是同一盒', () => {
-  // srsSummary() 的 mastered 是 `box >= BOX_INTERVAL_DAYS.length`（第 5 盒）。
+  // srsSummary() 的 mastered 是 `box >= BOX_COUNT`（第 6 盒）。
   // 這裡只有最後一盒 mastered 才是 true —— 兩邊分家的話，
   // 畫面上「已熟練 12」與盒子裡數出來的字會不一樣，而且不會有人發現
   const view = boxBreakdown([], {}, NOW);
-  assert.deepEqual(view.boxes.map((b) => b.mastered), [false, false, false, false, true]);
-  assert.deepEqual(view.boxes.map((b) => b.intervalDays), [0, 1, 3, 7, 21]);
+  assert.deepEqual(view.boxes.map((b) => b.mastered),
+    [false, false, false, false, false, true]);
+  assert.deepEqual(view.boxes.map((b) => b.intervalDays), [0, 1, 3, 7, 16, 35]);
 });
 
 test('壞掉的盒號夾回範圍，不是把那張卡丟掉', () => {
@@ -502,7 +641,7 @@ test('壞掉的盒號夾回範圍，不是把那張卡丟掉', () => {
   const view = boxBreakdown(cards, srs, NOW);
 
   assert.equal(view.practised, 3);
-  assert.equal(view.boxes[4].cards[0].card.word, 'alpha');
+  assert.equal(view.boxes[5].cards[0].card.word, 'alpha');   // 99 夾到最後一盒
   assert.deepEqual(view.boxes[0].cards.map((c) => c.card.word), ['bravo', 'charlie']);
 });
 
@@ -516,7 +655,7 @@ test('別的牌組的進度不會混進來', () => {
 
   assert.equal(view.practised, 1);
   assert.equal(view.total, 1);
-  assert.deepEqual(view.boxes.map((b) => b.cards.length), [0, 1, 0, 0, 0]);
+  assert.deepEqual(view.boxes.map((b) => b.cards.length), [0, 1, 0, 0, 0, 0]);
 });
 
 test('srsKey 認的是卡片自己的 srsKey（同一個字在兩種牌組共用進度）', () => {

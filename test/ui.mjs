@@ -557,7 +557,7 @@ console.log('\n【11】單字卡：選難度、各級進度、舊進度搬家');
 const legacySrs = {};
 for (let i = 1; i <= 40; i++) {
   legacySrs[`band-1:${i}`] = i % 2
-    ? { box: 5, due: Date.now() - 1000, seen: 6, correct: 6 }
+    ? { box: 6, due: Date.now() - 1000, seen: 7, correct: 7 }
     : { box: 2, due: Date.now() + 9e6, seen: 2, correct: 1 };
 }
 legacySrs['curated:1'] = { box: 3, due: Date.now(), seen: 3, correct: 2 };
@@ -622,17 +622,18 @@ const learning = Number(await text('.srsstat--learning .srsstat__value'));
 await page.locator('#view button', { hasText: '看複習盒' }).click();
 await page.waitForSelector('.boxlist');
 
-check('五個盒子都在', (await page.locator('.card', { has: page.locator('.deckbar') }).count()) >= 5,
+check('六個盒子都在', (await page.locator('.card', { has: page.locator('.deckbar') }).count()) >= 6,
   `${await page.locator('.card').count()} 張卡`);
-check('間隔寫在盒子上', (await viewText()).includes('每 21 天複習'));
+check('間隔寫在盒子上', (await viewText()).includes('每 35 天複習'));
 
 const boxWords = async (n) => page.locator('.card', { hasText: `第 ${n} 盒` })
   .locator('.boxlist__word').count();
-check('最後一盒的字數跟「已熟練」對得起來', (await boxWords(5)) === mastered,
-  `第 5 盒 ${await boxWords(5)} 個・已熟練 ${mastered}`);
-check('學習中的字散在中間那幾盒',
-  (await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4)) === learning,
-  `1～4 盒共 ${(await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4))}・學習中 ${learning}`);
+check('最後一盒的字數跟「已熟練」對得起來', (await boxWords(6)) === mastered,
+  `第 6 盒 ${await boxWords(6)} 個・已熟練 ${mastered}`);
+const learningBoxes = (await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) +
+  (await boxWords(4)) + (await boxWords(5));
+check('學習中的字散在中間那幾盒', learningBoxes === learning,
+  `1～5 盒共 ${learningBoxes}・學習中 ${learning}`);
 check('到期的字標出來了', (await page.locator('.boxlist .chip--due').count()) > 0,
   `${await page.locator('.boxlist .chip--due').count()} 個標成已到期`);
 check('每個字都寫出答對幾次', /答對 \d+ \/ \d+ 次/.test(await viewText()));
@@ -704,8 +705,9 @@ await page.waitForTimeout(200);
 const savedGoal = await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).dailyGoals.vocabulary);
 check('改得動而且存得起來', savedGoal === 30, String(savedGoal));
-check('五個模式都設得到目標',
-  (await page.locator('.card', { hasText: '每日目標' }).locator('.field').count()) === 5);
+check('五個模式都設得到目標，加上單字卡的新字上限',
+  (await page.locator('.card', { hasText: '每日目標' }).locator('.field').count()) === 6,
+  `${await page.locator('.card', { hasText: '每日目標' }).locator('.field').count()} 列`);
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【13】單字卡：選擇題');
@@ -714,7 +716,9 @@ const tier1 = await apiGet('/api/vocabulary/tier-1.json');
 const meaningOf = (word) => firstSense(tier1.find((c) => c.word === word)?.meaning_zh);
 
 // 固定成「看英文選中文」，這樣測試知道正確答案是哪一個字串
-await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 20 }, vocabQuizTypes: ['en2zh'] } });
+// vocabNewPerDay: 0（不限）—— 這一段驗的是出題與批改，不該因為新字額度
+// 把一輪切短而讓 counter 的斷言時好時壞。額度本身在【13b】自己測
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 20 }, vocabQuizTypes: ['en2zh'], vocabNewPerDay: 0 } });
 await page.waitForSelector('.quiz__options');
 
 check('出的是選擇題', (await text('.card__meta .chip')).includes('看英文選中文'));
@@ -876,6 +880,111 @@ check('取消得掉', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabQuizTypes)).join() === 'en2zh');
 
 // ─────────────────────────────────────────────────────────────────────────
+console.log('\n【13b】單字卡：複習規則（退一盒、日界、新字額度）');
+
+// 一張已經爬到第 3 盒的字，故意答錯 —— 該退到第 2 盒，不是掉回第 1 盒
+await seed({
+  mode: 'vocabulary',
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'],
+    dailyGoals: { vocabulary: 20 }, vocabNewPerDay: 0,
+  },
+  srs: { 'ecdict:1': { box: 3, due: Date.now() - 1000, seen: 4, correct: 3, since: 1 } },
+});
+await page.waitForSelector('.quiz__options');
+check('到期的卡排在最前面（第 3 盒那一張）', (await text('.card__meta')).includes('第 3 盒'),
+  (await text('.card__meta')).replace(/\s+/g, ' '));
+
+const rightAnswer = meaningOf((await text('.quiz__prompt')).trim());
+const wrongOption = (await page.locator('.quiz__option').allTextContents())
+  .map((o) => o.trim()).find((o) => o !== rightAnswer);
+await page.locator('.quiz__option', { hasText: wrongOption }).first().click();
+await page.waitForTimeout(250);
+
+check('答錯退一盒，不是掉回第 1 盒', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 2);
+check('畫面講的盒號跟存下來的一樣', (await viewText()).includes('退到第 2 盒'),
+  (await viewText()).slice(0, 80).replace(/\s+/g, ' '));
+check('順便講出下次什麼時候複習', (await viewText()).includes('1 天後再複習'));
+
+// 到期時間算到「那一天」的 00:00，不是「現在 + N×24 小時」
+const dueAt = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].due);
+const dueDate = new Date(dueAt);
+check('間隔 1 天 = 明天的 00:00（晚上練的字，隔天一早也抽得到）',
+  dueDate.getHours() === 0 && dueDate.getMinutes() === 0 &&
+  dueAt - Date.now() <= 24 * 60 * 60 * 1000, dueDate.toString());
+
+// 新字額度：到期的字再多，也留名額給沒學過的
+const dueSrs = {};
+for (let i = 1; i <= 40; i++) dueSrs[`ecdict:${i}`] = { box: 2, due: Date.now() - i, seen: 2, correct: 1, since: 1 };
+await seed({
+  mode: 'vocabulary',
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: [],
+    dailyGoals: { vocabulary: 10 }, vocabNewPerDay: 5,
+  },
+  srs: dueSrs,
+});
+await page.waitForSelector('.vocab__word');
+check('今天的份還是 10 張', (await text('.counter')).trim() === '1 / 10',
+  (await text('.counter')).trim());
+check('到期的字一堆，也還是留了名額給新字', (await viewText()).includes('今天還留著 5 個名額給新字'),
+  (await viewText()).slice(0, 200).replace(/\s+/g, ' '));
+
+// 一輪 10 張裡，幾張是沒學過的（新字沒有複習紀錄，卡面會寫「第 1 盒」）
+const boxesInRound = [];
+for (let i = 0; i < 10; i++) {
+  boxesInRound.push((await text('.card__meta')).includes('第 1 盒') ? 'new' : 'review');
+  await page.locator('#view button', { hasText: '顯示答案' }).click();
+  await page.waitForTimeout(80);
+  await page.locator('#view button', { hasText: '記得' }).click();
+  await page.waitForTimeout(150);
+}
+check('一輪裡新字不會被到期的字整個擠掉',
+  boxesInRound.filter((b) => b === 'new').length === 5,
+  boxesInRound.join(' '));
+check('複習仍然優先（另外一半都是到期的字）',
+  boxesInRound.filter((b) => b === 'review').length === 5, boxesInRound.join(' '));
+
+// 額度用完之後不是無聲卡住，要講清楚而且給得出下一步
+await seed({
+  mode: 'vocabulary',
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: [],
+    dailyGoals: { vocabulary: 20 }, vocabNewPerDay: 2,
+  },
+});
+await page.waitForSelector('.vocab__word');
+for (let i = 0; i < 2; i++) {
+  await page.locator('#view button', { hasText: '顯示答案' }).click();
+  await page.waitForTimeout(80);
+  await page.locator('#view button', { hasText: '記得' }).click();
+  await page.waitForTimeout(200);
+}
+check('新字發完就說是上限擋住的，不是只說「練完了」',
+  (await viewText()).includes('新字已經發到上限'), (await viewText()).slice(0, 120).replace(/\s+/g, ' '));
+check('今天的份還沒滿的話講得出來', (await text('.card--today')).includes('2 / 20'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+check('要硬練還是可以（上限是護欄，不是鎖）',
+  (await page.locator('#view button', { hasText: '再多練' }).count()) === 1);
+await page.locator('#view button', { hasText: '再多練' }).click();
+await page.waitForTimeout(400);
+check('按了就真的再發得出新字', (await page.locator('.vocab__word').count()) === 1 &&
+  (await text('.counter')).trim() === '1 / 10', (await text('.counter')).trim());
+await shot(page, 'ui-13b-複習規則');
+
+// 設定頁改得動新字上限
+await seed({ mode: 'settings', settings: { vocabNewPerDay: 10 } });
+const newChips = page.locator('.card', { hasText: '每日目標' })
+  .locator('.field', { hasText: '其中最多幾個新字' }).locator('button');
+check('設定頁有新字上限', (await newChips.count()) === 4, `${await newChips.count()} 顆`);
+await newChips.nth(0).click();
+await page.waitForTimeout(200);
+check('按了就存起來', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabNewPerDay)) === 5);
+
+// ─────────────────────────────────────────────────────────────────────────
 console.log('\n【14】備份與還原');
 
 // 這一段是真的走完一輪：下載 → 把資料清掉 → 用下載的檔案還原回來。
@@ -883,7 +992,7 @@ console.log('\n【14】備份與還原');
 await seed({
   mode: 'settings',
   settings: { dailyGoals: { vocabulary: 30 }, vocabDeck: 'tier-2' },
-  srs: { 'ecdict:1': { box: 5, due: 1, seen: 6, correct: 6 }, 'ecdict:2': { box: 2, due: 1, seen: 2, correct: 1 } },
+  srs: { 'ecdict:1': { box: 6, due: 1, seen: 7, correct: 7 }, 'ecdict:2': { box: 2, due: 1, seen: 2, correct: 1 } },
   activity: { vocabulary: { '2026-09-04': 20, '2026-09-05': 12 } },
   history: fakeHistory([[0, 88, 0]]),
 });
@@ -1244,7 +1353,10 @@ console.log('\n【18】鍵盤操作');
 // 單字卡的選擇題：數字鍵選答案、Enter 下一題
 await seed({
   mode: 'vocabulary',
-  settings: { vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'], dailyGoals: { vocabulary: 20 } },
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'],
+    dailyGoals: { vocabulary: 20 }, vocabNewPerDay: 0,
+  },
   srs: { 'ecdict:1': { box: 1, due: Date.now() - 1000, seen: 1 } },
 });
 await page.waitForSelector('.quiz__options');
@@ -1272,8 +1384,9 @@ await page.waitForTimeout(200);
 check('空白鍵翻卡', (await viewText()).includes('剛剛記得嗎'));
 await page.keyboard.press('1');
 await page.waitForTimeout(250);
-check('翻卡按 1 是「還不熟」（回到第 1 盒）',
-  (await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 1);
+check('翻卡按 1 是「還不熟」（第 3 盒退到第 2 盒）',
+  (await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 2,
+  `第 ${await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)} 盒`);
 
 // 正在打字的時候不接快捷鍵 —— 不擋的話打一個 n 就換題，答案直接消失
 await seed({ mode: 'translation' });

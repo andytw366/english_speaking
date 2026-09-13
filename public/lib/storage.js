@@ -49,10 +49,51 @@ function notifyWritten(key) {
 }
 
 // ─── 單字卡的間隔重複（Leitner 盒子制）─────────────────────────────────
-// 盒子 1～5，答對就往上一盒、間隔拉長；答錯直接回第 1 盒。
+// 盒子 1～6，答對往上一盒、間隔拉長；答錯**退一盒**、間隔縮短。
 // 用盒子制而不是 SM-2，是因為行為好預測、出問題也容易看懂。
-const BOX_INTERVAL_DAYS = [0, 1, 3, 7, 21];
-const DAY_MS = 24 * 60 * 60 * 1000;
+//
+// **第 1 盒的間隔是 0 天** = 今天之內就該再看到它（下一次排隊就排得進來）。
+//
+// 六個盒子而不是五個：最後一盒 35 天，真的記住的字才不會每三週回來煩一次。
+// 代價是「已熟練」的門檻從第 5 盒變成第 6 盒 —— 改版前就在第 5 盒的字會
+// 從「已熟練」退回「學習中」，再答對一次就回去。**刻意不自動把它們升到第 6 盒**：
+// 那等於憑空給一個沒答對過的間隔，而少算一次比多算一次安全。
+const BOX_INTERVAL_DAYS = [0, 1, 3, 7, 16, 35];
+
+/** 幾個盒子。畫面與測試都從這裡讀，不要再抄一份數字。 */
+export const BOX_COUNT = BOX_INTERVAL_DAYS.length;
+
+/** 第 N 盒隔幾天複習一次。盒號壞掉時夾回合法範圍（見 `clampBox()`）。 */
+export function boxInterval(box) {
+  return BOX_INTERVAL_DAYS[clampBox(box) - 1];
+}
+
+/**
+ * 盒號來自存下來的資料，可能超出範圍（改過盒子數、或別的版本寫的）。
+ * 夾回合法範圍而不是丟掉那張卡 —— 練過的字不該從清單上消失。
+ */
+function clampBox(box) {
+  return Math.min(Math.max(Math.floor(Number(box)) || 1, 1), BOX_COUNT);
+}
+
+/**
+ * 下一次該複習的時間。**以「日」為單位，不是「現在再過 N×24 小時」。**
+ *
+ * 為什麼：間隔 1 天的卡，若存成「現在 + 24 小時」，今晚 23:00 答的字明天
+ * 整個白天都還沒到期 —— 只要今天比昨天早一點打開 App，昨天的字就一個都不算
+ * 到期，而畫面上完全看不出原因（「待複習 0，可是我昨天明明練了 20 個」）。
+ * 算到**那一天的 00:00**，「N 天後」就真的是 N 天後那一天，早上練也拿得到。
+ *
+ * 第 1 盒（0 天）回的是 `now` —— 今天之內就該再看到，不是明天。
+ * 跨月、跨年、日光節約都交給 `Date` 自己算（跟 `practice.js` 的 `shiftDay()` 同一招）。
+ */
+export function dueAfterDays(days, now = Date.now()) {
+  if (!(days > 0)) return now;
+  const date = new Date(now);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return date.getTime();
+}
 
 // 複習進度的資料版本。只是給人看的記號（localStorage 裡看得到現在是第幾版），
 // **不用它決定要不要搬** —— 見下面。
@@ -129,40 +170,92 @@ export function getCardState(card) {
 export function recordAnswer(card, wasCorrect) {
   const key = typeof card === 'object' ? srsKeyOf(card) : String(card);
   const all = getSrsState();
-  const prev = all[key] ?? { box: 1, due: 0, seen: 0, correct: 0 };
-  const box = wasCorrect ? Math.min(prev.box + 1, BOX_INTERVAL_DAYS.length) : 1;
-  all[key] = {
-    box,
-    due: Date.now() + BOX_INTERVAL_DAYS[box - 1] * DAY_MS,
-    seen: prev.seen + 1,
-    correct: prev.correct + (wasCorrect ? 1 : 0),
-    // 最後一次作答的時間。**跨裝置合併時要靠它判斷哪一筆比較新**，
-    // 而 `due` 做不到這件事 —— box 4 一週前答的卡，due 比 box 1 今天剛答的還晚。
-    //
-    // 現在（階段 A）還沒有合併，這個欄位只是先寫著：等到做自動同步時才加的話，
-    // 在那之前練的每一張卡都沒有依據可以比。設計見 docs/accounts-and-sync.md
-    at: Date.now(),
-  };
+  all[key] = nextCardState(all[key], wasCorrect);
   write('srs', all);
   return all[key];
 }
 
 /**
- * 排出這次要複習的順序：到期的先（越早到期越前面），再來是沒看過的新卡。
+ * 答完一張卡之後，它的下一個狀態。**規則本身都在這裡**（純函式，測得到）。
+ *
+ * 答對往上一盒，答錯**退一盒**而不是掉回第 1 盒 —— 掉回第 1 盒的話，
+ * 練了一個月才爬到第 5 盒的字，一次手滑就從頭來過；而「一次答錯」與
+ * 「完全沒學過」明顯不是同一件事。退一盒等於「往回一個間隔」，
+ * 連錯兩次自然就會退到第 1 盒，該從頭來的字還是會從頭來。
+ *
+ * @param {object|undefined} prev 上一個狀態（沒練過就是 undefined）
  */
-export function buildQueue(cards) {
-  const state = getSrsState();
-  const now = Date.now();
-  const due = [];
-  const fresh = [];
+export function nextCardState(prev, wasCorrect, now = Date.now()) {
+  const from = clampBox(prev?.box);
+  const box = wasCorrect ? Math.min(from + 1, BOX_COUNT) : Math.max(from - 1, 1);
+  const seen = Number(prev?.seen) || 0;
+  // 第一次練到這個字是什麼時候。「今天最多發幾個新字」要靠它數得出來
+  // （`newTodayCount()`），而 `seen` 只回答「練過幾次」、回答不了「哪一天開始的」。
+  // 改版前練過的字沒有這個欄位，那就當它不是今天發的 —— 本來就不是。
+  const since = Number(prev?.since) || (seen === 0 ? now : 0);
 
-  for (const card of cards) {
-    const s = state[srsKeyOf(card)];
-    if (!s) fresh.push(card);
-    else if (s.due <= now) due.push({ card, due: s.due });
+  return {
+    box,
+    due: dueAfterDays(BOX_INTERVAL_DAYS[box - 1], now),
+    seen: seen + 1,
+    correct: (Number(prev?.correct) || 0) + (wasCorrect ? 1 : 0),
+    ...(since ? { since } : {}),
+    // 最後一次作答的時間。**跨裝置合併時要靠它判斷哪一筆比較新**，
+    // 而 `due` 做不到這件事 —— box 4 一週前答的卡，due 比 box 1 今天剛答的還晚。
+    //
+    // 現在（階段 A）還沒有合併，這個欄位只是先寫著：等到做自動同步時才加的話，
+    // 在那之前練的每一張卡都沒有依據可以比。設計見 docs/accounts-and-sync.md
+    at: now,
+  };
+}
+
+/**
+ * 今天發出去幾個新字（跨牌組算，跟每日目標同一個道理）。
+ *
+ * 用 `since`（第一次練到的時間）而不是 activity 的計數表：計數表記的是
+ * 「練了幾次」，一個字複習第三次也算一次，數不出「其中幾個是新的」。
+ */
+export function newTodayCount(srsState, now = Date.now()) {
+  const today = dayKey(new Date(now));
+  let n = 0;
+  for (const state of Object.values(srsState ?? {})) {
+    const since = Number(state?.since);
+    if (since && dayKey(new Date(since)) === today) n += 1;
+  }
+  return n;
+}
+
+/**
+ * 排出這次要練的順序與份量：到期的先（越早到期越前面），再來是沒看過的新卡。
+ *
+ * **兩邊各有各的額度**（`reviews` / `fresh`），而不是切同一條隊伍 ——
+ * 共用一條的話，到期的字一多就會把新字整個擠掉（連續幾天只複習、進度條完全不動），
+ * 而到期的是 0 的那幾天又會一次灌進一整天份的全新字（隔天全部回來找你）。
+ *
+ * 純函式：`srsState` 與 `now` 都是參數。`buildQueue()` 是它加上 localStorage。
+ *
+ * @param {{reviews?: number, fresh?: number, now?: number}} budget 省略 = 不限
+ */
+export function planQueue(cards, srsState, { reviews = Infinity, fresh = Infinity, now = Date.now() } = {}) {
+  const due = [];
+  const unseen = [];
+
+  for (const card of cards ?? []) {
+    const s = srsState?.[srsKeyOf(card)];
+    if (!s) unseen.push(card);
+    else if ((Number(s.due) || 0) <= now) due.push({ card, due: Number(s.due) || 0 });
   }
   due.sort((a, b) => a.due - b.due);
-  return [...due.map((d) => d.card), ...fresh];
+
+  return [
+    ...due.slice(0, Math.max(0, reviews)).map((d) => d.card),
+    ...unseen.slice(0, Math.max(0, fresh)),
+  ];
+}
+
+/** `planQueue()` 加上現在的複習進度。 */
+export function buildQueue(cards, budget = {}) {
+  return planQueue(cards, getSrsState(), budget);
 }
 
 export function srsSummary(cards) {
@@ -177,7 +270,7 @@ export function srsSummary(cards) {
     const s = state[srsKeyOf(card)];
     if (!s) { fresh++; continue; }
     if (s.due <= now) due++;
-    if (s.box >= BOX_INTERVAL_DAYS.length) mastered++;
+    if (s.box >= BOX_COUNT) mastered++;
     else learning++;
   }
   return { due, fresh, learning, mastered, total: cards.length };
@@ -209,7 +302,7 @@ export function boxBreakdown(cards, srsState, now = Date.now()) {
     intervalDays: days,
     // 最後一盒就是 srsSummary() 算「已熟練」的那一盒 —— 兩邊要對得起來，
     // 不然畫面上會出現「已熟練 12」但盒子裡數不出 12 個
-    mastered: i + 1 >= BOX_INTERVAL_DAYS.length,
+    mastered: i + 1 >= BOX_COUNT,
     cards: [],
   }));
 
@@ -220,9 +313,7 @@ export function boxBreakdown(cards, srsState, now = Date.now()) {
     const state = srsState?.[srsKeyOf(card)];
     if (!state) continue;
 
-    // 盒號來自存下來的資料，可能超出範圍（改過盒子數、或別的版本寫的）。
-    // 夾回合法範圍而不是丟掉那張卡 —— 練過的字不該從清單上消失
-    const box = Math.min(Math.max(Math.floor(Number(state.box)) || 1, 1), BOX_INTERVAL_DAYS.length);
+    const box = clampBox(state.box);
     const dueAt = Number(state.due) || 0;
     const overdue = dueAt <= now;
 
@@ -275,7 +366,7 @@ export function tierProgress(srsState, tierMap, now = Date.now()) {
     const tier = byOrder.get(byId[Number(m[1]) - 1]);
     if (!tier) continue;                    // 資料重建後 id 可能超出範圍
     tier.seen += 1;
-    if (state.box >= BOX_INTERVAL_DAYS.length) tier.mastered += 1;
+    if (state.box >= BOX_COUNT) tier.mastered += 1;
     else tier.learning += 1;
     if (state.due <= now) tier.due += 1;
   }

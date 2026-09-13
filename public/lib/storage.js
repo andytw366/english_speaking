@@ -428,15 +428,24 @@ export function buildActivity({ vocabDays, history } = {}) {
     activity.vocabulary = toSlots(vocabDays);
   }
 
-  // 跟讀：從逐筆紀錄數出每天幾句。只算有分數的 —— 沒分數代表沒真的練成一句
+  // 跟讀：從逐筆紀錄數出每天幾句。只算有分數的 —— 沒分數代表沒真的練成一句。
+  //
+  // **同一天的同一句只算一次**，跟現在記錄的方式一致（`modes/shadowing.js`）：
+  // 一句錄三次是把它練好，不是練了三句。兩邊用不一樣的算法的話，
+  // 搬過來的舊數字會比新的膨脹，而畫面上看起來就是「我以前比較勤勞」。
+  // 沒有 sentenceId 的紀錄各算各的 —— 那種紀錄湊不出「是不是同一句」。
   if (Array.isArray(history)) {
     const days = {};
-    for (const record of history) {
-      if (typeof record?.score !== 'number') continue;
+    history.forEach((record, i) => {
+      if (typeof record?.score !== 'number') return;
       const key = dayKey(record.at);
-      if (key) days[key] = (days[key] ?? 0) + 1;
-    }
-    if (Object.keys(days).length) activity.shadowing = toSlots(days);
+      if (!key) return;
+      (days[key] ??= new Set()).add(record.sentenceId ?? `#${i}`);
+    });
+    const counts = Object.fromEntries(
+      Object.entries(days).map(([key, ids]) => [key, ids.size])
+    );
+    if (Object.keys(counts).length) activity.shadowing = toSlots(counts);
   }
 
   return activity;

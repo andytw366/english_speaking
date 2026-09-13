@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 
 import {
   sentenceStats,
+  recordScore,
+  practisedOn,
   scoreWeight,
   sentenceWeight,
   reviewIntervalHours,
@@ -83,6 +85,65 @@ test('sentenceStats：沒有分數或壞掉的紀錄不會被算進去', () => {
 test('sentenceStats：沒有紀錄或參數不是陣列時回空 Map，不會丟例外', () => {
   assert.equal(sentenceStats([]).size, 0);
   assert.equal(sentenceStats(undefined).size, 0);
+});
+
+// ─── 紀錄分數：同一句取最高的那一次 ──────────────────────────────────────
+//
+// 重錄是在把一句練好，不是多練了幾句。用平均的話，願意重錄的人會被自己
+// 前幾次的爛分數綁著 —— 唸到 95 分了，畫面上還寫 62，而且照樣被判定成「很爛」。
+
+test('sentenceStats：best 是最高的那一次，不是最近一次也不是平均', () => {
+  const stats = sentenceStats([rec('a', 71), rec('a', 95, 10), rec('a', 20, 20)]);
+
+  assert.equal(stats.get('a').best, 95);
+  assert.equal(stats.get('a').last, 71);    // 最近一次照樣留著
+  assert.equal(stats.get('a').average, 62); // 平均也還在，給「練過幾次」那種說明用
+});
+
+test('recordScore：有 best 用 best，沒有就退回 average，都沒有回 null', () => {
+  // 退路是給手寫的統計與別的版本留下來的資料用的
+  assert.equal(recordScore({ best: 90, average: 60 }), 90);
+  assert.equal(recordScore({ average: 60 }), 60);
+  assert.equal(recordScore({ best: 0, average: 60 }), 0);   // 0 分是分數，不是「沒有」
+  assert.equal(recordScore({}), null);
+  assert.equal(recordScore(undefined), null);
+  assert.equal(recordScore({ best: NaN, average: 'x' }), null);
+});
+
+test('scoreWeight：看的是最高分，所以重錄練好之後那一句真的會變罕見', () => {
+  const stats = sentenceStats([rec('a', 95), rec('a', 30, 10), rec('a', 25, 20)]);
+  // 平均 50 的權重是 3；改看最高分（95）之後應該接近 1
+  assert.ok(scoreWeight(stats.get('a')) < 1.5, String(scoreWeight(stats.get('a'))));
+});
+
+test('reviewIntervalHours：間隔也照最高分算', () => {
+  const stats = sentenceStats([rec('a', 100), rec('a', 0, 10)]);
+  assert.equal(reviewIntervalHours(recordScore(stats.get('a'))), SRS_BASE_HOURS * 4);
+});
+
+// ─── 今天這一句練過了沒（「一句算一次」的判斷）──────────────────────────
+
+test('practisedOn：同一天的同一句算練過了', () => {
+  const history = [rec('a', 80, 30), rec('b', 60, 90)];
+  assert.equal(practisedOn(history, 'a', NOW), true);
+  assert.equal(practisedOn(history, 'b', NOW), true);
+  assert.equal(practisedOn(history, 'c', NOW), false);
+});
+
+test('practisedOn：昨天練的不算今天練過 —— 隔天回來練同一句要算一句', () => {
+  const history = [rec('a', 80, 24 * 60)];
+  assert.equal(practisedOn(history, 'a', NOW), false);
+});
+
+test('practisedOn：沒分數的那一次不算（無人聲那種紀錄本來就不算一次練習）', () => {
+  assert.equal(practisedOn([{ sentenceId: 'a', at: rec('a', 1).at }], 'a', NOW), false);
+});
+
+test('practisedOn：壞掉的輸入一律回 false，寧可多算一次也不要少算', () => {
+  assert.equal(practisedOn(undefined, 'a', NOW), false);
+  assert.equal(practisedOn([null, {}], 'a', NOW), false);
+  assert.equal(practisedOn([rec('a', 80)], undefined, NOW), false);
+  assert.equal(practisedOn([{ sentenceId: 'a', score: 80, at: 'x' }], 'a', NOW), false);
 });
 
 // ─── scoreWeight（只看分數的那一半）──────────────────────────────────────

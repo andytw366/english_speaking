@@ -182,6 +182,11 @@ check('沒達標時說還差幾句', (await viewText()).includes('再 3 句'), a
 check('每日目標有四顆可以按', (await page.locator('.today__goal .togglechip').count()) === 4);
 check('目前的目標亮著', (await page.locator('.today__goal .togglechip--on').count()) === 1);
 
+// **一句算一次**：同一句錄三次是把它練好，不是練了三句
+await seed({ history: fakeHistory([[0, 40, 0], [0, 62, 0], [0, 91, 0], [1, 88, 0]]) });
+check('同一句錄三次只算一句', (await text('.today__value')).startsWith('2 /'),
+  await text('.today__value'));
+
 // 今天還沒練不該讓連續天數馬上歸零 —— 那是最不該讓人放棄的時間點
 await seed({ history: fakeHistory([[0, 70, 1], [1, 70, 2]]) });
 check('今天還沒練時連續天數不歸零', (await text('.today__block--streak .today__value')) === '2');
@@ -224,7 +229,16 @@ check('句子換成被指定的那句', (await text('#sentence')) === target, (a
 check('顯示這句練過幾次與分數', /練過 1 次・38 分/.test(await text('.chip--past')), await text('.chip--past'));
 check('剛練過不會催你複習', !(await text('.chip--past')).includes('該複習了'), await text('.chip--past'));
 
+// 同一句練很多次時，chip 上寫的是**紀錄分數（最高的那一次）**，
+// 因為抽句看的也是它 —— 兩邊不一致的話，「為什麼又是這句」就對不起來
+await seed({ history: fakeHistory([[7, 45, 0], [7, 92, 30], [7, 31, 60]]) });
+await page.locator('.history__replay').first().click();
+await page.waitForTimeout(400);
+check('同一句取最高分當紀錄', /練過 3 次・最高 92 分/.test(await text('.chip--past')),
+  await text('.chip--past'));
+
 // 90 分的複習間隔約 3.5 天，10 天前練的那句一定過期
+await seed({ history: fakeHistory([[7, 38, 0], [8, 90, 10]]) });
 await page.locator('.history__replay').nth(1).click();
 await page.waitForTimeout(400);
 check('久沒練的顯示天數', /天前/.test(await text('.chip--past')), await text('.chip--past'));

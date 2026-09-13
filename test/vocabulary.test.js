@@ -390,6 +390,29 @@ test('跟讀從逐筆紀錄數出每天幾句', () => {
   assert.equal(activityCount(a, 'shadowing', dayKey(new Date(Date.now() - 864e5))), 1);
 });
 
+test('搬過來的跟讀紀錄也是一句算一次', () => {
+  // 跟現在記錄的方式一致（modes/shadowing.js）。兩邊不一致的話，
+  // 搬過來的舊數字會比新的膨脹，看起來就像「我以前比較勤勞」
+  const at = (daysAgo) => new Date(Date.now() - daysAgo * 864e5).toISOString();
+  const a = buildActivity({
+    history: [
+      { at: at(0), score: 90, sentenceId: 7 },   // 同一句錄三次
+      { at: at(0), score: 55, sentenceId: 7 },
+      { at: at(0), score: 40, sentenceId: 7 },
+      { at: at(0), score: 80, sentenceId: 8 },
+      { at: at(1), score: 70, sentenceId: 7 },   // 隔天的同一句要另外算一次
+    ],
+  });
+  assert.equal(activityCount(a, 'shadowing', dayKey(new Date())), 2);
+  assert.equal(activityCount(a, 'shadowing', dayKey(new Date(Date.now() - 864e5))), 1);
+});
+
+test('沒有 sentenceId 的舊紀錄各算各的，不會被併成一句', () => {
+  const at = new Date().toISOString();
+  const a = buildActivity({ history: [{ at, score: 80 }, { at, score: 60 }] });
+  assert.equal(activityCount(a, 'shadowing', dayKey(new Date())), 2);
+});
+
 test('沒有舊資料時生出空的計數表，不會生出一堆空欄位', () => {
   assert.deepEqual(buildActivity({}), {});
   assert.deepEqual(buildActivity(), {});

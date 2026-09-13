@@ -21,7 +21,7 @@ import { addAttempt, getHistory, clearHistory } from '../lib/storage.js';
 import { createWaveform } from '../lib/waveform.js';
 import { categoryLabel, difficultyLabel, issueLabel, relativeTime } from '../lib/labels.js';
 import {
-  sentenceStats, pickSentence, isDue, weakIssues, matchedWeakIssues,
+  sentenceStats, pickSentence, isDue, practisedOn, weakIssues, matchedWeakIssues,
   summariseSet, SET_SIZE,
 } from '../lib/practice.js';
 import { problemWordsFromAssessment, prosodyIssue } from '../lib/azure-issues.js';
@@ -308,7 +308,9 @@ function sentenceCard() {
 function pastChipText(stat, since, due) {
   const parts = [
     stat.count === 1 ? '練過 1 次' : `練過 ${stat.count} 次`,
-    stat.count === 1 ? `${stat.last} 分` : `平均 ${stat.average} 分`,
+    // 這一句的成績講的是**紀錄分數（最高的那一次）**，因為抽句看的也是它 ——
+    // 這裡寫平均、那裡照最高算的話，「為什麼又是這句」就對不起來了
+    stat.count === 1 ? `${stat.best} 分` : `最高 ${stat.best} 分`,
   ];
   if (since) parts.push(since);
   if (due && since) parts.push('該複習了');
@@ -625,10 +627,16 @@ async function submit() {
       return;
     }
 
+    // **一句算一次。** 今天的數字算的是「練了幾句」，而同一句錄第二次、第三次
+    // 是在把它練好，不是多練了兩句 —— 照次數算的話，卡在一句上反覆重錄的那一天
+    // 反而是數字最漂亮的一天。要在 `saveAttempt()` **之前**問，
+    // 因為那一行就會把這一次寫進 history 裡。
+    const firstToday = !practisedOn(history, current.id);
+
     saveAttempt(payload);
     // 六個模式共用的每日計數表。跟讀的逐筆紀錄（history）另外還是要留，
     // 分數與弱點音會回頭決定抽句 —— 這裡記的只是「今天練了幾句」。
-    recordPractice('shadowing');
+    if (firstToday) recordPractice('shadowing');
     render();
     setStatus('');
   } catch (err) {
@@ -672,7 +680,7 @@ function saveAttempt(payload) {
   weak = weakIssues(history);
 
   if (typeof score !== 'number') return;
-  setRecords.push({ ...record, at: history[0]?.at });
+  addToSet({ ...record, at: history[0]?.at });
 
   if (setRecords.length >= SET_SIZE) {
     // 總結畫出來之後就把計數歸零：使用者沒按「再練一組」也照樣可以繼續練，
@@ -680,6 +688,23 @@ function saveAttempt(payload) {
     lastSetSummary = summariseSet(setRecords);
     setRecords = [];
   }
+}
+
+/**
+ * 把這一次放進「這一組」。
+ *
+ * **一組 5 句指的是 5 個句子**，所以同一句重錄不會讓 `3 / 5` 變成 `4 / 5`，
+ * 而是**換掉**那一句在這一組裡的成績。換的時候留分數高的那一次
+ * （跟 `recordScore()` 同一條規則：重錄是在把一句練好），
+ * 不然總結的「最高 / 最低」會被自己失敗的那幾次拉下來。
+ */
+function addToSet(record) {
+  const at = setRecords.findIndex((r) => r.sentenceId === record.sentenceId);
+  if (at < 0) {
+    setRecords.push(record);
+    return;
+  }
+  if (record.score > setRecords[at].score) setRecords[at] = record;
 }
 
 function onClearHistory() {

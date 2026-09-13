@@ -29,25 +29,21 @@ export const FLATNESS_FLOOR = 0.08;
 const FRAME_MS = 20;
 
 /**
- * 解析 16-bit PCM 的 WAV，算出峰值、RMS 與有聲音框佔比。
+ * 走一遍 RIFF 的 chunk，找出 fmt 與 data。
  *
- * 前端一律送 16 kHz 單聲道 16-bit PCM（public/wav-encoder.js），
- * 但這裡仍然自己讀 header，遇到不認得的格式就回 analysed:false 放行，
- * 讓後面的流程照常處理 —— 寧可漏擋，也不要把正常的錄音誤判成靜音。
+ * RIFF 的 chunk **不保證照順序、也不保證 fmt 一定是 16 bytes**，所以老實走一遍。
+ * 抽成共用的一段：無人聲偵測與語調曲線都要讀同一種檔案，
+ * 各寫一份的話遲早有一邊漏掉某種寫法（例如 data 的 size 被寫成 0）。
  *
- * @param {Buffer} buf
- * @returns {{analysed: boolean, reason?: string, peak?: number, rms?: number,
- *            voicedRatio?: number, durationSec?: number}}
+ * @returns {{ok: true, fmt: object, dataStart: number, dataLength: number}
+ *           | {ok: false, reason: string}}
  */
-export function analyseWavPcm16(buf) {
-  if (!Buffer.isBuffer(buf) || buf.length < 44) {
-    return { analysed: false, reason: 'too_short' };
-  }
+function parseWav(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 44) return { ok: false, reason: 'too_short' };
   if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') {
-    return { analysed: false, reason: 'not_wav' };
+    return { ok: false, reason: 'not_wav' };
   }
 
-  // RIFF 的 chunk 不保證照順序、也不保證 fmt 一定是 16 bytes，所以老實走一遍。
   let fmt = null;
   let dataStart = -1;
   let dataLength = 0;
@@ -76,10 +72,55 @@ export function analyseWavPcm16(buf) {
     if (size === 0) break; // 壞掉的 header，別無限迴圈
   }
 
-  if (!fmt || dataStart < 0) return { analysed: false, reason: 'no_chunks' };
+  if (!fmt || dataStart < 0) return { ok: false, reason: 'no_chunks' };
   if (fmt.audioFormat !== 1 || fmt.bitsPerSample !== 16) {
-    return { analysed: false, reason: 'not_pcm16' };
+    return { ok: false, reason: 'not_pcm16' };
   }
+  return { ok: true, fmt, dataStart, dataLength };
+}
+
+/**
+ * WAV → 單聲道 Float32 PCM。**語調曲線要用**（`lib/pitch.js` 吃的就是這個形狀）。
+ *
+ * 多聲道取平均降成單聲道，跟 `analyseWavPcm16()` 的做法一致。
+ *
+ * @returns {{ok: true, sampleRate: number, samples: Float32Array}
+ *           | {ok: false, reason: string}}
+ */
+export function decodeWavPcm16(buf) {
+  const parsed = parseWav(buf);
+  if (!parsed.ok) return parsed;
+
+  const { fmt, dataStart, dataLength } = parsed;
+  const channels = Math.max(1, fmt.channels);
+  const frames = Math.floor(Math.floor(dataLength / 2) / channels);
+  const samples = new Float32Array(frames);
+
+  for (let f = 0; f < frames; f += 1) {
+    let mixed = 0;
+    for (let c = 0; c < channels; c += 1) {
+      mixed += buf.readInt16LE(dataStart + (f * channels + c) * 2) / 32768;
+    }
+    samples[f] = mixed / channels;
+  }
+  return { ok: true, sampleRate: fmt.sampleRate, samples };
+}
+
+/**
+ * 解析 16-bit PCM 的 WAV，算出峰值、RMS 與有聲音框佔比。
+ *
+ * 前端一律送 16 kHz 單聲道 16-bit PCM（public/wav-encoder.js），
+ * 但這裡仍然自己讀 header，遇到不認得的格式就回 analysed:false 放行，
+ * 讓後面的流程照常處理 —— 寧可漏擋，也不要把正常的錄音誤判成靜音。
+ *
+ * @param {Buffer} buf
+ * @returns {{analysed: boolean, reason?: string, peak?: number, rms?: number,
+ *            voicedRatio?: number, durationSec?: number}}
+ */
+export function analyseWavPcm16(buf) {
+  const parsed = parseWav(buf);
+  if (!parsed.ok) return { analysed: false, reason: parsed.reason };
+  const { fmt, dataStart, dataLength } = parsed;
 
   const channels = Math.max(1, fmt.channels);
   const totalSamples = Math.floor(dataLength / 2);

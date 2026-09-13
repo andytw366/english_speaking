@@ -38,6 +38,7 @@ export function createStore(dir) {
   const sessionsFile = path.join(dir, 'sessions.json');
   const usageFile = path.join(dir, 'usage.json');
   const userDir = path.join(dir, 'u');
+  const pitchDir = path.join(dir, 'pitch');
 
   /**
    * 一次只讓一個寫入者進來。
@@ -224,6 +225,28 @@ export function createStore(dir) {
     // 一天一格、只留最近幾天 —— 這份資料的用途只有「今天還剩幾次」，
     // 留著歷史除了讓檔案長大之外沒有任何人會去看。
 
+    // ─── 範例句的語調曲線 ──────────────────────────────────────────────
+    //
+    // **這是這個 store 裡唯一跟使用者無關的東西**：一句話的參考曲線是那句話的
+    // 屬性，每個人看到的都一樣，而且**弄丟了可以再產生一次**（再呼叫一次 Azure）。
+    // 所以它刻意不進備份、也不進同步的白名單 —— 那兩份是「弄丟就沒了」的資料。
+    //
+    // 一句一個檔（`pitch/<音色>/<id>.json`）而不是一個大檔：寫入是懶產生的，
+    // 一個大檔要整份讀改寫，而且兩台裝置同時練不同句子就會互相覆蓋。
+    //
+    // 音色在路徑裡：換了音色曲線就整個不一樣，混在一起的話圖上會出現
+    // 「這句是甲的語調、那句是乙的」，而畫面上完全看不出原因。
+
+    /** 這一句的參考曲線。沒有就回 null（呼叫端去產生一份）。 */
+    async readPitch(voice, id) {
+      return readJson(pitchFile(voice, id), null);
+    },
+
+    /** 存一份參考曲線。跟其他寫入共用同一條佇列與原子寫入。 */
+    async writePitch(voice, id, doc) {
+      return exclusive(() => writeJson(pitchFile(voice, id), doc));
+    },
+
     /** 這個人今天已經用掉多少。沒有紀錄回 `{ total: 0, byKey: {} }`。 */
     async readUsage(userId, day) {
       const all = await readJson(usageFile, {});
@@ -312,6 +335,17 @@ export function createStore(dir) {
       });
     },
   };
+
+  /**
+   * 參考曲線的檔案路徑。
+   *
+   * 音色與 id 都會變成路徑的一部分，所以**兩個都要擋掉路徑跳脫** ——
+   * 音色來自 .env（自己人），id 來自網址（不是自己人）。
+   */
+  function pitchFile(voice, id) {
+    const safe = (value) => String(value).replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 64);
+    return path.join(pitchDir, safe(voice), `${safe(id)}.json`);
+  }
 
   async function pruneRevisions(userId, latestRev) {
     const cutoff = latestRev - KEEP_REVISIONS;

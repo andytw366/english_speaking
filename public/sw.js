@@ -60,6 +60,7 @@ const SHELL = [
   '/lib/practice.js',
   '/lib/quiz.js',
   '/lib/recorder.js',
+  '/lib/reference-pitch.js',
   '/lib/session.js',
   '/lib/settings.js',
   '/lib/stat-tile.js',

@@ -16,6 +16,7 @@ import {
 import { narrate as generateNarration, narrationProvider, modelAvailability } from './narrator.js';
 import { parseReviewRequest, reviewAnswer } from './coach.js';
 import { limitsFromEnv, judgeCall, usageKey, describeBlock } from './quota.js';
+import { getReferencePitch } from './reference-pitch.js';
 import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { localSummary, wantsNarration } from './narration.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
@@ -189,6 +190,82 @@ app.get('/api/content/:name', (req, res, next) => {
 
 // 舊路徑保留，避免既有連結壞掉
 app.get('/api/sentences', (req, res) => res.redirect(307, '/api/content/sentences'));
+
+/**
+ * 「範例句」的語調曲線。跟讀的語調圖要拿它疊第二條線。
+ *
+ * **為什麼是自己一支 GET，而不是塞進 /api/pronunciation-feedback：**
+ *   1. 評分那條路不能被第二個外部呼叫拖下水 —— TTS 慢了、掛了，分數照樣要回來
+ *   2. GET + 固定 id 讓 service worker 快取得了，練過的句子離線也看得到
+ *   3. 之後的模式（AI 對話）要用同一條路，不必動到評分
+ *
+ * **第一次會呼叫 Azure 合成一份、存起來；之後都是讀檔，不花錢也不扣額度。**
+ * 任何一種失敗都回 200 + `ok: false` —— 這張圖是加分的，
+ * 它掛掉不該讓前端看到一個紅色的錯誤（分數、講評全都不受影響）。
+ */
+app.get('/api/reference-pitch/:id', async (req, res, next) => {
+  try {
+    const sentence = await findSentence(req.params.id);
+    if (!sentence) {
+      return res.status(404).json({ ok: false, reason: 'unknown_sentence' });
+    }
+    // 沒設 Azure 金鑰**不是錯誤，是一種設定**（跟讀照樣可以走 Gemini 那條路評分）。
+    // 先擋在這裡而不是讓合成丟例外：不然每練一句就在伺服器 console 留一行警告
+    if (!hasAzureConfig()) return res.json({ ok: false, reason: 'no_key' });
+
+    const result = await getReferencePitch({
+      id: sentence.id,
+      text: sentence.text,
+      store,
+      // 額度**只有快取沒中的時候才扣** —— 讀檔不花錢。
+      // 扣不到就是沒有範例曲線，分數與講評都不受影響
+      spend: () => spendQuota(req, { provider: 'azure' }),
+    });
+
+    if (!result.ok) {
+      return res.json({
+        ok: false,
+        reason: result.reason,
+        ...(result.quota ? { quota: quotaInfo(result.quota) } : {}),
+      });
+    }
+    // 快取命中就讓瀏覽器也留一份：這份資料是那句話的屬性，不會變
+    if (result.cached) res.set('Cache-Control', 'private, max-age=86400');
+    res.json({ ok: true, pitch: result.doc, cached: result.cached });
+  } catch (err) {
+    // Azure 掛了、金鑰沒設、超時 —— 都只是「這次沒有範例曲線」
+    if (err?.name === 'AzureError') {
+      console.warn('[reference-pitch]', err.code, err.userMessage);
+      return res.json({ ok: false, reason: err.code, message: err.userMessage });
+    }
+    next(err);
+  }
+});
+
+/**
+ * 從句庫裡找一句。**id 來自網址，所以是拿來比對的，不會拿去組路徑。**
+ *
+ * 句庫解析過就留著（450 KB、兩千句）—— 其他內容端點是把原文直接串出去、
+ * 不解析，這裡要的是「id 對應到哪一句」，每次請求都 parse 一遍太浪費。
+ * 看 mtime 決定要不要重讀：改了 content/sentences.json 不用重開伺服器。
+ */
+let sentenceCache = { mtimeMs: 0, byId: new Map() };
+
+async function findSentence(rawId) {
+  const id = Number(rawId);
+  if (!Number.isInteger(id) || id <= 0) return null;
+
+  const file = path.join(ROOT, 'content', CONTENT_FILES.sentences);
+  const { mtimeMs } = await fs.promises.stat(file);
+  if (mtimeMs !== sentenceCache.mtimeMs) {
+    const list = JSON.parse(await fs.promises.readFile(file, 'utf8'));
+    sentenceCache = {
+      mtimeMs,
+      byId: new Map((Array.isArray(list) ? list : []).map((s) => [s.id, s])),
+    };
+  }
+  return sentenceCache.byId.get(id) ?? null;
+}
 
 // ─── 設定 ────────────────────────────────────────────────────────────────
 //

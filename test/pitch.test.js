@@ -15,7 +15,7 @@ import path from 'node:path';
 
 import {
   pitchContour, contourRuns, semitones, downsample, fixOctaveJumps, medianSmooth,
-  F_MIN, F_MAX,
+  compactContour, expandContour, F_MIN, F_MAX,
 } from '../public/lib/pitch.js';
 
 const RATE = 16000;
@@ -231,6 +231,49 @@ test('真人錄音抽得出像樣的曲線', () => {
   assert.ok(span > 2 && span < 24, `半音範圍 ${span.toFixed(1)}`);
   // 而且畫得出至少兩段（中間有停頓）
   assert.ok(contourRuns(contour.points).length >= 2);
+});
+
+// ─── 存得下的形狀（範例句的曲線要存在伺服器上）──────────────────────────
+
+test('compactContour：只留半音、小數一位', () => {
+  const contour = pitchContour(sweep(200, 300, 0.6), RATE);
+  const compact = compactContour(contour);
+
+  assert.equal(compact.hopSec, contour.hopSec);
+  assert.equal(compact.points.length, contour.points.length);
+  for (const st of compact.points) {
+    if (st === null) continue;
+    assert.equal(Math.round(st * 10) / 10, st, `${st} 不是一位小數`);
+  }
+});
+
+test('compact → expand 回得來，形狀一樣', () => {
+  const contour = pitchContour(sweep(180, 260, 0.8), RATE);
+  const back = expandContour(compactContour(contour));
+
+  assert.equal(back.points.length, contour.points.length);
+  // 半音差在四捨五入的誤差內（0.05），時間對得上
+  contour.points.forEach((p, i) => {
+    if (!p) return assert.equal(back.points[i], null);
+    assert.ok(Math.abs(back.points[i].st - p.st) <= 0.05, `第 ${i} 格 ${back.points[i].st} vs ${p.st}`);
+    assert.ok(Math.abs(back.points[i].t - p.t) < 1e-9);
+  });
+  assert.ok(Math.abs(back.rangeSt[0] - contour.rangeSt[0]) <= 0.05);
+});
+
+test('expandContour：壞掉的輸入不會炸', () => {
+  for (const input of [null, undefined, {}, { points: 'x' }]) {
+    const back = expandContour(input);
+    assert.deepEqual(back.points, []);
+    assert.equal(back.rangeSt, null);
+  }
+});
+
+test('壓完的大小是可以存的量級', () => {
+  // 一句三秒的曲線大約 1.5 KB。會長到十倍的話就得改成降取樣再存
+  const compact = compactContour(pitchContour(sweep(180, 260, 3), RATE));
+  const bytes = JSON.stringify(compact).length;
+  assert.ok(bytes < 4000, `${bytes} bytes`);
 });
 
 test('semitones：12 個半音是一個八度', () => {

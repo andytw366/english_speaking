@@ -1624,6 +1624,14 @@ body {
   stroke-linecap: round;
 }
 
+/* 範例那一條：淡、虛線、細一點 —— 它是背景參考，使用者要看的是自己那一條 */
+.pitch__line--ref {
+  stroke: var(--text-muted);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+  opacity: 0.65;
+}
+
 .trend {
   margin: 0 0 1rem;
 }

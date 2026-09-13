@@ -100,6 +100,42 @@ export function pitchContour(samples, sampleRate) {
   };
 }
 
+/**
+ * 壓成存得下的形狀：只留半音、小數一位。
+ *
+ * 為什麼只留半音：畫圖只用得到它（y 軸就是半音），而 `hz` 與 `t` 都算得回來
+ * —— `t` 是第幾格乘以 `hopSec`。一句三秒的曲線壓完大約 1.5 KB。
+ *
+ * 為什麼是一位小數：0.1 個半音是完全看不出來的差別（一個像素都不到），
+ * 而 `-2.3` 比 `-2.2999999999999998` 短了一半。
+ *
+ * 這個形狀是**伺服器存檔與傳輸用的**（範例句的曲線），`expandContour()` 是反向。
+ */
+export function compactContour(contour) {
+  return {
+    hopSec: contour?.hopSec ?? 0.01,
+    medianHz: contour?.medianHz ?? null,
+    points: (contour?.points ?? []).map((p) => (p ? Math.round(p.st * 10) / 10 : null)),
+  };
+}
+
+/** `compactContour()` 的反向：展開成畫圖用的形狀（跟 `pitchContour()` 一樣）。 */
+export function expandContour(compact) {
+  const hopSec = compact?.hopSec ?? 0.01;
+  const raw = Array.isArray(compact?.points) ? compact.points : [];
+  const points = raw.map((st, i) =>
+    (typeof st === 'number' ? { t: i * hopSec, hz: null, st } : null));
+  const voiced = points.filter(Boolean).map((p) => p.st);
+
+  return {
+    hopSec,
+    points,
+    medianHz: compact?.medianHz ?? null,
+    voicedRatio: points.length ? voiced.length / points.length : 0,
+    rangeSt: voiced.length ? [Math.min(...voiced), Math.max(...voiced)] : null,
+  };
+}
+
 /** 兩個頻率差幾個半音。 */
 export function semitones(hz, referenceHz) {
   return 12 * Math.log2(hz / referenceHz);

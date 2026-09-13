@@ -30,6 +30,7 @@ import { requestNarration, quotaNote } from '../lib/ai-review.js';
 import { chipField } from '../lib/fields.js';
 import { renderToday, renderSetSummary, renderHistory } from './shadowing-views.js';
 import { recordPractice } from '../lib/daily.js';
+import { referencePitch } from '../lib/reference-pitch.js';
 import { goalOf, setGoal } from '../lib/settings.js';
 
 export const meta = { id: 'shadowing', label: '跟讀', icon: '🗣️' };
@@ -45,6 +46,7 @@ let waveformCanvas = null;   // render() 會重建 DOM，波形要跟著換到�
 let wavBlob = null;
 let wavStats = null;
 let wavPitch = null;   // 這段錄音的語調曲線（blobToWav() 順手算好的）
+let refPitch = null;   // 這一句的**範例**曲線（伺服器合成的，見 lib/reference-pitch.js）
 let playbackUrl = null;
 let lastResult = null;
 let history = [];
@@ -200,6 +202,7 @@ function dismissSummary() {
 function nextSentence() {
   showingSummary = false;
   narration = null;
+  refPitch = null;
   outOfPoolNote = '';
   // 加權的規則在 practice.js，這裡只負責把目前的狀態餵進去。
   // 關掉開關就退回等機率隨機 —— 「怎麼一直抽到同幾句」要有辦法關掉。
@@ -217,6 +220,7 @@ function practiseSentence(id) {
   const target = allSentences.find((s) => s.id === id);
   if (!target) return;
   current = target;
+  refPitch = null;
   // 他自己挑了一句要練，就別再停在總結那一頁 ——
   // 總結本身留著，「換一句」那顆按鈕還是進得去
   showingSummary = false;
@@ -289,7 +293,13 @@ function render() {
     renderAssessment(card, lastResult, current.text, (el) => {
       const target = root.querySelector('#sentence');
       if (target) target.replaceWith(el);
-    }, { narration: narrationBox(), pitch: wavPitch });
+    }, {
+      narration: narrationBox(),
+      pitch: wavPitch,
+      // 要到的那一句必須就是現在這一句 —— 換過句子之後舊的曲線疊上去，
+      // 圖會看起來像「你這句唸得完全不對」
+      reference: refPitch?.id === current.id ? refPitch : null,
+    });
     append(main, card);
   }
 
@@ -429,6 +439,7 @@ function setStatus(text, kind = '') {
 async function playDemo(e = null) {
   const btn = e?.currentTarget ?? null;   // 非同步 callback 裡 currentTarget 會變 null，先抓下來
   if (btn) btn.disabled = true;
+  wantReference();
   try {
     await speak(current.text);
   } catch (err) {
@@ -438,11 +449,35 @@ async function playDemo(e = null) {
   }
 }
 
+/**
+ * 去要這一句的範例曲線（要到了就留著，等講評出來時疊到圖上）。
+ *
+ * **時機是「使用者已經決定要練這一句」** —— 按了播放示範、或按了錄音 ——
+ * 而不是換到這一句就要：第一次要一句會讓伺服器呼叫一次 Azure 合成（花錢），
+ * 而「換一句」是這個模式裡按得最兇的按鈕。
+ *
+ * 不 await：曲線要不要得到都不影響錄音，而錄音那三秒剛好把延遲藏起來。
+ * 要到了才重畫，而且**要確認使用者還停在同一句**（要的過程中他可能已經換過了）。
+ */
+function wantReference() {
+  const id = current?.id;
+  if (id === undefined || refPitch?.id === id) return;
+
+  referencePitch(id).then((data) => {
+    if (!data || current?.id !== id) return;
+    refPitch = { id, ...data };
+    // 分數還沒回來時圖還沒畫，重畫一次不會有任何視覺變化；
+    // 已經畫好了的話這一次就會補上那條淡色的線
+    if (lastResult) render();
+  });
+}
+
 // ─── 錄音 ────────────────────────────────────────────────────────────────
 
 async function toggleRecord() {
   if (recorder?.isRecording) return stopRecording();
 
+  wantReference();
   lastResult = null;
   wavBlob = null;
   wavStats = null;

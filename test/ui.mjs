@@ -485,6 +485,43 @@ const tooShort = await page.evaluate(async () => {
 });
 check('資料太少就不畫（回 null）', tooShort === null);
 
+// 範例那一條：疊上去、而且**對齊到我的節奏**。
+// 對錯了的症狀是「圖上看起來我整段語調都不對」，而其實只是唸得比較慢 ——
+// 規則本身（含字數對不上時退回按比例）在 test/reference-pitch.test.js
+const refChart = await page.evaluate(async () => {
+  const { buildPitchChart } = await import('/lib/pitch-chart.js');
+  const mine = [];
+  for (let i = 0; i < 40; i += 1) mine.push({ t: i * 0.01, hz: 200, st: (i - 20) / 4 });
+  const refPoints = [];
+  for (let i = 0; i < 20; i += 1) refPoints.push({ t: i * 0.01, st: 2 });
+  const chart = buildPitchChart(
+    { hopSec: 0.01, points: mine, medianHz: 200, voicedRatio: 1, rangeSt: [-5, 4.75] },
+    {
+      // 我唸了 0.4 秒，範例只有 0.2 秒（我慢了一倍）
+      words: [{ word: 'hello', start: 0, duration: 0.4, errorType: 'None' }],
+      reference: {
+        contour: { hopSec: 0.01, points: refPoints },
+        words: [{ word: 'hello', start: 0, duration: 0.2 }],
+      },
+    });
+  const box = document.createElement('div');
+  box.id = 'refprobe';
+  box.append(chart.svg);
+  document.getElementById('view').append(box);
+  return {
+    caption: chart.caption,
+    // 範例那條線的最後一個點：對齊之後該落在我的時間軸的尾巴（0.19 → 0.38 秒）
+    lastX: box.querySelector('.pitch__line--ref')?.getAttribute('points')?.split(' ').pop(),
+  };
+});
+
+check('範例那一條疊上去了', (await page.locator('#refprobe .pitch__line--ref').count()) >= 1);
+check('說明文字講得出那條淡色的是什麼', refChart.caption.includes('淡色那條是範例'),
+  refChart.caption);
+// 沒對齊的話最後一個點會停在圖的一半（0.19 / 0.4），對齊之後會到 0.38 / 0.4
+check('範例被對齊到我的節奏上', Number(refChart.lastX?.split(',')[0]) > 280,
+  `最後一個點的 x = ${refChart.lastX}`);
+
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【9】一組練完的總結');
 
@@ -530,6 +567,24 @@ console.log('\n【9b】跟讀：一組 5 句練完之後');
 // 兩三個螢幕才看得到 —— 實際用起來就是一路按「換一句」，那張總結一次也沒被
 // 看到過。現在它擋在「換一句」前面，而那是一個狀態機（規則在
 // `nextSentenceAction()`，那裡測得到），這一段驗的是它真的接對了。
+// 範例曲線那一支也攔掉（真的要呼叫 Azure 合成）。
+// 這裡驗的是**前端的接線**：按下錄音就去要、要到了畫成第二條線
+let fakeRefCalls = 0;
+await page.route('**/api/reference-pitch/*', (route) => {
+  fakeRefCalls += 1;
+  const points = [];
+  for (let i = 0; i < 120; i += 1) points.push(i % 20 < 15 ? Math.sin(i / 8) * 4 : null);
+  route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true,
+      cached: false,
+      pitch: { id: 1, hopSec: 0.01, medianHz: 210, points, words: [], voice: 'test-voice' },
+    }),
+  });
+});
+
 let fakeScoreCalls = 0;
 await page.route('**/api/pronunciation-feedback', (route) => {
   fakeScoreCalls += 1;
@@ -575,6 +630,10 @@ check('五句都送出去了', fakeScoreCalls === SET_SIZE_UI, `${fakeScoreCalls
 // 所以一定抽得到音高）。規則本身在 test/pitch.test.js，這裡驗的是接線
 check('錄完會畫出語調圖', (await page.locator('.pitch__svg').count()) === 1,
   (await page.locator('.pitch__caption').textContent().catch(() => '（沒有圖）')));
+// 按下錄音就去要範例曲線（不是換一句就要 —— 那會為沒練的句子付錢）
+check('按了錄音就去要範例曲線', fakeRefCalls > 0, `${fakeRefCalls} 次`);
+check('範例那一條也畫上去了', (await page.locator('.pitch__line--ref').count()) >= 1,
+  await page.locator('.pitch__caption').textContent());
 check('練完一組之後，「換一句」變成看總結的入口',
   (await page.locator('#view button', { hasText: '看總結' }).count()) === 1,
   (await viewText()).slice(0, 60).replace(/\s+/g, ' '));
@@ -601,6 +660,16 @@ check('今天的進度是 5 句', (await text('.today__value')).startsWith(`${SE
   await text('.today__value'));
 
 await page.unroute('**/api/pronunciation-feedback');
+await page.unroute('**/api/reference-pitch/*');
+
+// 伺服器那一支自己也要驗：**沒設金鑰時回 200 + ok:false，不是 500** ——
+// 這張圖是加分的，它產生不出來不該讓畫面出現紅色的錯誤
+const refApi = await apiGet('/api/reference-pitch/1');
+check('沒設金鑰時範例曲線回 ok:false 而不是爆掉', refApi?.ok === false,
+  JSON.stringify(refApi).slice(0, 80));
+const refMissing = await fetch(`${BASE}/api/reference-pitch/999999`,
+  { headers: { cookie: cookieHeader } });
+check('句庫裡沒有的 id 回 404', refMissing.status === 404, String(refMissing.status));
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【10】設定頁');

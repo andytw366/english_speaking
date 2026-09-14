@@ -1554,6 +1554,84 @@ body {
 }
 
 /* ─── 分數趨勢圖 ────────────────────────────────────────────────────────── */
+/* ─── 語調圖 ──────────────────────────────────────────────────────────────
+   跟趨勢圖同一套做法（inline SVG + CSS 變數換色），但它畫的是「形狀」，
+   所以沒有數字軸 —— 只有一條中線當基準，以及上緣標著幾個半音。 */
+.pitch {
+  margin: 0.8rem 0 1rem;
+}
+
+.pitch__caption {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.pitch__chart {
+  margin-top: 0.2rem;
+}
+
+.pitch__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  overflow: visible;
+}
+
+.pitch__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/* 中線是「你這一句的平均高度」，要比上下兩條實一點 —— 它是讀圖的基準 */
+.pitch__grid--mid {
+  stroke-dasharray: none;
+}
+
+.pitch__axis {
+  fill: var(--text-muted);
+  font-size: 7px;
+  text-anchor: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 字的分隔線要很淡：它是背景，曲線才是主角 */
+.pitch__word-line {
+  stroke: var(--border);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.pitch__word {
+  fill: var(--text-muted);
+  font-size: 7px;
+  text-anchor: middle;
+}
+
+/* Azure 點名語調有問題的字（太平、不該停、該停沒停） */
+.pitch__word--flag {
+  fill: var(--warn-text);
+  font-weight: 600;
+}
+
+.pitch__line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* 範例那一條：淡、虛線、細一點 —— 它是背景參考，使用者要看的是自己那一條 */
+.pitch__line--ref {
+  stroke: var(--text-muted);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+  opacity: 0.65;
+}
+
 .trend {
   margin: 0 0 1rem;
 }

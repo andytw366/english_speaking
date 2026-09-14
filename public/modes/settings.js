@@ -2,7 +2,7 @@ import { h, append } from '../lib/dom.js';
 import { grid } from '../lib/layout.js';
 import { loadVoices, speak } from '../lib/tts.js';
 import {
-  getSettings, updateSettings, resetSettings, setGoal, DEFAULTS,
+  getSettings, updateSettings, resetSettings, setGoal, setNewWordsPerDay, DEFAULTS,
   aiMode, setAiMode, AI_FEATURES, AI_MODES,
 } from '../lib/settings.js';
 import { getUser, logout } from '../lib/session.js';
@@ -51,6 +51,9 @@ const GOAL_CHOICES = {
   shadowing: [3, 5, 10, 20],
 };
 const DIFFICULTIES = DIFFICULTY_ORDER.map((id) => [id, DIFFICULTY_LABEL[id]]);
+
+/** 「今天最多幾個新字」的快速選項。0 要寫成「不限」—— 寫「0 個」會讀成「不要新字」。 */
+const NEW_WORD_CHOICES = [[5, '5 個'], [10, '10 個'], [20, '20 個'], [0, '不限']];
 
 let voices = [];
 let models = [];
@@ -661,6 +664,27 @@ function goalCard() {
         onchange: (e) => { setGoal(mode.id, e.target.value); render(); },
       }),
     )),
+
+    // 新字的上限跟在單字卡那一列後面：它切的是**同一個數字**的內容
+    // （今天的 20 個字裡，最多幾個是沒學過的），放到「練習偏好」那張卡就看不出關聯
+    h('div', { class: 'field' },
+      h('span', { class: 'field__label' }, '　　其中最多幾個新字'),
+      h('div', { class: 'chips' },
+        NEW_WORD_CHOICES.map(([n, label]) => toggleChip(
+          label,
+          (s.vocabNewPerDay ?? 0) === n,
+          () => { setNewWordsPerDay(n); render(); },
+        ))),
+      h('input', {
+        class: 'field__input', id: 'vocab-new-per-day', type: 'number', min: '0', max: '500',
+        'aria-label': '單字卡今天最多發幾個新字',
+        value: String(s.vocabNewPerDay ?? 0),
+        onchange: (e) => { setNewWordsPerDay(e.target.value); render(); },
+      }),
+    ),
+    h('p', { class: 'hint' },
+      '到期要複習的字再多，也會留這麼多名額給沒學過的字；反過來說，' +
+      '一天最多就發這麼多新字（隔天要複習的量才不會忽多忽少）。0 ＝ 不限。'),
 
     // 這一句留著：單字卡是唯一「目標會改變行為」的模式，
     // 不知道的話會覺得「我只是調個目標，怎麼一輪的張數也變了」

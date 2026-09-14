@@ -27,7 +27,9 @@ export const TREND_LIMIT = 20;
  * 依句子彙整練習紀錄。
  *
  * @param {Array<object>} history 由新到舊的紀錄（`storage.loadHistory()` 的格式）
- * @returns {Map<string, {count:number, average:number, last:number, lastAt:string}>}
+ * @returns {Map<string, {count:number, best:number, average:number, last:number, lastAt:string}>}
+ *   `best` 是這一句的**紀錄分數**（見 `recordScore()`），`average` 與 `last` 留著給
+ *   「練過幾次、上次幾分」這種說明用
  */
 export function sentenceStats(history) {
   const stats = new Map();
@@ -43,10 +45,12 @@ export function sentenceStats(history) {
     if (found) {
       found.count += 1;
       found.total += record.score;
+      found.best = Math.max(found.best, record.score);
     } else {
       stats.set(id, {
         count: 1,
         total: record.score,
+        best: record.score,
         last: record.score,
         lastAt: record.at ?? '',
       });
@@ -61,24 +65,67 @@ export function sentenceStats(history) {
 }
 
 /**
+ * 這一句的「紀錄分數」—— 同一句練很多次時，**算數的是最高的那一次**。
+ *
+ * 為什麼是最高而不是平均：同一句錄第二次、第三次是**在把它練好**，
+ * 不是在多練幾句。用平均的話，願意重錄的人反而被自己前幾次的爛分數拖著走
+ * —— 一句唸到 95 分，平均還停在 62，於是它照樣被判定成「你這句很爛」而一直被抽出來，
+ * 而畫面上寫的也是 62。發音是「做得到就是做得到」，最高分才是真正的能力上限。
+ *
+ * 代價講清楚：僥倖的一次好成績會留著。可以接受 —— 抽句還有「久沒練就回升」
+ * 那一半（`dueFactor()`），所以那一句只是變罕見，不會消失。
+ *
+ * 舊的統計沒有 `best` 就退回 `average`（手寫的統計、或別的版本留下來的資料），
+ * 兩個都沒有就回 `null`，讓呼叫端自己決定「沒練過」該怎麼算。
+ */
+export function recordScore(stat) {
+  const pick = (value) => (typeof value === 'number' && !Number.isNaN(value) ? value : null);
+  return pick(stat?.best) ?? pick(stat?.average);
+}
+
+/**
+ * 這一句在某一天練過了沒。
+ *
+ * 「今天練了幾句」算的是**句數**，所以同一句錄第二次不該再加一次
+ * —— 判斷的依據就是這個函式（純函式，餵紀錄與時間，測得到）。
+ *
+ * 沒有 `sentenceId` 的紀錄一律回 false：那種紀錄湊不出「是不是同一句」，
+ * 寧可多算一次，也不要把兩句不同的話當成同一句而少算。
+ */
+export function practisedOn(history, sentenceId, now = Date.now()) {
+  if (sentenceId === undefined || sentenceId === null) return false;
+  const day = dayKey(new Date(now));
+  if (!day) return false;
+  return (history ?? []).some(
+    (record) => record?.sentenceId === sentenceId &&
+      typeof record?.score === 'number' &&
+      dayKey(record.at) === day
+  );
+}
+
+/**
  * 分數對應的基礎權重。分數越低權重越高，但不會高到把其他句子完全擠掉。
  *
  * 沒練過的句子給 3 —— 比「練過而且練得好」高（要鼓勵覆蓋沒碰過的句子），
  * 但比「練過而且練得爛」低（那些才是最該回頭練的）。
  *
+ * 看的是**這一句的紀錄分數**（最高的那一次，見 `recordScore()`），不是平均 ——
+ * 重錄是在把一句練好，不該讓願意重錄的人被自己前幾次的分數綁住。
+ *
  * | 狀態 | 基礎權重 |
  * |---|---|
  * | 沒練過 | 3 |
- * | 平均 100 分 | 1 |
- * | 平均 50 分 | 3 |
- * | 平均 0 分 | 5 |
+ * | 最高 100 分 | 1 |
+ * | 最高 50 分 | 3 |
+ * | 最高 0 分 | 5 |
  *
  * 最低是 1 而不是 0：練得好的句子只是變罕見，不會從池子裡消失，
  * 不然使用者會發現某些句子再也抽不到。
  */
 export function scoreWeight(stat) {
-  if (!stat || typeof stat.average !== 'number' || Number.isNaN(stat.average)) return 3;
-  const weight = 1 + (100 - stat.average) / 25;
+  const score = recordScore(stat);
+  if (score === null) return 3;
+  const weight = 1 + (100 - score) / 25;
   return Math.min(5, Math.max(1, weight));
 }
 
@@ -109,8 +156,9 @@ export const DUE_MAX = 2;
  * 用指數而不是線性，是因為「練得好」與「練得爛」該有數量級的差距 ——
  * 差兩倍的話，練到 90 分的句子隔天照樣會一直冒出來。
  */
-export function reviewIntervalHours(average) {
-  const clamped = Math.min(100, Math.max(0, typeof average === 'number' ? average : 50));
+export function reviewIntervalHours(score) {
+  // 吃的是那一句的紀錄分數；認不得的值（沒練過、壞掉的資料）當 50 分＝基準間隔
+  const clamped = Math.min(100, Math.max(0, typeof score === 'number' ? score : 50));
   return SRS_BASE_HOURS * 2 ** ((clamped - 50) / 25);
 }
 
@@ -126,7 +174,9 @@ export function dueFactor(stat, now = Date.now()) {
   if (Number.isNaN(last)) return 1;
 
   const elapsedHours = Math.max(0, (now - last) / 3_600_000);
-  const ratio = elapsedHours / reviewIntervalHours(stat.average);
+  // 間隔也是照紀錄分數算的 —— 練到 90 分的句子就該隔久一點回來，
+  // 不管你為了練到 90 分重錄了幾次
+  const ratio = elapsedHours / reviewIntervalHours(recordScore(stat));
   // 1 - e^-x：一開始爬得快（剛練完的壓抑很快就鬆開），之後平緩地趨近上限
   return DUE_MIN + (DUE_MAX - DUE_MIN) * (1 - Math.exp(-ratio));
 }
@@ -158,7 +208,7 @@ export function isDue(stat, now = Date.now()) {
   if (!stat) return true;
   const last = toTime(stat.lastAt);
   if (Number.isNaN(last)) return true;
-  return (now - last) / 3_600_000 >= reviewIntervalHours(stat.average);
+  return (now - last) / 3_600_000 >= reviewIntervalHours(recordScore(stat));
 }
 
 /**
@@ -327,6 +377,25 @@ export function streakFromDays(days, now = Date.now()) {
 
 /** 一組幾句。5 句約 3～5 分鐘，短到隨時可以開始，長到看得出平均分有意義。 */
 export const SET_SIZE = 5;
+
+/**
+ * 按下「換一句」（或按 N）的時候該做什麼。
+ *
+ * **一組練完的總結擋在「換一句」前面。** 原本總結是畫在講評下面的第四張卡，
+ * 而那個位置在手機上要再捲兩三個螢幕 —— 實際用起來就是一路按「換一句」，
+ * 那張總結一次也沒被看到過。
+ *
+ * 寫成純函式是因為它是一個**狀態機**，而它錯掉的方式不會有錯誤訊息：
+ * 兩個 if 的順序寫反的話，看完總結按下一句會再進總結一次，永遠出不去
+ * （寫的時候真的踩到過，鍵盤那條路）。
+ *
+ * @returns {'summary'|'dismiss'|'next'}
+ *   summary = 先停下來看總結；dismiss = 看完了，收起來並換下一句；next = 直接換下一句
+ */
+export function nextSentenceAction({ pendingSummary, showingSummary } = {}) {
+  if (showingSummary) return 'dismiss';
+  return pendingSummary ? 'summary' : 'next';
+}
 
 /**
  * 一組練完之後的總結。

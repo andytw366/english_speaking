@@ -15,6 +15,7 @@
 //           CHROMIUM（Chromium 執行檔路徑，機器上已經有一份時可以指過去）
 
 import fs from 'node:fs';
+import path from 'node:path';
 import os from 'node:os';
 
 import { chromium } from '@playwright/test';
@@ -22,6 +23,8 @@ import { chromium } from '@playwright/test';
 // 出題規則的那份純函式。測試要知道「哪個選項才是對的」才能故意答錯，
 // 所以直接用 App 用的同一份，而不是在這裡再抄一次切義項的邏輯。
 import { firstSense } from '../public/lib/quiz.js';
+// 一組幾句從 App 自己那份拿（`lib/practice.js`），測試裡不要再寫死一個
+import { SET_SIZE as SET_SIZE_UI } from '../public/lib/practice.js';
 import { MODE_IDS } from '../public/lib/modes.js';
 import {
   TEST_USER, addCookieToContext, apiGetter, authenticate, resetServerProgress,
@@ -57,9 +60,22 @@ if (!Array.isArray(sentences) || sentences.length < 10) {
   process.exit(1);
 }
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
+// 假的麥克風，餵的是 repo 裡那段真人語音（e2e.mjs 用同一招）。
+//
+// **一定要餵檔案，不能用 Chromium 自己產生的嗶聲**：那個嗶聲是「一秒響一下」，
+// 中間全是靜音，抽出來的語調曲線只有三、四格有聲 —— 而語調圖需要至少八格
+// 才畫得出來，所以【9b】的「錄完會畫出語調圖」會莫名其妙紅掉。踩過。
+const FAKE_AUDIO = path.join(import.meta.dirname, 'fixtures', 'speech-16k.wav');
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM || undefined,
+  args: [
+    '--use-fake-ui-for-media-stream',
+    '--use-fake-device-for-media-stream',
+    `--use-file-for-fake-audio-capture=${FAKE_AUDIO}`,
+  ],
+});
 // acceptDownloads：備份那一段會真的下載一個檔案再讀回來
-const context = await browser.newContext({ acceptDownloads: true });
+const context = await browser.newContext({ acceptDownloads: true, permissions: ['microphone'] });
 
 // 把登入的 cookie 塞進瀏覽器，其餘的測試就跟以前一樣不必管登入。
 // 登入畫面本身另外有一段測（【21】）
@@ -182,6 +198,11 @@ check('沒達標時說還差幾句', (await viewText()).includes('再 3 句'), a
 check('每日目標有四顆可以按', (await page.locator('.today__goal .togglechip').count()) === 4);
 check('目前的目標亮著', (await page.locator('.today__goal .togglechip--on').count()) === 1);
 
+// **一句算一次**：同一句錄三次是把它練好，不是練了三句
+await seed({ history: fakeHistory([[0, 40, 0], [0, 62, 0], [0, 91, 0], [1, 88, 0]]) });
+check('同一句錄三次只算一句', (await text('.today__value')).startsWith('2 /'),
+  await text('.today__value'));
+
 // 今天還沒練不該讓連續天數馬上歸零 —— 那是最不該讓人放棄的時間點
 await seed({ history: fakeHistory([[0, 70, 1], [1, 70, 2]]) });
 check('今天還沒練時連續天數不歸零', (await text('.today__block--streak .today__value')) === '2');
@@ -224,7 +245,16 @@ check('句子換成被指定的那句', (await text('#sentence')) === target, (a
 check('顯示這句練過幾次與分數', /練過 1 次・38 分/.test(await text('.chip--past')), await text('.chip--past'));
 check('剛練過不會催你複習', !(await text('.chip--past')).includes('該複習了'), await text('.chip--past'));
 
+// 同一句練很多次時，chip 上寫的是**紀錄分數（最高的那一次）**，
+// 因為抽句看的也是它 —— 兩邊不一致的話，「為什麼又是這句」就對不起來
+await seed({ history: fakeHistory([[7, 45, 0], [7, 92, 30], [7, 31, 60]]) });
+await page.locator('.history__replay').first().click();
+await page.waitForTimeout(400);
+check('同一句取最高分當紀錄', /練過 3 次・最高 92 分/.test(await text('.chip--past')),
+  await text('.chip--past'));
+
 // 90 分的複習間隔約 3.5 天，10 天前練的那句一定過期
+await seed({ history: fakeHistory([[7, 38, 0], [8, 90, 10]]) });
 await page.locator('.history__replay').nth(1).click();
 await page.waitForTimeout(400);
 check('久沒練的顯示天數', /天前/.test(await text('.chip--past')), await text('.chip--past'));
@@ -407,6 +437,102 @@ const oldNote = await narrationNote({ narrationSource: 'local' });
 check('舊回應（只有 narrationSource）也還有說明', oldNote.includes('本地摘要'), oldNote);
 
 // ─────────────────────────────────────────────────────────────────────────
+console.log('\n【8b】語調圖');
+
+// 直接餵一條造好的曲線進去 —— 抽 F0 的規則本身在 test/pitch.test.js 用合成音
+// 與真人錄音測得更準，這裡驗的是「拿到這樣的曲線時畫成什麼」。
+await page.evaluate(async () => {
+  const { buildPitchChart } = await import('/lib/pitch-chart.js');
+  const points = [];
+  for (let i = 0; i < 40; i += 1) {
+    // 第 20、21 格無聲（中間的停頓），其餘從 -5 半音一路升到 +5
+    points.push(i === 20 || i === 21
+      ? null
+      : { t: i * 0.01, hz: 200, st: (i - 20) / 4 });
+  }
+  const contour = {
+    hopSec: 0.01, points, medianHz: 200, voicedRatio: 0.95, rangeSt: [-5, 4.75],
+  };
+  const chart = buildPitchChart(contour, {
+    words: [
+      { word: 'hello', start: 0, duration: 0.2, errorType: 'None' },
+      { word: 'there', start: 0.2, duration: 0.19, errorType: 'Monotone' },
+    ],
+  });
+  const box = document.createElement('div');
+  box.id = 'pitchprobe';
+  box.append(chart.svg, Object.assign(document.createElement('p'), { textContent: chart.caption }));
+  document.getElementById('view').append(box);
+});
+
+check('畫得出曲線', (await page.locator('#pitchprobe .pitch__line').count()) > 0);
+// 停頓不可以被連起來 —— 一條橫跨停頓的線看起來像「你這裡拖了一個長音」
+check('停頓把曲線切成兩段', (await page.locator('#pitchprobe .pitch__line').count()) === 2,
+  `${await page.locator('#pitchprobe .pitch__line').count()} 段`);
+check('字標在下面', (await text('#pitchprobe')).includes('hello') &&
+  (await text('#pitchprobe')).includes('there'));
+check('Azure 點名的字標出來', (await page.locator('#pitchprobe .pitch__word--flag').count()) === 1);
+check('有中線當基準', (await page.locator('#pitchprobe .pitch__grid--mid').count()) === 1);
+check('說明文字講得出起伏多大', /高低差約 \d+ 個半音/.test(await text('#pitchprobe')),
+  (await text('#pitchprobe')).slice(0, 80));
+await shot(page, 'ui-08b-語調圖');
+
+// 資料不夠時不留一塊空白，也不寫「無法顯示」—— 這張圖是加分的，不是主角
+const tooShort = await page.evaluate(async () => {
+  const { buildPitchChart } = await import('/lib/pitch-chart.js');
+  const points = [{ t: 0, hz: 200, st: 0 }, { t: 0.01, hz: 201, st: 0.1 }];
+  return buildPitchChart({ hopSec: 0.01, points, medianHz: 200, voicedRatio: 1, rangeSt: [0, 0.1] });
+});
+check('資料太少就不畫（回 null）', tooShort === null);
+
+// 範例那一條：疊上去、而且**對齊到我的節奏**。
+// 對錯了的症狀是「圖上看起來我整段語調都不對」，而其實只是唸得比較慢 ——
+// 規則本身（含字數對不上時退回按比例）在 test/reference-pitch.test.js
+const refChart = await page.evaluate(async () => {
+  const { buildPitchChart } = await import('/lib/pitch-chart.js');
+  const mine = [];
+  for (let i = 0; i < 40; i += 1) mine.push({ t: i * 0.01, hz: 200, st: (i - 20) / 4 });
+  const refPoints = [];
+  for (let i = 0; i < 20; i += 1) refPoints.push({ t: i * 0.01, st: 2 });
+  const chart = buildPitchChart(
+    { hopSec: 0.01, points: mine, medianHz: 200, voicedRatio: 1, rangeSt: [-5, 4.75] },
+    {
+      // 我唸了 0.4 秒，範例只有 0.2 秒（我慢了一倍）
+      words: [{ word: 'hello', start: 0, duration: 0.4, errorType: 'None' }],
+      reference: {
+        contour: { hopSec: 0.01, points: refPoints },
+        words: [{ word: 'hello', start: 0, duration: 0.2 }],
+      },
+    });
+  const box = document.createElement('div');
+  box.id = 'refprobe';
+  box.append(chart.svg);
+  document.getElementById('view').append(box);
+  return {
+    caption: chart.caption,
+    // 範例那條線的最後一個點：對齊之後該落在我的時間軸的尾巴（0.19 → 0.38 秒）
+    lastX: box.querySelector('.pitch__line--ref')?.getAttribute('points')?.split(' ').pop(),
+  };
+});
+
+check('範例那一條疊上去了', (await page.locator('#refprobe .pitch__line--ref').count()) >= 1);
+check('說明文字講得出那條淡色的是什麼', refChart.caption.includes('淡色那條是範例'),
+  refChart.caption);
+// 沒對齊的話最後一個點會停在圖的一半（0.19 / 0.4），對齊之後會到 0.38 / 0.4
+check('範例被對齊到我的節奏上', Number(refChart.lastX?.split(',')[0]) > 280,
+  `最後一個點的 x = ${refChart.lastX}`);
+
+// 「播放正確發音」放哪一個聲音。規則本身在 test/reference-pitch.test.js，
+// 這裡確認那個模組在瀏覽器裡也載得起來（它 import 了 session.js）
+const sources = await page.evaluate(async () => {
+  const { demoSource } = await import('/lib/reference-pitch.js');
+  return [demoSource({ id: 3, hasAudio: true }, 3), demoSource(null, 3)];
+});
+check('有範例音訊就放它（圖上跟耳朵裡是同一個人）', sources[0].kind === 'audio',
+  JSON.stringify(sources[0]));
+check('沒有就退回瀏覽器的 TTS', sources[1].kind === 'tts');
+
+// ─────────────────────────────────────────────────────────────────────────
 console.log('\n【9】一組練完的總結');
 
 await page.evaluate(async () => {
@@ -441,6 +567,144 @@ await page.evaluate(async () => {
 });
 check('都唸對時講的是好消息，不是一片空白',
   (await text('#probe4')).includes('沒有被點名'));
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n【9b】跟讀：一組 5 句練完之後');
+
+// 真的錄五次音（假麥克風）＋ 攔掉評分的那一趟，走完整條「一組」的路。
+//
+// **為什麼值得這樣測**：總結原本是畫在講評下面的第四張卡，在手機上要再捲
+// 兩三個螢幕才看得到 —— 實際用起來就是一路按「換一句」，那張總結一次也沒被
+// 看到過。現在它擋在「換一句」前面，而那是一個狀態機（規則在
+// `nextSentenceAction()`，那裡測得到），這一段驗的是它真的接對了。
+// 範例曲線那一支也攔掉（真的要呼叫 Azure 合成）。
+// 這裡驗的是**前端的接線**：按下錄音就去要、要到了畫成第二條線
+let fakeRefCalls = 0;
+await page.route('**/api/reference-pitch/*', (route) => {
+  fakeRefCalls += 1;
+  const points = [];
+  for (let i = 0; i < 120; i += 1) points.push(i % 20 < 15 ? Math.sin(i / 8) * 4 : null);
+  route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true,
+      cached: false,
+      pitch: {
+        id: 1, hopSec: 0.01, medianHz: 210, points, words: [],
+        voice: 'test-voice',
+        // 伺服器也把合成出來的音訊留了一份 → 示範發音要放它，不是瀏覽器的 TTS
+        hasAudio: true,
+      },
+    }),
+  });
+});
+
+// 範例音訊：回一小段真的 WAV（16 kHz 單聲道），瀏覽器才播得動
+let fakeAudioCalls = 0;
+await page.route('**/api/reference-audio/*', (route) => {
+  fakeAudioCalls += 1;
+  route.fulfill({ status: 200, contentType: 'audio/wav', body: fs.readFileSync(FAKE_AUDIO) });
+});
+
+let fakeScoreCalls = 0;
+await page.route('**/api/pronunciation-feedback', (route) => {
+  fakeScoreCalls += 1;
+  route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      provider: 'azure',
+      speech_detected: true,
+      referenceText: 'x',
+      recognizedText: 'x',
+      scores: { pronunciation: 60 + fakeScoreCalls, accuracy: 70, fluency: 80, completeness: 100, prosody: 50 },
+      words: [{ word: 'x', accuracy: 60, errorType: 'None', phonemes: [{ phoneme: 'x', accuracy: 60 }] }],
+      feedback_zh: 'ok',
+    }),
+  });
+});
+
+await seed({ mode: 'shadowing', history: [] });
+await page.waitForSelector('#sentence');
+
+/** 錄一次、送出一次。 */
+const recordOnce = async () => {
+  await page.locator('#view button', { hasText: '開始錄音' }).click();
+  // 1.2 秒：假音檔本身是 1.5 秒（前後有靜音），錄太短會剛好落在沒有人聲的那一段
+  await page.waitForTimeout(1200);
+  await page.locator('#view button', { hasText: '停止' }).click();
+  await page.waitForTimeout(500);
+  await page.locator('#btn-submit').click();
+  await page.waitForTimeout(500);
+};
+
+for (let i = 1; i <= SET_SIZE_UI; i += 1) {
+  await recordOnce();
+  if (i < SET_SIZE_UI) {
+    await page.locator('#view button', { hasText: '換一句' }).click();
+    await page.waitForTimeout(300);
+  }
+}
+
+check('五句都送出去了', fakeScoreCalls === SET_SIZE_UI, `${fakeScoreCalls} 次`);
+// 錄音 → 抽曲線 → 畫圖 整條線真的接起來了（假麥克風是一段固定頻率的嗶聲，
+// 所以一定抽得到音高）。規則本身在 test/pitch.test.js，這裡驗的是接線
+check('錄完會畫出語調圖', (await page.locator('.pitch__svg').count()) === 1,
+  (await page.locator('.pitch__caption').textContent().catch(() => '（沒有圖）')));
+// 按下錄音就去要範例曲線（不是換一句就要 —— 那會為沒練的句子付錢）
+check('按了錄音就去要範例曲線', fakeRefCalls > 0, `${fakeRefCalls} 次`);
+check('範例那一條也畫上去了', (await page.locator('.pitch__line--ref').count()) >= 1,
+  await page.locator('.pitch__caption').textContent());
+
+// 示範發音要放 Azure 那一份 —— 圖上畫的是它的語調，聽到的是瀏覽器內建的聲音的話，
+// 兩個人的語調本來就不同，使用者會以為圖畫錯了
+await page.locator('#view button', { hasText: '播放正確發音' }).click();
+await page.waitForTimeout(1500);
+check('按播放會去拿範例音訊，不是用瀏覽器的 TTS', fakeAudioCalls > 0, `${fakeAudioCalls} 次`);
+check('練完一組之後，「換一句」變成看總結的入口',
+  (await page.locator('#view button', { hasText: '看總結' }).count()) === 1,
+  (await viewText()).slice(0, 60).replace(/\s+/g, ' '));
+// 不自動彈出來：剛錄完最想看的是自己這一句幾分
+check('總結不會自己插進講評裡', !(await viewText()).includes('這一組練完了'));
+
+await page.locator('#view button', { hasText: '看總結' }).click();
+await page.waitForTimeout(400);
+check('按下去就停在總結那一頁', (await viewText()).includes('這一組練完了'));
+check('總結自己占一頁，不用捲', (await page.locator('#sentence').count()) === 0);
+check('側欄的今天與紀錄還在', (await page.locator('.card--today').count()) === 1 &&
+  (await page.locator('.history__item').count()) === SET_SIZE_UI);
+check('總結算的是這五句', (await text('.card--set')).includes(`${SET_SIZE_UI} 句`),
+  (await text('.card--set')).replace(/\s+/g, ' ').slice(0, 40));
+await shot(page, 'ui-09b-一組練完了');
+
+await page.locator('#view button', { hasText: '再練一組' }).click();
+await page.waitForTimeout(500);
+check('「再練一組」接回下一句', (await page.locator('#sentence').count()) === 1);
+check('接回去之後按鈕變回「換一句」',
+  (await page.locator('#view button', { hasText: '換一句' }).count()) === 1);
+// 一句算一次：五句五個句子，而且每一句都只送出過一次
+check('今天的進度是 5 句', (await text('.today__value')).startsWith(`${SET_SIZE_UI} /`),
+  await text('.today__value'));
+
+await page.unroute('**/api/pronunciation-feedback');
+await page.unroute('**/api/reference-pitch/*');
+await page.unroute('**/api/reference-audio/*');
+
+// 伺服器那一支自己也要驗：**沒設金鑰時回 200 + ok:false，不是 500** ——
+// 這張圖是加分的，它產生不出來不該讓畫面出現紅色的錯誤
+const refApi = await apiGet('/api/reference-pitch/1');
+check('沒設金鑰時範例曲線回 ok:false 而不是爆掉', refApi?.ok === false,
+  JSON.stringify(refApi).slice(0, 80));
+const refMissing = await fetch(`${BASE}/api/reference-pitch/999999`,
+  { headers: { cookie: cookieHeader } });
+check('句庫裡沒有的 id 回 404', refMissing.status === 404, String(refMissing.status));
+
+// 範例音訊那一支**只讀快取、不合成** —— 沒有就 404，前端退回瀏覽器的 TTS
+const audioMissing = await fetch(`${BASE}/api/reference-audio/1`,
+  { headers: { cookie: cookieHeader } });
+check('沒有存過的範例音訊回 404（不會自己去合成）', audioMissing.status === 404,
+  String(audioMissing.status));
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【10】設定頁');
@@ -557,7 +821,7 @@ console.log('\n【11】單字卡：選難度、各級進度、舊進度搬家');
 const legacySrs = {};
 for (let i = 1; i <= 40; i++) {
   legacySrs[`band-1:${i}`] = i % 2
-    ? { box: 5, due: Date.now() - 1000, seen: 6, correct: 6 }
+    ? { box: 6, due: Date.now() - 1000, seen: 7, correct: 7 }
     : { box: 2, due: Date.now() + 9e6, seen: 2, correct: 1 };
 }
 legacySrs['curated:1'] = { box: 3, due: Date.now(), seen: 3, correct: 2 };
@@ -622,17 +886,18 @@ const learning = Number(await text('.srsstat--learning .srsstat__value'));
 await page.locator('#view button', { hasText: '看複習盒' }).click();
 await page.waitForSelector('.boxlist');
 
-check('五個盒子都在', (await page.locator('.card', { has: page.locator('.deckbar') }).count()) >= 5,
+check('六個盒子都在', (await page.locator('.card', { has: page.locator('.deckbar') }).count()) >= 6,
   `${await page.locator('.card').count()} 張卡`);
-check('間隔寫在盒子上', (await viewText()).includes('每 21 天複習'));
+check('間隔寫在盒子上', (await viewText()).includes('每 35 天複習'));
 
 const boxWords = async (n) => page.locator('.card', { hasText: `第 ${n} 盒` })
   .locator('.boxlist__word').count();
-check('最後一盒的字數跟「已熟練」對得起來', (await boxWords(5)) === mastered,
-  `第 5 盒 ${await boxWords(5)} 個・已熟練 ${mastered}`);
-check('學習中的字散在中間那幾盒',
-  (await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4)) === learning,
-  `1～4 盒共 ${(await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) + (await boxWords(4))}・學習中 ${learning}`);
+check('最後一盒的字數跟「已熟練」對得起來', (await boxWords(6)) === mastered,
+  `第 6 盒 ${await boxWords(6)} 個・已熟練 ${mastered}`);
+const learningBoxes = (await boxWords(1)) + (await boxWords(2)) + (await boxWords(3)) +
+  (await boxWords(4)) + (await boxWords(5));
+check('學習中的字散在中間那幾盒', learningBoxes === learning,
+  `1～5 盒共 ${learningBoxes}・學習中 ${learning}`);
 check('到期的字標出來了', (await page.locator('.boxlist .chip--due').count()) > 0,
   `${await page.locator('.boxlist .chip--due').count()} 個標成已到期`);
 check('每個字都寫出答對幾次', /答對 \d+ \/ \d+ 次/.test(await viewText()));
@@ -704,8 +969,9 @@ await page.waitForTimeout(200);
 const savedGoal = await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).dailyGoals.vocabulary);
 check('改得動而且存得起來', savedGoal === 30, String(savedGoal));
-check('五個模式都設得到目標',
-  (await page.locator('.card', { hasText: '每日目標' }).locator('.field').count()) === 5);
+check('五個模式都設得到目標，加上單字卡的新字上限',
+  (await page.locator('.card', { hasText: '每日目標' }).locator('.field').count()) === 6,
+  `${await page.locator('.card', { hasText: '每日目標' }).locator('.field').count()} 列`);
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【13】單字卡：選擇題');
@@ -714,7 +980,9 @@ const tier1 = await apiGet('/api/vocabulary/tier-1.json');
 const meaningOf = (word) => firstSense(tier1.find((c) => c.word === word)?.meaning_zh);
 
 // 固定成「看英文選中文」，這樣測試知道正確答案是哪一個字串
-await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 20 }, vocabQuizTypes: ['en2zh'] } });
+// vocabNewPerDay: 0（不限）—— 這一段驗的是出題與批改，不該因為新字額度
+// 把一輪切短而讓 counter 的斷言時好時壞。額度本身在【13b】自己測
+await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 20 }, vocabQuizTypes: ['en2zh'], vocabNewPerDay: 0 } });
 await page.waitForSelector('.quiz__options');
 
 check('出的是選擇題', (await text('.card__meta .chip')).includes('看英文選中文'));
@@ -797,6 +1065,30 @@ check('中→英：答完也列出其他選項的意思',
   (await page.locator('.quiz__other-meaning').allTextContents()).join(' / '));
 await shot(page, 'ui-13-其他選項');
 
+// ── 今天的最後一題 ───────────────────────────────────────────────────────
+// 每日目標設 1，所以第一題答完 remaining 就變 0。**答案要先看得到**：
+// 成績在選下去的當下就記了，若這時直接切去「今天練完了」，這一題的正確答案、
+// 背面與其他選項全部被蓋掉，等於白答（這正是修掉的那個 bug）。
+await seed({
+  mode: 'vocabulary',
+  settings: { vocabDeck: 'tier-1', dailyGoals: { vocabulary: 1 }, vocabQuizTypes: ['en2zh'] },
+});
+await page.waitForSelector('.quiz__options');
+const lastPrompt = (await text('.quiz__prompt')).trim();
+await page.locator('.quiz__option', { hasText: meaningOf(lastPrompt) }).first().click();
+await page.waitForTimeout(250);
+check('今天最後一題答完，答案不會被「今天練完了」蓋掉',
+  (await text('.card__title')).includes('答對了') &&
+  !(await viewText()).includes('練完了'), (await viewText()).slice(0, 60).replace(/\s+/g, ' '));
+check('最後一題答完也列得出其他選項', (await page.locator('.quiz__other').count()) === 3);
+check('今天的份已經記進去了', (await text('.card--today')).includes('1 / 1'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+check('按鈕講清楚按下去會發生什麼',
+  (await page.locator('#view button', { hasText: '完成今天的份' }).count()) === 1);
+await page.locator('#view button', { hasText: '完成今天的份' }).click();
+await page.waitForTimeout(300);
+check('按了才切到「今天練完了」', (await viewText()).includes('今天的 1 個字練完了'));
+
 // 一種都沒勾就退回翻卡，不是整個不能用
 await seed({ mode: 'vocabulary', settings: { vocabDeck: 'tier-1', vocabQuizTypes: [] } });
 await page.waitForSelector('#view .card');
@@ -852,6 +1144,111 @@ check('取消得掉', (await page.evaluate(() =>
   JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabQuizTypes)).join() === 'en2zh');
 
 // ─────────────────────────────────────────────────────────────────────────
+console.log('\n【13b】單字卡：複習規則（退一盒、日界、新字額度）');
+
+// 一張已經爬到第 3 盒的字，故意答錯 —— 該退到第 2 盒，不是掉回第 1 盒
+await seed({
+  mode: 'vocabulary',
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'],
+    dailyGoals: { vocabulary: 20 }, vocabNewPerDay: 0,
+  },
+  srs: { 'ecdict:1': { box: 3, due: Date.now() - 1000, seen: 4, correct: 3, since: 1 } },
+});
+await page.waitForSelector('.quiz__options');
+check('到期的卡排在最前面（第 3 盒那一張）', (await text('.card__meta')).includes('第 3 盒'),
+  (await text('.card__meta')).replace(/\s+/g, ' '));
+
+const rightAnswer = meaningOf((await text('.quiz__prompt')).trim());
+const wrongOption = (await page.locator('.quiz__option').allTextContents())
+  .map((o) => o.trim()).find((o) => o !== rightAnswer);
+await page.locator('.quiz__option', { hasText: wrongOption }).first().click();
+await page.waitForTimeout(250);
+
+check('答錯退一盒，不是掉回第 1 盒', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 2);
+check('畫面講的盒號跟存下來的一樣', (await viewText()).includes('退到第 2 盒'),
+  (await viewText()).slice(0, 80).replace(/\s+/g, ' '));
+check('順便講出下次什麼時候複習', (await viewText()).includes('1 天後再複習'));
+
+// 到期時間算到「那一天」的 00:00，不是「現在 + N×24 小時」
+const dueAt = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].due);
+const dueDate = new Date(dueAt);
+check('間隔 1 天 = 明天的 00:00（晚上練的字，隔天一早也抽得到）',
+  dueDate.getHours() === 0 && dueDate.getMinutes() === 0 &&
+  dueAt - Date.now() <= 24 * 60 * 60 * 1000, dueDate.toString());
+
+// 新字額度：到期的字再多，也留名額給沒學過的
+const dueSrs = {};
+for (let i = 1; i <= 40; i++) dueSrs[`ecdict:${i}`] = { box: 2, due: Date.now() - i, seen: 2, correct: 1, since: 1 };
+await seed({
+  mode: 'vocabulary',
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: [],
+    dailyGoals: { vocabulary: 10 }, vocabNewPerDay: 5,
+  },
+  srs: dueSrs,
+});
+await page.waitForSelector('.vocab__word');
+check('今天的份還是 10 張', (await text('.counter')).trim() === '1 / 10',
+  (await text('.counter')).trim());
+check('到期的字一堆，也還是留了名額給新字', (await viewText()).includes('今天還留著 5 個名額給新字'),
+  (await viewText()).slice(0, 200).replace(/\s+/g, ' '));
+
+// 一輪 10 張裡，幾張是沒學過的（新字沒有複習紀錄，卡面會寫「第 1 盒」）
+const boxesInRound = [];
+for (let i = 0; i < 10; i++) {
+  boxesInRound.push((await text('.card__meta')).includes('第 1 盒') ? 'new' : 'review');
+  await page.locator('#view button', { hasText: '顯示答案' }).click();
+  await page.waitForTimeout(80);
+  await page.locator('#view button', { hasText: '記得' }).click();
+  await page.waitForTimeout(150);
+}
+check('一輪裡新字不會被到期的字整個擠掉',
+  boxesInRound.filter((b) => b === 'new').length === 5,
+  boxesInRound.join(' '));
+check('複習仍然優先（另外一半都是到期的字）',
+  boxesInRound.filter((b) => b === 'review').length === 5, boxesInRound.join(' '));
+
+// 額度用完之後不是無聲卡住，要講清楚而且給得出下一步
+await seed({
+  mode: 'vocabulary',
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: [],
+    dailyGoals: { vocabulary: 20 }, vocabNewPerDay: 2,
+  },
+});
+await page.waitForSelector('.vocab__word');
+for (let i = 0; i < 2; i++) {
+  await page.locator('#view button', { hasText: '顯示答案' }).click();
+  await page.waitForTimeout(80);
+  await page.locator('#view button', { hasText: '記得' }).click();
+  await page.waitForTimeout(200);
+}
+check('新字發完就說是上限擋住的，不是只說「練完了」',
+  (await viewText()).includes('新字已經發到上限'), (await viewText()).slice(0, 120).replace(/\s+/g, ' '));
+check('今天的份還沒滿的話講得出來', (await text('.card--today')).includes('2 / 20'),
+  (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 20));
+check('要硬練還是可以（上限是護欄，不是鎖）',
+  (await page.locator('#view button', { hasText: '再多練' }).count()) === 1);
+await page.locator('#view button', { hasText: '再多練' }).click();
+await page.waitForTimeout(400);
+check('按了就真的再發得出新字', (await page.locator('.vocab__word').count()) === 1 &&
+  (await text('.counter')).trim() === '1 / 10', (await text('.counter')).trim());
+await shot(page, 'ui-13b-複習規則');
+
+// 設定頁改得動新字上限
+await seed({ mode: 'settings', settings: { vocabNewPerDay: 10 } });
+const newChips = page.locator('.card', { hasText: '每日目標' })
+  .locator('.field', { hasText: '其中最多幾個新字' }).locator('button');
+check('設定頁有新字上限', (await newChips.count()) === 4, `${await newChips.count()} 顆`);
+await newChips.nth(0).click();
+await page.waitForTimeout(200);
+check('按了就存起來', (await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('speaking-coach:settings')).vocabNewPerDay)) === 5);
+
+// ─────────────────────────────────────────────────────────────────────────
 console.log('\n【14】備份與還原');
 
 // 這一段是真的走完一輪：下載 → 把資料清掉 → 用下載的檔案還原回來。
@@ -859,7 +1256,7 @@ console.log('\n【14】備份與還原');
 await seed({
   mode: 'settings',
   settings: { dailyGoals: { vocabulary: 30 }, vocabDeck: 'tier-2' },
-  srs: { 'ecdict:1': { box: 5, due: 1, seen: 6, correct: 6 }, 'ecdict:2': { box: 2, due: 1, seen: 2, correct: 1 } },
+  srs: { 'ecdict:1': { box: 6, due: 1, seen: 7, correct: 7 }, 'ecdict:2': { box: 2, due: 1, seen: 2, correct: 1 } },
   activity: { vocabulary: { '2026-09-04': 20, '2026-09-05': 12 } },
   history: fakeHistory([[0, 88, 0]]),
 });
@@ -1220,7 +1617,10 @@ console.log('\n【18】鍵盤操作');
 // 單字卡的選擇題：數字鍵選答案、Enter 下一題
 await seed({
   mode: 'vocabulary',
-  settings: { vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'], dailyGoals: { vocabulary: 20 } },
+  settings: {
+    vocabDeck: 'tier-1', vocabQuizTypes: ['en2zh'],
+    dailyGoals: { vocabulary: 20 }, vocabNewPerDay: 0,
+  },
   srs: { 'ecdict:1': { box: 1, due: Date.now() - 1000, seen: 1 } },
 });
 await page.waitForSelector('.quiz__options');
@@ -1248,8 +1648,9 @@ await page.waitForTimeout(200);
 check('空白鍵翻卡', (await viewText()).includes('剛剛記得嗎'));
 await page.keyboard.press('1');
 await page.waitForTimeout(250);
-check('翻卡按 1 是「還不熟」（回到第 1 盒）',
-  (await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 1);
+check('翻卡按 1 是「還不熟」（第 3 盒退到第 2 盒）',
+  (await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)) === 2,
+  `第 ${await page.evaluate(() => JSON.parse(localStorage.getItem('speaking-coach:srs'))['ecdict:1'].box)} 盒`);
 
 // 正在打字的時候不接快捷鍵 —— 不擋的話打一個 n 就換題，答案直接消失
 await seed({ mode: 'translation' });

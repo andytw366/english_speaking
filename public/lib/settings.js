@@ -16,6 +16,9 @@ export const DEFAULTS = {
   },
   // 單字卡要練哪些題型（可複選，混合出題）。空陣列會退回翻卡，見 lib/quiz.js
   vocabQuizTypes: ['zh2en', 'en2zh'],
+  // 單字卡今天最多發幾個**沒學過**的字。0 = 不限。
+  // 這是今天的份裡保留給新字的額度，剩下的名額才給到期要複習的，見 lib/storage.js
+  vocabNewPerDay: 10,
   categories: [],        // 空陣列 = 全部
   difficulties: [],      // 空陣列 = 全部
   translationType: 'all',// all | cloze | sentence
@@ -184,6 +187,21 @@ function migrateAi(stored, current) {
 export function goalOf(mode) {
   const n = Number(getSettings().dailyGoals?.[mode]);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+/**
+ * 單字卡今天最多發幾個新字。**0（或沒設）代表不限**，回 Infinity ——
+ * 呼叫端拿去跟別的額度取 min，回 0 的話會變成「一個新字都不發」。
+ */
+export function newWordsPerDay() {
+  const n = Number(getSettings().vocabNewPerDay);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : Infinity;
+}
+
+/** 改「今天最多幾個新字」。0 = 不限，上限跟每日目標同一個數量級。 */
+export function setNewWordsPerDay(value) {
+  const n = Math.max(0, Math.min(500, Number(value) || 0));
+  return updateSettings({ vocabNewPerDay: n });
 }
 
 /** 改某個模式的每日目標。 */

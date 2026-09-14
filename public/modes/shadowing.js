@@ -21,8 +21,8 @@ import { addAttempt, getHistory, clearHistory } from '../lib/storage.js';
 import { createWaveform } from '../lib/waveform.js';
 import { categoryLabel, difficultyLabel, issueLabel, relativeTime } from '../lib/labels.js';
 import {
-  sentenceStats, pickSentence, isDue, weakIssues, matchedWeakIssues,
-  summariseSet, SET_SIZE,
+  sentenceStats, pickSentence, isDue, practisedOn, weakIssues, matchedWeakIssues,
+  summariseSet, nextSentenceAction, SET_SIZE,
 } from '../lib/practice.js';
 import { problemWordsFromAssessment, prosodyIssue } from '../lib/azure-issues.js';
 import { renderAssessment } from './assessment-view.js';
@@ -30,11 +30,20 @@ import { requestNarration, quotaNote } from '../lib/ai-review.js';
 import { chipField } from '../lib/fields.js';
 import { renderToday, renderSetSummary, renderHistory } from './shadowing-views.js';
 import { recordPractice } from '../lib/daily.js';
+import { demoSource, referencePitch } from '../lib/reference-pitch.js';
 import { goalOf, setGoal } from '../lib/settings.js';
 
 export const meta = { id: 'shadowing', label: '跟讀', icon: '🗣️' };
 
 const DEFAULT_GOAL = SET_SIZE;
+
+/**
+ * 按下「播放正確發音」之後，最多等多久範例音訊。
+ *
+ * 1.2 秒是「還在按鍵的反應時間裡」的上限。等不到就先用瀏覽器的 TTS 出聲 ——
+ * 乾等三秒才聽到聲音，比聽到一個不同的聲音更糟。
+ */
+const REFERENCE_WAIT_MS = 1200;
 
 let allSentences = [];   // 句庫全部（「重練這句」要能跨過篩選條件）
 let pool = [];           // 目前篩選條件內的句子
@@ -44,13 +53,16 @@ let waveform = null;
 let waveformCanvas = null;   // render() 會重建 DOM，波形要跟著換到新的 canvas
 let wavBlob = null;
 let wavStats = null;
+let wavPitch = null;   // 這段錄音的語調曲線（blobToWav() 順手算好的）
+let refPitch = null;   // 這一句的**範例**曲線（伺服器合成的，見 lib/reference-pitch.js）
 let playbackUrl = null;
 let lastResult = null;
 let history = [];
 let stats = new Map();   // 依句子彙整的成績；history 一變就重算
 let weak = new Map();    // 最近哪些音出問題出得最多
 let setRecords = [];     // 這一組練到第幾句（只存在記憶體：一組是「這次坐下來練的」）
-let lastSetSummary = null;
+let pendingSummary = null;  // 這一組的總結，還沒給使用者看
+let showingSummary = false; // 現在停在總結那一頁（擋在「換一句」前面，見 onNextSentence）
 // 手動要來的中文講評：null（還沒要）| { phase: 'loading'|'done'|'error', … }。
 // 跟著 lastResult 走 —— 換一句、或重新送出一次錄音都要清掉
 let narration = null;
@@ -86,12 +98,20 @@ export async function mount(container) {
  */
 function onKey(key) {
   if (!root || !current) return false;
+
+  // 停在總結那一頁時畫面上只有一顆「再練一組」。**空白鍵尤其要攔**：
+  // 那一頁沒有錄音的按鈕，照原本的規則按下去會在背後開始錄音
+  if (showingSummary) {
+    if (key === 'enter' || key === 'space' || key === 'n') { dismissSummary(); return true; }
+    return false;
+  }
+
   const recording = Boolean(recorder?.isRecording);
 
   if (key === 'space') { toggleRecord(); return true; }
   if (recording) return false;
   if (key === 'p') { playDemo(); return true; }
-  if (key === 'n') { nextSentence(); return true; }
+  if (key === 'n') { onNextSentence(); return true; }
   // 錄好了就送出 —— Enter 在每個模式都是「這個畫面的主要動作」
   if (key === 'enter') {
     const btn = root.querySelector('#btn-submit');
@@ -152,8 +172,45 @@ function dailyGoal() {
   return saved > 0 ? saved : DEFAULT_GOAL;
 }
 
+/**
+ * 使用者按「換一句」（或按 N）。
+ *
+ * **一組練完的總結擋在這裡。** 原本它是畫在講評下面的第四張卡，而那個位置
+ * 在手機上要再捲兩三個螢幕才看得到 —— 實際用起來就是一路按「換一句」，
+ * 那張總結一次也沒被看到過。現在按下去先停在總結，那一頁自己有「再練一組」接回去，
+ * 所以只多一次點擊，而且是在使用者本來就要按的那顆按鈕上。
+ *
+ * 不自動彈出來、也不插在講評上面：剛錄完最想看的是自己這一句幾分，
+ * 總結是「這一組」的結論，等他要往下走的那一刻才是它的位置。
+ */
+function onNextSentence() {
+  // 三種情況（規則與理由在 `nextSentenceAction()`，那裡測得到）：
+  // 已經在總結那一頁 → 當成「再練一組」，不然總結沒被清掉，
+  // 下一句的按鈕又會變回「看總結」，永遠出不去
+  switch (nextSentenceAction({ pendingSummary, showingSummary })) {
+    case 'dismiss':
+      return dismissSummary();
+    case 'summary':
+      showingSummary = true;
+      render();
+      root?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    default:
+      return nextSentence();
+  }
+}
+
+/** 看完總結，開下一組。 */
+function dismissSummary() {
+  pendingSummary = null;
+  showingSummary = false;
+  nextSentence();
+}
+
 function nextSentence() {
+  showingSummary = false;
   narration = null;
+  refPitch = null;
   outOfPoolNote = '';
   // 加權的規則在 practice.js，這裡只負責把目前的狀態餵進去。
   // 關掉開關就退回等機率隨機 —— 「怎麼一直抽到同幾句」要有辦法關掉。
@@ -171,6 +228,10 @@ function practiseSentence(id) {
   const target = allSentences.find((s) => s.id === id);
   if (!target) return;
   current = target;
+  refPitch = null;
+  // 他自己挑了一句要練，就別再停在總結那一頁 ——
+  // 總結本身留著，「換一句」那顆按鈕還是進得去
+  showingSummary = false;
 
   // 篩選條件不動 —— 偷偷改掉使用者選的條件比句子跑出範圍更難理解。
   // 但要講清楚，不然按「換一句」時會覺得句子莫名其妙跳走。
@@ -187,6 +248,7 @@ function resetAttempt() {
   waveform?.reset();
   wavBlob = null;
   wavStats = null;
+  wavPitch = null;
   lastResult = null;
   revokePlayback();
   render();
@@ -218,6 +280,20 @@ function render() {
     return;
   }
 
+  // 一組練完的總結**自己占一頁**（側欄的今天與紀錄照舊留著）。
+  // 跟單字卡的「選難度 / 複習盒」是同一個做法：要使用者停下來看的東西，
+  // 就不要跟他正在做的事擠在同一欄
+  if (showingSummary && pendingSummary) {
+    append(main, renderSetSummary(pendingSummary, dismissSummary));
+    append(side, renderHistory(history, {
+      sentences: allSentences,
+      onReplay: practiseSentence,
+      onClear: onClearHistory,
+      replayDisabled: false,
+    }));
+    return;
+  }
+
   append(main, sentenceCard(), recordCard());
 
   if (lastResult) {
@@ -225,15 +301,14 @@ function render() {
     renderAssessment(card, lastResult, current.text, (el) => {
       const target = root.querySelector('#sentence');
       if (target) target.replaceWith(el);
-    }, { narration: narrationBox() });
+    }, {
+      narration: narrationBox(),
+      pitch: wavPitch,
+      // 要到的那一句必須就是現在這一句 —— 換過句子之後舊的曲線疊上去，
+      // 圖會看起來像「你這句唸得完全不對」
+      reference: refPitch?.id === current.id ? refPitch : null,
+    });
     append(main, card);
-  }
-
-  if (lastSetSummary) {
-    append(main, renderSetSummary(lastSetSummary, () => {
-      lastSetSummary = null;
-      nextSentence();
-    }));
   }
 
   append(side, renderHistory(history, {
@@ -269,11 +344,13 @@ function sentenceCard() {
 
     h('div', { class: 'row' },
       ttsSupported() && h('button', { class: 'btn btn--ghost', onclick: playDemo }, '🔊 播放正確發音'),
+      // 總結還沒看的時候，這顆按鈕就是去看總結的入口 ——
+      // 使用者本來就會按這裡，而總結原本躲在整頁的最下面
       h('button', {
-        class: 'btn btn--ghost',
+        class: pendingSummary ? 'btn btn--primary' : 'btn btn--ghost',
         disabled: Boolean(recorder?.isRecording),
-        onclick: nextSentence,
-      }, '🔀 換一句'),
+        onclick: onNextSentence,
+      }, pendingSummary ? `✅ 這一組 ${SET_SIZE} 句練完了，看總結` : '🔀 換一句'),
       setRecords.length > 0 &&
         h('span', { class: 'hint' }, `這一組：${setRecords.length} / ${SET_SIZE} 句`),
     ),
@@ -308,7 +385,9 @@ function sentenceCard() {
 function pastChipText(stat, since, due) {
   const parts = [
     stat.count === 1 ? '練過 1 次' : `練過 ${stat.count} 次`,
-    stat.count === 1 ? `${stat.last} 分` : `平均 ${stat.average} 分`,
+    // 這一句的成績講的是**紀錄分數（最高的那一次）**，因為抽句看的也是它 ——
+    // 這裡寫平均、那裡照最高算的話，「為什麼又是這句」就對不起來了
+    stat.count === 1 ? `${stat.best} 分` : `最高 ${stat.best} 分`,
   ];
   if (since) parts.push(since);
   if (due && since) parts.push('該複習了');
@@ -364,11 +443,33 @@ function setStatus(text, kind = '') {
 
 // ─── 示範發音 ────────────────────────────────────────────────────────────
 
-/** @param {Event|null} e 鍵盤按 P 的時候沒有按鈕可以停用，所以可以不給 */
+/**
+ * 播放示範發音。
+ *
+ * **能放 Azure 那一份就放它** —— 圖上畫的是它的語調，耳朵聽到的卻是瀏覽器內建的
+ * 聲音的話，兩個人的語調本來就不同，使用者會以為圖畫錯了。
+ * 哪一個由 `demoSource()` 決定（純函式，那裡測得到）。
+ *
+ * 第一次按的時候通常還沒有（要等合成），所以**等一下下再決定**：
+ * `REFERENCE_WAIT_MS` 內拿到就放 Azure 的，沒拿到就先用 TTS 頂著，
+ * 下一次按就會是 Azure 的了。與其讓人乾等，不如先出聲。
+ *
+ * @param {Event|null} e 鍵盤按 P 的時候沒有按鈕可以停用，所以可以不給
+ */
 async function playDemo(e = null) {
   const btn = e?.currentTarget ?? null;   // 非同步 callback 裡 currentTarget 會變 null，先抓下來
   if (btn) btn.disabled = true;
+  const id = current.id;
+
   try {
+    await Promise.race([wantReference(), delay(REFERENCE_WAIT_MS)]);
+    if (current?.id !== id) return;       // 等的時候換句子了
+
+    const source = demoSource(refPitch, id);
+    if (source.kind === 'audio') {
+      await playAudio(source.url);
+      return;
+    }
     await speak(current.text);
   } catch (err) {
     setStatus(err.message, 'error');
@@ -377,14 +478,51 @@ async function playDemo(e = null) {
   }
 }
 
+/** 放一個網址上的音檔。播不出來就丟例外，讓呼叫端退回 TTS。 */
+function playAudio(url) {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(url);
+    audio.addEventListener('ended', () => resolve(), { once: true });
+    audio.addEventListener('error', () => reject(new Error('範例音訊播不出來')), { once: true });
+    audio.play().catch(reject);
+  });
+}
+
+const delay = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+/**
+ * 去要這一句的範例曲線（要到了就留著，等講評出來時疊到圖上）。
+ *
+ * **時機是「使用者已經決定要練這一句」** —— 按了播放示範、或按了錄音 ——
+ * 而不是換到這一句就要：第一次要一句會讓伺服器呼叫一次 Azure 合成（花錢），
+ * 而「換一句」是這個模式裡按得最兇的按鈕。
+ *
+ * 不 await：曲線要不要得到都不影響錄音，而錄音那三秒剛好把延遲藏起來。
+ * 要到了才重畫，而且**要確認使用者還停在同一句**（要的過程中他可能已經換過了）。
+ */
+function wantReference() {
+  const id = current?.id;
+  if (id === undefined || refPitch?.id === id) return Promise.resolve();
+
+  return referencePitch(id).then((data) => {
+    if (!data || current?.id !== id) return;
+    refPitch = { id, ...data };
+    // 分數還沒回來時圖還沒畫，重畫一次不會有任何視覺變化；
+    // 已經畫好了的話這一次就會補上那條淡色的線
+    if (lastResult) render();
+  });
+}
+
 // ─── 錄音 ────────────────────────────────────────────────────────────────
 
 async function toggleRecord() {
   if (recorder?.isRecording) return stopRecording();
 
+  wantReference();
   lastResult = null;
   wavBlob = null;
   wavStats = null;
+  wavPitch = null;
   revokePlayback();
 
   recorder = new Recorder({
@@ -464,6 +602,7 @@ async function stopRecording() {
 
   wavBlob = result.wav;
   wavStats = result.stats ?? null;
+  wavPitch = result.pitch ?? null;
   playbackUrl = URL.createObjectURL(result.wav);
   setRecordingUI(false);
   render();
@@ -625,10 +764,16 @@ async function submit() {
       return;
     }
 
+    // **一句算一次。** 今天的數字算的是「練了幾句」，而同一句錄第二次、第三次
+    // 是在把它練好，不是多練了兩句 —— 照次數算的話，卡在一句上反覆重錄的那一天
+    // 反而是數字最漂亮的一天。要在 `saveAttempt()` **之前**問，
+    // 因為那一行就會把這一次寫進 history 裡。
+    const firstToday = !practisedOn(history, current.id);
+
     saveAttempt(payload);
     // 六個模式共用的每日計數表。跟讀的逐筆紀錄（history）另外還是要留，
     // 分數與弱點音會回頭決定抽句 —— 這裡記的只是「今天練了幾句」。
-    recordPractice('shadowing');
+    if (firstToday) recordPractice('shadowing');
     render();
     setStatus('');
   } catch (err) {
@@ -672,14 +817,32 @@ function saveAttempt(payload) {
   weak = weakIssues(history);
 
   if (typeof score !== 'number') return;
-  setRecords.push({ ...record, at: history[0]?.at });
+  addToSet({ ...record, at: history[0]?.at });
 
   if (setRecords.length >= SET_SIZE) {
-    // 總結畫出來之後就把計數歸零：使用者沒按「再練一組」也照樣可以繼續練，
-    // 那些句子要算進下一組，不然第 6 句一送出又會再彈一次總結。
-    lastSetSummary = summariseSet(setRecords);
+    // 算好先放著，等使用者按「換一句」的時候才擋下來給他看（`onNextSentence()`）。
+    // 計數立刻歸零：他沒去看總結也照樣可以繼續練，那些句子要算進下一組，
+    // 不然第 6 句一送出又會再生一份總結。
+    pendingSummary = summariseSet(setRecords);
     setRecords = [];
   }
+}
+
+/**
+ * 把這一次放進「這一組」。
+ *
+ * **一組 5 句指的是 5 個句子**，所以同一句重錄不會讓 `3 / 5` 變成 `4 / 5`，
+ * 而是**換掉**那一句在這一組裡的成績。換的時候留分數高的那一次
+ * （跟 `recordScore()` 同一條規則：重錄是在把一句練好），
+ * 不然總結的「最高 / 最低」會被自己失敗的那幾次拉下來。
+ */
+function addToSet(record) {
+  const at = setRecords.findIndex((r) => r.sentenceId === record.sentenceId);
+  if (at < 0) {
+    setRecords.push(record);
+    return;
+  }
+  if (record.score > setRecords[at].score) setRecords[at] = record;
 }
 
 function onClearHistory() {
@@ -692,6 +855,7 @@ function onClearHistory() {
   stats = new Map();
   weak = new Map();
   setRecords = [];
-  lastSetSummary = null;
+  pendingSummary = null;
+  showingSummary = false;
   render();
 }

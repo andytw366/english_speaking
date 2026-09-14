@@ -30,12 +30,20 @@ import { requestNarration, quotaNote } from '../lib/ai-review.js';
 import { chipField } from '../lib/fields.js';
 import { renderToday, renderSetSummary, renderHistory } from './shadowing-views.js';
 import { recordPractice } from '../lib/daily.js';
-import { referencePitch } from '../lib/reference-pitch.js';
+import { demoSource, referencePitch } from '../lib/reference-pitch.js';
 import { goalOf, setGoal } from '../lib/settings.js';
 
 export const meta = { id: 'shadowing', label: '跟讀', icon: '🗣️' };
 
 const DEFAULT_GOAL = SET_SIZE;
+
+/**
+ * 按下「播放正確發音」之後，最多等多久範例音訊。
+ *
+ * 1.2 秒是「還在按鍵的反應時間裡」的上限。等不到就先用瀏覽器的 TTS 出聲 ——
+ * 乾等三秒才聽到聲音，比聽到一個不同的聲音更糟。
+ */
+const REFERENCE_WAIT_MS = 1200;
 
 let allSentences = [];   // 句庫全部（「重練這句」要能跨過篩選條件）
 let pool = [];           // 目前篩選條件內的句子
@@ -435,12 +443,33 @@ function setStatus(text, kind = '') {
 
 // ─── 示範發音 ────────────────────────────────────────────────────────────
 
-/** @param {Event|null} e 鍵盤按 P 的時候沒有按鈕可以停用，所以可以不給 */
+/**
+ * 播放示範發音。
+ *
+ * **能放 Azure 那一份就放它** —— 圖上畫的是它的語調，耳朵聽到的卻是瀏覽器內建的
+ * 聲音的話，兩個人的語調本來就不同，使用者會以為圖畫錯了。
+ * 哪一個由 `demoSource()` 決定（純函式，那裡測得到）。
+ *
+ * 第一次按的時候通常還沒有（要等合成），所以**等一下下再決定**：
+ * `REFERENCE_WAIT_MS` 內拿到就放 Azure 的，沒拿到就先用 TTS 頂著，
+ * 下一次按就會是 Azure 的了。與其讓人乾等，不如先出聲。
+ *
+ * @param {Event|null} e 鍵盤按 P 的時候沒有按鈕可以停用，所以可以不給
+ */
 async function playDemo(e = null) {
   const btn = e?.currentTarget ?? null;   // 非同步 callback 裡 currentTarget 會變 null，先抓下來
   if (btn) btn.disabled = true;
-  wantReference();
+  const id = current.id;
+
   try {
+    await Promise.race([wantReference(), delay(REFERENCE_WAIT_MS)]);
+    if (current?.id !== id) return;       // 等的時候換句子了
+
+    const source = demoSource(refPitch, id);
+    if (source.kind === 'audio') {
+      await playAudio(source.url);
+      return;
+    }
     await speak(current.text);
   } catch (err) {
     setStatus(err.message, 'error');
@@ -448,6 +477,18 @@ async function playDemo(e = null) {
     if (btn) btn.disabled = false;
   }
 }
+
+/** 放一個網址上的音檔。播不出來就丟例外，讓呼叫端退回 TTS。 */
+function playAudio(url) {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(url);
+    audio.addEventListener('ended', () => resolve(), { once: true });
+    audio.addEventListener('error', () => reject(new Error('範例音訊播不出來')), { once: true });
+    audio.play().catch(reject);
+  });
+}
+
+const delay = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 /**
  * 去要這一句的範例曲線（要到了就留著，等講評出來時疊到圖上）。
@@ -461,9 +502,9 @@ async function playDemo(e = null) {
  */
 function wantReference() {
   const id = current?.id;
-  if (id === undefined || refPitch?.id === id) return;
+  if (id === undefined || refPitch?.id === id) return Promise.resolve();
 
-  referencePitch(id).then((data) => {
+  return referencePitch(id).then((data) => {
     if (!data || current?.id !== id) return;
     refPitch = { id, ...data };
     // 分數還沒回來時圖還沒畫，重畫一次不會有任何視覺變化；

@@ -73,9 +73,14 @@ export function createStore(dir) {
    * —— 下次開啟就是「進度全沒了」。同一個檔案系統上 rename 是原子的。
    */
   async function writeJson(file, value) {
+    return writeAtomic(file, `${JSON.stringify(value, null, 2)}\n`);
+  }
+
+  /** 同上，但寫的是 bytes（範例句的音訊）。 */
+  async function writeAtomic(file, contents) {
     const tmp = `${file}.tmp-${process.pid}-${Date.now()}`;
     await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+    await fs.writeFile(tmp, contents, { mode: 0o600 });
     await fs.rename(tmp, file);
   }
 
@@ -247,6 +252,28 @@ export function createStore(dir) {
       return exclusive(() => writeJson(pitchFile(voice, id), doc));
     },
 
+    /**
+     * 範例句的音訊本身（16 kHz 單聲道 WAV，一句大約 100 KB）。
+     *
+     * **為什麼要存**：不存的話「🔊 播放正確發音」放的是瀏覽器的 TTS、
+     * 圖上畫的卻是 Azure 的語調 —— 聽到的跟看到的不是同一個人，
+     * 那比沒有那條線更混亂。
+     *
+     * 跟曲線放在一起（同一個資料夾、同一個音色），這樣換音色時兩個一起失效。
+     */
+    async readPitchAudio(voice, id) {
+      try {
+        return await fs.readFile(pitchFile(voice, id, '.wav'));
+      } catch (err) {
+        if (err.code === 'ENOENT') return null;
+        throw new StoreError(500, `讀取範例音訊失敗：${err.message}`);
+      }
+    },
+
+    async writePitchAudio(voice, id, bytes) {
+      return exclusive(() => writeAtomic(pitchFile(voice, id, '.wav'), bytes));
+    },
+
     /** 這個人今天已經用掉多少。沒有紀錄回 `{ total: 0, byKey: {} }`。 */
     async readUsage(userId, day) {
       const all = await readJson(usageFile, {});
@@ -342,9 +369,9 @@ export function createStore(dir) {
    * 音色與 id 都會變成路徑的一部分，所以**兩個都要擋掉路徑跳脫** ——
    * 音色來自 .env（自己人），id 來自網址（不是自己人）。
    */
-  function pitchFile(voice, id) {
+  function pitchFile(voice, id, ext = '.json') {
     const safe = (value) => String(value).replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 64);
-    return path.join(pitchDir, safe(voice), `${safe(id)}.json`);
+    return path.join(pitchDir, safe(voice), `${safe(id)}${ext}`);
   }
 
   async function pruneRevisions(userId, latestRev) {

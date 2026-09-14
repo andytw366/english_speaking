@@ -522,6 +522,16 @@ check('說明文字講得出那條淡色的是什麼', refChart.caption.includes
 check('範例被對齊到我的節奏上', Number(refChart.lastX?.split(',')[0]) > 280,
   `最後一個點的 x = ${refChart.lastX}`);
 
+// 「播放正確發音」放哪一個聲音。規則本身在 test/reference-pitch.test.js，
+// 這裡確認那個模組在瀏覽器裡也載得起來（它 import 了 session.js）
+const sources = await page.evaluate(async () => {
+  const { demoSource } = await import('/lib/reference-pitch.js');
+  return [demoSource({ id: 3, hasAudio: true }, 3), demoSource(null, 3)];
+});
+check('有範例音訊就放它（圖上跟耳朵裡是同一個人）', sources[0].kind === 'audio',
+  JSON.stringify(sources[0]));
+check('沒有就退回瀏覽器的 TTS', sources[1].kind === 'tts');
+
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【9】一組練完的總結');
 
@@ -580,9 +590,21 @@ await page.route('**/api/reference-pitch/*', (route) => {
     body: JSON.stringify({
       ok: true,
       cached: false,
-      pitch: { id: 1, hopSec: 0.01, medianHz: 210, points, words: [], voice: 'test-voice' },
+      pitch: {
+        id: 1, hopSec: 0.01, medianHz: 210, points, words: [],
+        voice: 'test-voice',
+        // 伺服器也把合成出來的音訊留了一份 → 示範發音要放它，不是瀏覽器的 TTS
+        hasAudio: true,
+      },
     }),
   });
+});
+
+// 範例音訊：回一小段真的 WAV（16 kHz 單聲道），瀏覽器才播得動
+let fakeAudioCalls = 0;
+await page.route('**/api/reference-audio/*', (route) => {
+  fakeAudioCalls += 1;
+  route.fulfill({ status: 200, contentType: 'audio/wav', body: fs.readFileSync(FAKE_AUDIO) });
 });
 
 let fakeScoreCalls = 0;
@@ -634,6 +656,12 @@ check('錄完會畫出語調圖', (await page.locator('.pitch__svg').count()) ==
 check('按了錄音就去要範例曲線', fakeRefCalls > 0, `${fakeRefCalls} 次`);
 check('範例那一條也畫上去了', (await page.locator('.pitch__line--ref').count()) >= 1,
   await page.locator('.pitch__caption').textContent());
+
+// 示範發音要放 Azure 那一份 —— 圖上畫的是它的語調，聽到的是瀏覽器內建的聲音的話，
+// 兩個人的語調本來就不同，使用者會以為圖畫錯了
+await page.locator('#view button', { hasText: '播放正確發音' }).click();
+await page.waitForTimeout(1500);
+check('按播放會去拿範例音訊，不是用瀏覽器的 TTS', fakeAudioCalls > 0, `${fakeAudioCalls} 次`);
 check('練完一組之後，「換一句」變成看總結的入口',
   (await page.locator('#view button', { hasText: '看總結' }).count()) === 1,
   (await viewText()).slice(0, 60).replace(/\s+/g, ' '));
@@ -661,6 +689,7 @@ check('今天的進度是 5 句', (await text('.today__value')).startsWith(`${SE
 
 await page.unroute('**/api/pronunciation-feedback');
 await page.unroute('**/api/reference-pitch/*');
+await page.unroute('**/api/reference-audio/*');
 
 // 伺服器那一支自己也要驗：**沒設金鑰時回 200 + ok:false，不是 500** ——
 // 這張圖是加分的，它產生不出來不該讓畫面出現紅色的錯誤
@@ -670,6 +699,12 @@ check('沒設金鑰時範例曲線回 ok:false 而不是爆掉', refApi?.ok === 
 const refMissing = await fetch(`${BASE}/api/reference-pitch/999999`,
   { headers: { cookie: cookieHeader } });
 check('句庫裡沒有的 id 回 404', refMissing.status === 404, String(refMissing.status));
+
+// 範例音訊那一支**只讀快取、不合成** —— 沒有就 404，前端退回瀏覽器的 TTS
+const audioMissing = await fetch(`${BASE}/api/reference-audio/1`,
+  { headers: { cookie: cookieHeader } });
+check('沒有存過的範例音訊回 404（不會自己去合成）', audioMissing.status === 404,
+  String(audioMissing.status));
 
 // ─────────────────────────────────────────────────────────────────────────
 console.log('\n【10】設定頁');

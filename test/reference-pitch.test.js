@@ -12,6 +12,7 @@ import { ResultReason } from 'microsoft-cognitiveservices-speech-sdk';
 
 import { buildDoc, isUsable, getReferencePitch } from '../server/reference-pitch.js';
 import { alignReference } from '../public/lib/pitch-chart.js';
+import { demoSource } from '../public/lib/reference-pitch.js';
 
 const RATE = 16000;
 
@@ -89,8 +90,14 @@ function fakeStore(initial = {}) {
   const files = new Map(Object.entries(initial));
   return {
     writes: 0,
+    audioWrites: 0,
     async readPitch(voice, id) { return files.get(`${voice}/${id}`) ?? null; },
     async writePitch(voice, id, doc) { this.writes += 1; files.set(`${voice}/${id}`, doc); },
+    async readPitchAudio(voice, id) { return files.get(`${voice}/${id}.wav`) ?? null; },
+    async writePitchAudio(voice, id, bytes) {
+      this.audioWrites += 1;
+      files.set(`${voice}/${id}.wav`, bytes);
+    },
   };
 }
 
@@ -156,6 +163,28 @@ test('快取沒中才合成，而且存起來', async () => {
   assert.equal(again.cached, true);
 });
 
+test('沒金鑰時，已經有的快取照樣給（檢查點在快取之後）', async () => {
+  // 金鑰拿掉、或換一台沒設金鑰的機器掛同一個 volume 時，
+  // 已經產生過的曲線沒有理由消失
+  const doc = { hopSec: 0.01, points: [1, 2, 3], words: [], hasAudio: true };
+  const store = fakeStore({ 'v/5': doc });
+
+  const hit = await getReferencePitch({
+    id: 5, text: 'hello', store, voice: 'v', canSynthesize: () => false,
+  });
+  assert.equal(hit.ok, true);
+  assert.equal(hit.cached, true);
+
+  // 沒有快取的那一句才是「產生不出來」
+  const miss = await getReferencePitch({
+    id: 6, text: 'hello', store, voice: 'v', canSynthesize: () => false,
+    spend: () => assert.fail('沒金鑰卻去扣了額度'),
+    synthesizerFactory: () => assert.fail('沒金鑰卻去合成了'),
+  });
+  assert.equal(miss.ok, false);
+  assert.equal(miss.reason, 'no_key');
+});
+
 test('額度扣不到就不合成 —— 分數與講評不受影響，只是沒有範例曲線', async () => {
   const store = fakeStore();
   const result = await getReferencePitch({
@@ -192,6 +221,70 @@ test('存不進去不算失敗 —— 這一次照樣看得到圖', async () => 
     synthesizerFactory: fakeSynth(),
   });
   assert.equal(result.ok, true);
+});
+
+// ─── 範例音訊（「播放正確發音」要放同一個人的聲音）──────────────────────
+
+test('合成出來的音訊也存一份，而且曲線裡記得它在', async () => {
+  const store = fakeStore();
+  const result = await getReferencePitch({
+    id: 5, text: 'hello', store, voice: 'v',
+    spend: () => ({ allowed: true }),
+    synthesizerFactory: fakeSynth(),
+  });
+
+  assert.equal(result.doc.hasAudio, true);
+  assert.equal(store.audioWrites, 1);
+  assert.ok(Buffer.isBuffer(await store.readPitchAudio('v', 5)));
+});
+
+test('音訊存不進去時，曲線裡就寫 hasAudio: false', async () => {
+  // 反過來的話會留下一份說謊的曲線：畫面上按了播放卻拿到 404
+  const store = fakeStore();
+  store.writePitchAudio = async () => { throw new Error('磁碟滿了'); };
+
+  const result = await getReferencePitch({
+    id: 5, text: 'hello', store, voice: 'v',
+    spend: () => ({ allowed: true }),
+    synthesizerFactory: fakeSynth(),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.doc.hasAudio, false);
+});
+
+test('太大的音訊只留曲線，不存檔', async () => {
+  const store = fakeStore();
+  const big = () => ({
+    set wordBoundary(fn) { this._b = fn; },
+    get wordBoundary() { return this._b; },
+    speakTextAsync(text, onDone) {
+      onDone({ reason: ResultReason.SynthesizingAudioCompleted, audio1: null, audioData: wav(220, 70) });
+    },
+    close() {},
+  });
+
+  const result = await getReferencePitch({
+    id: 5, text: 'hello', store, voice: 'v',
+    spend: () => ({ allowed: true }),
+    synthesizerFactory: big,
+  });
+  assert.equal(result.ok, true, '曲線照樣要有');
+  assert.equal(result.doc.hasAudio, false);
+  assert.equal(store.audioWrites, 0);
+});
+
+test('demoSource：有音訊就放 Azure 那一份，沒有就退回瀏覽器的 TTS', () => {
+  // 圖上畫的是 Azure 的語調、耳朵聽到的是瀏覽器的聲音的話，
+  // 兩個人的語調本來就不同，使用者會以為圖畫錯了
+  assert.deepEqual(demoSource({ id: 7, hasAudio: true }, 7),
+    { kind: 'audio', url: '/api/reference-audio/7' });
+  assert.deepEqual(demoSource({ id: 7, hasAudio: false }, 7), { kind: 'tts' });
+  assert.deepEqual(demoSource(null, 7), { kind: 'tts' });
+});
+
+test('demoSource：換過句子之後不會放上一句的音訊', () => {
+  // 這是最糟的一種 bug —— 聽起來一切正常，只是唸的不是畫面上那句話
+  assert.deepEqual(demoSource({ id: 7, hasAudio: true }, 8), { kind: 'tts' });
 });
 
 // ─── 兩條曲線怎麼對齊 ────────────────────────────────────────────────────

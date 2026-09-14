@@ -17,6 +17,7 @@ import { narrate as generateNarration, narrationProvider, modelAvailability } fr
 import { parseReviewRequest, reviewAnswer } from './coach.js';
 import { limitsFromEnv, judgeCall, usageKey, describeBlock } from './quota.js';
 import { getReferencePitch } from './reference-pitch.js';
+import { ttsVoice } from './tts.js';
 import { analyseWavPcm16, isSilentRecording } from './audio.js';
 import { localSummary, wantsNarration } from './narration.js';
 import { assessPronunciation, AzureError, hasAzureConfig } from './azure-pronunciation.js';
@@ -209,9 +210,6 @@ app.get('/api/reference-pitch/:id', async (req, res, next) => {
     if (!sentence) {
       return res.status(404).json({ ok: false, reason: 'unknown_sentence' });
     }
-    // 沒設 Azure 金鑰**不是錯誤，是一種設定**（跟讀照樣可以走 Gemini 那條路評分）。
-    // 先擋在這裡而不是讓合成丟例外：不然每練一句就在伺服器 console 留一行警告
-    if (!hasAzureConfig()) return res.json({ ok: false, reason: 'no_key' });
 
     const result = await getReferencePitch({
       id: sentence.id,
@@ -220,6 +218,9 @@ app.get('/api/reference-pitch/:id', async (req, res, next) => {
       // 額度**只有快取沒中的時候才扣** —— 讀檔不花錢。
       // 扣不到就是沒有範例曲線，分數與講評都不受影響
       spend: () => spendQuota(req, { provider: 'azure' }),
+      // 沒金鑰就不去合成（但快取已經有的照樣給）。提早擋掉而不是讓它丟例外：
+      // 不然每練一句就在伺服器 console 留一行警告
+      canSynthesize: hasAzureConfig,
     });
 
     if (!result.ok) {
@@ -238,6 +239,29 @@ app.get('/api/reference-pitch/:id', async (req, res, next) => {
       console.warn('[reference-pitch]', err.code, err.userMessage);
       return res.json({ ok: false, reason: err.code, message: err.userMessage });
     }
+    next(err);
+  }
+});
+
+/**
+ * 範例句的音訊本身。**只讀快取，不合成** —— 產生是 `/api/reference-pitch/:id`
+ * 的事（那一支才扣額度），這一支只負責把已經存下來的那份 WAV 送出去。
+ *
+ * 沒有就 404：前端收到 404 就退回瀏覽器的 TTS，跟以前一樣。
+ */
+app.get('/api/reference-audio/:id', async (req, res, next) => {
+  try {
+    const sentence = await findSentence(req.params.id);
+    if (!sentence) return res.status(404).end();
+
+    const audio = await store.readPitchAudio(ttsVoice(), sentence.id);
+    if (!audio) return res.status(404).end();
+
+    // 這份音訊是那句話 + 那個音色的屬性，不會變 —— 讓瀏覽器自己留一份，
+    // 同一句聽第二次就不必再來拿
+    res.set('Cache-Control', 'private, max-age=86400');
+    res.type('audio/wav').send(audio);
+  } catch (err) {
     next(err);
   }
 });

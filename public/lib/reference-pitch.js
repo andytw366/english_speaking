@@ -65,7 +65,37 @@ async function fetchReference(id) {
     contour: expandContour(payload.pitch),
     words: Array.isArray(payload.pitch.words) ? payload.pitch.words : [],
     voice: payload.pitch.voice ?? '',
+    // 伺服器有沒有把那段音訊也留下來。有的話「播放正確發音」就放它 ——
+    // 聽到的跟圖上看到的才是同一個人（見 demoSource()）
+    hasAudio: payload.pitch.hasAudio === true,
   };
+}
+
+/** 範例音訊的網址。伺服器只讀快取，沒有就回 404（前端退回瀏覽器的 TTS）。 */
+export function referenceAudioUrl(id) {
+  return `/api/reference-audio/${encodeURIComponent(id)}`;
+}
+
+/**
+ * 「播放正確發音」該放哪一個聲音。**純函式，測得到。**
+ *
+ * 有存下來的範例音訊就放它，不然退回瀏覽器的 speechSynthesis。
+ *
+ * 為什麼要一個函式而不是一個 if：這是**一致性**的問題，錯了不會有錯誤訊息 ——
+ * 圖上畫的是 Azure 的語調、耳朵聽到的是瀏覽器內建的聲音，兩個人的語調本來就不同，
+ * 使用者會以為圖畫錯了。條件寫散在畫面裡的話，遲早有一條路忘了判斷。
+ *
+ * @param {{hasAudio?: boolean, id?: *}|null} reference `referencePitch()` 的結果
+ * @param {*} id 現在這一句
+ * @returns {{kind: 'audio', url: string}|{kind: 'tts'}}
+ */
+export function demoSource(reference, id) {
+  // **要確認是同一句**：換過句子之後放上一句的音訊，那是最糟的一種 bug
+  // （聽起來一切正常，只是唸的不是畫面上那句話）
+  if (reference?.hasAudio && (reference.id === undefined || reference.id === id)) {
+    return { kind: 'audio', url: referenceAudioUrl(id) };
+  }
+  return { kind: 'tts' };
 }
 
 /** 測試用：把記憶體裡的快取清掉。 */

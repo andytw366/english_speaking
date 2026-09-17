@@ -987,6 +987,9 @@ body {
 .result--ok .result__title { color: var(--ok); }
 .result--close .result__title { color: var(--warn-text); }
 .result--bad .result__title { color: var(--danger); }
+/* 還在等模型的那幾秒。**刻意是灰的**：這時候還沒有結論，而綠色或紅色
+   都會被當成結論 —— 兩秒後換掉的話，使用者記得的是先看到的那個顏色。 */
+.result--wait .result__title { color: var(--text-muted); font-weight: 500; }
 
 .diff { margin: 0.8rem 0; }
 .diff__label {
@@ -1153,7 +1156,7 @@ body {
 .bubble__play:hover { opacity: 1; }
 
 /* ─── 兩句並列（中翻英與情境對話的結果卡最上面）────────────────────────
-   🤖 AI 改的那句在上、📘 教材的參考答案在下。左邊那條色帶是唯一的區別 ——
+   🤖 AI 改的那句在上、📘 教材的例句在下。左邊那條色帶是唯一的區別 ——
    一個是模型這次的意見，一個是教材寫死的，混在一起看不出哪句話該信到什麼程度。 */
 .pair {
   display: flex;

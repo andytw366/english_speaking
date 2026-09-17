@@ -3,7 +3,11 @@ import { h } from './dom.js';
 // 自由作答的比對邏輯，中翻英與情境對話共用。
 //
 // 為什麼不追求精確批改：同一個意思有很多種講法，逐字比對一定會誤判。
-// 所以只分三級，並且永遠把參考答案秀出來讓使用者自己判斷。
+// 所以只分三級，並且永遠把題目附的那句例句秀出來讓使用者自己判斷。
+//
+// **這三級現在是退路，不是結論。** 有接 AI 修正的話，結果卡上的判定是模型給的
+// （見 `lib/verdict.js`）—— 模型看得懂句子，這裡只看得懂「關鍵字有沒有出現」。
+// 模型沒看（關掉、手動還沒按、這次沒回來、額度用完）才輪到這一份。
 
 export function normalize(s) {
   return String(s)
@@ -44,6 +48,9 @@ export function grade(item, input) {
 /**
  * 逐字對照。比對是位置無關的（集合比對），因為換句話說時語序本來就會變 ——
  * 標出來的是「有沒有用到這個字」，不是「位置對不對」。
+ *
+ * 它比的是**一句例句**，不是標準答案：紅字只代表「例句用了這個字而你沒用」，
+ * 不代表寫錯。所以這塊收在「看詳細比對」的摺疊裡，而底下那行提示要講清楚。
  */
 export function diffView(userText, referenceText) {
   const setUser = new Set(tokens(userText));
@@ -61,12 +68,16 @@ export function diffView(userText, referenceText) {
   return h('div', { class: 'diff' },
     h('p', { class: 'diff__label' }, '你的答案'),
     line(userText, setRef, 'dword--extra'),
-    h('p', { class: 'diff__label' }, '參考答案'),
+    h('p', { class: 'diff__label' }, '例句'),
     line(referenceText, setUser, 'dword--missing'),
-    h('p', { class: 'hint' }, '紅＝你沒寫到　灰＝你多寫的'),
+    h('p', { class: 'hint' }, '紅＝例句有、你沒寫到的字（不一定是錯）　灰＝你多寫的'),
   );
 }
 
+/**
+ * 三級的中文與顏色。**只在沒有模型判定的時候會出現在畫面上**
+ * （挑哪一個由 `lib/verdict.js` 的 `pickVerdict()` 決定）。
+ */
 export const RESULT_HEAD = {
   exact: ['✅ 完全正確！', 'ok'],
   close: ['🟡 意思對了', 'close'],

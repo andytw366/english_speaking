@@ -4,7 +4,8 @@ import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings, aiMode } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
-import { grade, diffView, RESULT_HEAD } from '../lib/grade.js';
+import { grade, diffView } from '../lib/grade.js';
+import { pickVerdict } from '../lib/verdict.js';
 import { createReviewer, reviewKey } from '../lib/ai-review.js';
 import { answerPair, sentenceRow, moreBox } from '../lib/answer-lines.js';
 import { bindKeys } from '../lib/keys.js';
@@ -159,24 +160,28 @@ function render() {
 /**
  * 對完答案之後的那張卡。
  *
- * **順序是刻意的**：判定 → 兩句並列（AI 改的在上、參考答案在下）→ AI 的說明
+ * **順序是刻意的**：判定 → 兩句並列（AI 改的在上、例句在下）→ AI 的說明
  * → 收起來的細節 → 按鈕。
  *
  * 為什麼 AI 那句排在最上面：使用者剛剛寫了一句話，他要的是「那到底該怎麼說」，
- * 而最貼近他寫的那一句的答案是模型改出來的那一句 —— 教材的參考答案回答的是
- * 「這題的標準說法」，是另一個問題。以前 AI 那段接在整張卡的最後面，
+ * 而最貼近他寫的那一句的答案是模型改出來的那一句 —— 題目附的那句回答的是
+ * 「這句中文可以怎麼講」，是另一個問題。以前 AI 那段接在整張卡的最後面，
  * 要先捲過逐字比對、其他說法、教材說明才看得到。
  *
- * 為什麼參考答案照樣在（而且緊接著）：它免費、離線、每次都一樣，
+ * **判定也是模型的**（`lib/verdict.js`）：題目附的答案只是一個例句，
+ * 拿它當標準比對關鍵字會判錯 —— 而模型看的是使用者真正寫的那一句。
+ * 模型沒看（關掉、手動還沒按、這次沒回來）才退回本地比對。
+ *
+ * 為什麼例句照樣在（而且緊接著）：它免費、離線、每次都一樣，
  * 而模型的意見每次不同也可能出錯 —— 兩句擺在一起才對照得出來。
  */
 function resultCard() {
   const { level, missing } = checked.result;
   const input = checked.input;
-  const [title, tone] = RESULT_HEAD[level];
+  const { title, tone, source } = pickVerdict(reviewer, checked.result);
   const ai = reviewer.render();
 
-  // 填空題的參考答案要**整句**（含填好的空格）—— 單獨一個字看不出它為什麼對
+  // 填空題的例句要**整句**（含填好的空格）—— 單獨一個字看不出它為什麼對
   const reference = current.type === 'cloze'
     ? current.sentence.replace('___', current.answer)
     : current.answer;
@@ -185,13 +190,15 @@ function resultCard() {
     h('p', { class: 'result__title' }, title),
     answerPair(
       ai.row,
-      sentenceRow('📘 參考答案', reference, { tone: 'ref', speakText: reference }),
+      sentenceRow('📘 例句', reference, { tone: 'ref', speakText: reference }),
     ),
     ai.notes,
   );
 
-  // 少了哪些關鍵用字：這一行直接指出下一步要補什麼，所以不收起來
-  if (level === 'wrong' && missing?.length) {
+  // 少了哪些關鍵用字：**只有退回本地比對時才講**。判定是模型給的時候，
+  // 這一行講的是「例句裡有而你沒寫的字」—— 那跟結論沒有關係，
+  // 而擺在一個說「這樣說可以」的判定下面，看起來就是自打嘴巴
+  if (source === 'local' && level === 'wrong' && missing?.length) {
     append(card, h('p', { class: 'hint' }, `少了關鍵用字：${missing.join('、')}`));
   }
 
@@ -223,7 +230,7 @@ function resultCard() {
       ttsSupported() && h('button', {
         class: 'btn btn--ghost', id: 'btn-speak',
         onclick: (e) => playAnswer(e.currentTarget),
-      }, '🔊 唸一次答案'),
+      }, '🔊 唸一次例句'),
       h('button', { class: 'btn', onclick: () => { checked = null; reviewer.reset(); render(); } }, '再試一次'),
       h('button', { class: 'btn btn--primary', onclick: next }, '下一題'),
     ),

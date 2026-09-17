@@ -5,7 +5,8 @@ import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { filterBySettings, getSettings, aiMode } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
-import { grade, diffView, normalize, RESULT_HEAD } from '../lib/grade.js';
+import { grade, diffView, normalize } from '../lib/grade.js';
+import { pickVerdict, isPass } from '../lib/verdict.js';
 import { createReviewer, reviewKey, storedReview } from '../lib/ai-review.js';
 import { answerPair, sentenceRow, moreBox } from '../lib/answer-lines.js';
 import { Recorder, isSupported as recSupported, describeMicError, MAX_RECORDING_MS } from '../lib/recorder.js';
@@ -17,8 +18,11 @@ let all = [];
 let current = null;
 let step = 0;            // 目前進行到第幾個 turn
 let checked = null;      // 這一輪的作答結果
-let revealed = false;    // 有沒有先看參考說法
-let scores = [];         // 每個「你的台詞」的判定結果
+let revealed = false;    // 有沒有先看例句
+// 每個「你的台詞」的結果：`{ input, level, aiVerdict }`。
+// `level` 是本地關鍵字比對，`aiVerdict` 是模型的判定（回來之後才有）——
+// 總結與對話記錄要用的是**最後採用的那一個**，所以兩個都留著（見 lib/verdict.js）
+let scores = [];
 // AI 修正。狀態、快取、那一段畫面都在 lib/ai-review.js（中翻英用的是同一份）
 let reviewer = null;
 let recorder = null;
@@ -34,7 +38,7 @@ export async function mount(container) {
   const raw = await res.json();
   all = filterBySettings(raw);
   if (all.length === 0) all = raw;
-  reviewer = createReviewer({ onChange: render });
+  reviewer = createReviewer({ onChange: render, onResult: noteAiVerdict });
   start(all[Math.floor(Math.random() * all.length)]);
   unbindKeys = bindKeys(onKey);
   return cleanup;
@@ -59,7 +63,7 @@ function onKey(key) {
     return true;
   }
 
-  // 想不出來就看參考說法（跟中翻英的 H 是同一個意思）
+  // 想不出來就看一個例句（跟中翻英的 H 是同一個意思）
   if (key === 'h' && !checked && !revealed && currentTurn()?.speaker === 'you') {
     revealed = true;
     render();
@@ -211,12 +215,15 @@ function transcriptCard() {
       // 存下來的 AI 修正也放回對話記錄裡。存了卻沒有地方看得到的話，
       // 那份資料對使用者不存在 —— 而它是花錢換來的
       const stored = said?.input ? storedReviewFor(i, said.input) : null;
+      // 重新整理之後 `scores` 是空的，但存下來的那份還在 ——
+      // 判定就從它身上拿，不然同一句話重整前後會給出不同的結論
+      const settled = { ...said, aiVerdict: said?.aiVerdict ?? stored?.verdict ?? null };
       append(card, 
         h('div', { class: 'bubble bubble--you' },
           h('span', { class: 'bubble__who' }, current.your_role_zh),
           h('p', { class: 'bubble__text' }, said?.input?.trim() || turn.answer),
-          said && said.level !== 'exact' && said.level !== 'close'
-            ? h('p', { class: 'bubble__ref' }, `參考：${turn.answer}`)
+          said && !isPass(settled)
+            ? h('p', { class: 'bubble__ref' }, `例句：${turn.answer}`)
             : null,
           stored?.corrected && normalize(stored.corrected) !== normalize(said.input)
             ? h('p', { class: 'bubble__ref' }, `🤖 更自然：${stored.corrected}`)
@@ -231,6 +238,23 @@ function transcriptCard() {
 /** 對話記錄裡第 index 句台詞存下來的修正（句子要對得上，理由見 storedReview）。 */
 function storedReviewFor(index, input) {
   return storedReview(reviewKey('dialogue', current.id, index), input);
+}
+
+/**
+ * 模型的判定回來了（或是從快取直接拿到的），記到那一句台詞上。
+ *
+ * **要比對 key**：判定是非同步回來的，而使用者在等待的那幾秒裡可以換一段情境、
+ * 也可以按「再試一次」重寫。對不上就丟掉 —— 寫錯格的話，總結那個數字會
+ * 在使用者看不出原因的情況下多一分或少一分。
+ *
+ * 由 `lib/ai-review.js` 的 `onResult` 呼叫，而且是**在重畫之前** ——
+ * 不然這一次的 render() 讀到的還是舊的判定。
+ */
+function noteAiVerdict({ verdict, input, key }) {
+  if (!current || key !== reviewKey('dialogue', current.id, step)) return;
+  const said = scores[countUserTurnsBefore(step)];
+  if (!said || normalize(said.input ?? '') !== normalize(input)) return;
+  said.aiVerdict = verdict;
 }
 
 function countUserTurnsBefore(index) {
@@ -276,9 +300,9 @@ function yourTurnCard() {
         !revealed && h('button', {
           class: 'btn btn--link',
           onclick: () => { revealed = true; render(); },
-        }, '想不出來，看參考說法'),
+        }, '想不出來，看一個例句'),
       ),
-      revealed && h('p', { class: 'trans__hint' }, `參考說法：${turn.answer}`),
+      revealed && h('p', { class: 'trans__hint' }, `例句：${turn.answer}`),
       h('p', { class: 'hint' }, '按 Ctrl/⌘ + Enter 送出。'),
     );
   }
@@ -309,29 +333,31 @@ function recordingRow(line) {
  * 對完一句台詞之後的那張卡。
  *
  * **順序跟中翻英一致**（那邊的說明寫得比較完整）：判定 → 兩句並列
- * （🤖 AI 改的在上、📘 參考說法在下）→ AI 的說明 → 收起來的細節 → 錄音 → 按鈕。
+ * （🤖 AI 改的在上、📘 例句在下）→ AI 的說明 → 收起來的細節 → 錄音 → 按鈕。
  *
  * 情境對話這邊 AI 那句尤其重要：模型收得到情境、角色、對方剛剛說的話
  * （見 `check()`），所以它給的是「在這個場合這樣講對不對」——
- * 而教材的參考說法只有一種寫法。
+ * 而教材那句只是一種寫法。**判定也是它給的**（`lib/verdict.js`）：
+ * 同一個意思在對話裡有幾十種講法，拿一句例句的關鍵字當標準一定會誤判。
  */
 function resultCard() {
   const turn = currentTurn();
   const { level, missing } = checked.result;
-  const [title, tone] = RESULT_HEAD[level];
+  const { title, tone, source } = pickVerdict(reviewer, checked.result);
   const ai = reviewer.render();
 
   const card = h('div', { class: `card result--${tone}` },
     h('p', { class: 'result__title' }, title),
     answerPair(
       ai.row,
-      sentenceRow('📘 參考說法', turn.answer, { tone: 'ref', speakText: turn.answer }),
+      sentenceRow('📘 例句', turn.answer, { tone: 'ref', speakText: turn.answer }),
     ),
     ai.notes,
   );
 
-  // 少了哪些關鍵用字：直接指出下一步要補什麼，所以不收起來
-  if (level === 'wrong' && missing?.length) {
+  // 少了哪些關鍵用字：**只有退回本地比對時才講**（理由見中翻英那邊的同一段）——
+  // 判定是模型給的時候，這一行講的是「例句裡有而你沒寫的字」，跟結論無關
+  if (source === 'local' && level === 'wrong' && missing?.length) {
     append(card, h('p', { class: 'hint' }, `少了關鍵用字：${missing.join('、')}`));
   }
   if (turn.accept.length > 1) {
@@ -353,7 +379,7 @@ function resultCard() {
       ttsSupported() && h('button', {
         class: 'btn btn--ghost', id: 'btn-speak',
         onclick: (e) => replay(turn.answer, e.currentTarget),
-      }, '🔊 唸一次參考說法'),
+      }, '🔊 唸一次例句'),
       h('button', { class: 'btn', onclick: () => { checked = null; reviewer.reset(); render(); } }, '再試一次'),
       h('button', { class: 'btn btn--primary', onclick: advance },
         step === current.turns.length - 1 ? '完成對話 →' : '繼續對話 →'),
@@ -362,9 +388,16 @@ function resultCard() {
   return card;
 }
 
+/**
+ * 整段對話結束之後的總結。
+ *
+ * 「表達到位」的定義跟結果卡上的判定是同一個（`lib/verdict.js` 的 `isPass()`）：
+ * 模型看過的句子算模型的，其餘才退回關鍵字比對。同一句話在卡片上說「可以」、
+ * 在總結裡算成沒過關的話，這個數字就沒有意義了。
+ */
 function summaryCard() {
   const total = scores.length;
-  const good = scores.filter((s) => s.level === 'exact' || s.level === 'close').length;
+  const good = scores.filter(isPass).length;
 
   return h('div', { class: 'card' },
     h('p', { class: 'result__title' }, '對話完成 🎉'),
@@ -372,7 +405,7 @@ function summaryCard() {
     h('p', { class: 'hint' },
       good === total
         ? '整段對話都接得上，很好！換一段更難的試試。'
-        : '上面的對話記錄裡，沒過關的句子會附上參考說法，可以往回看。'),
+        : '上面的對話記錄裡，沒過關的句子會附上一句例句，可以往回看。'),
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => start(current) }, '再練一次這段'),
       h('button', { class: 'btn btn--primary', onclick: nextDialogue }, '換一段情境'),
@@ -402,8 +435,9 @@ function check() {
   const result = grade(turn, input);
 
   checked = { input, result };
-  // 記錄這一輪的結果（再試一次會覆蓋掉同一格）
-  scores[countUserTurnsBefore(step)] = { input, level: result.level };
+  // 記錄這一輪的結果（再試一次會覆蓋掉同一格）。
+  // `aiVerdict` 先留白 —— 模型回來（或快取命中）時由 `noteAiVerdict()` 補上
+  scores[countUserTurnsBefore(step)] = { input, level: result.level, aiVerdict: null };
   // AI 修正：同一句話已經要過的話直接拿存下來的，**不再付一次錢**。
   // 送出去的東西見 server/coach.js 的 parseReviewRequest()：情境、角色、
   // 對方剛剛說的話都要帶上，少了它們模型只能就句子論句子，

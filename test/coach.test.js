@@ -52,6 +52,17 @@ test('prompt 明講「不要把參考說法整句抄過來」', () => {
   assert.match(prompt, /盡量貼近學習者原本的說法/);
 });
 
+test('prompt 明講「教材那句只是一個例句，不是標準答案」', () => {
+  // 這一條是判定改成由模型決定之後加的：不講的話，模型會拿教材那句當標準答案，
+  // 把每一種跟它不同的說法都判成「要改」—— 那正是本地關鍵字比對會犯的錯，
+  // 而現在模型的判定就是結果卡上那一句，錯了沒有第二道關可以擋
+  for (const task of [TASK, TRANSLATION]) {
+    const prompt = buildReviewPrompt(task);
+    assert.match(prompt, /只是一個例句，不是標準答案/);
+    assert.match(prompt, /跟例句不同也算可以/);
+  }
+});
+
 test('跟參考說法重複的 accept 不會再列一次 —— 那只是把 prompt 撐長', () => {
   const prompt = buildReviewPrompt(TASK);
   assert.equal(prompt.match(/Can I get a medium latte to go/g).length, 1);

@@ -59,7 +59,7 @@ export const AI_FEATURES = [
     mode: 'dialogue',
     auto: '每按一次「對答案」就讓模型看你寫的那一句。',
     manual: '結果卡上留一顆按鈕（或按 A），按了才呼叫。',
-    off: '只用本地批改與教材的參考說法。',
+    off: '不呼叫模型：判定退回本地的關鍵字比對，畫面上只剩教材的例句。',
   },
   {
     id: 'translation',
@@ -67,7 +67,7 @@ export const AI_FEATURES = [
     mode: 'translation',
     auto: '每按一次「對答案」就讓模型看你寫的那一句。',
     manual: '結果卡上留一顆按鈕（或按 A），按了才呼叫。',
-    off: '只用本地批改與教材的參考答案。',
+    off: '不呼叫模型：判定退回本地的關鍵字比對，畫面上只剩教材的例句。',
   },
 ];
 

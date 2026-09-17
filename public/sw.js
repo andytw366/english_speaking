@@ -70,6 +70,7 @@ const SHELL = [
   '/lib/today-card.js',
   '/lib/trend-chart.js',
   '/lib/tts.js',
+  '/lib/verdict.js',
   '/lib/wav-encoder.js',
   '/lib/waveform.js',
   '/modes/assessment-view.js',

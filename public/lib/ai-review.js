@@ -14,6 +14,10 @@
 //
 // 各寫一份的話，這三件事會有一邊寫錯，而且不會有人回報 —— 只會覺得不太可靠。
 //
+// **模型回來的判定就是那一題的判定**（結果卡最上面那一句，見 `lib/verdict.js`）：
+// 題目附的答案只是一個例句。所以 `begin()` 與 `ask()` 都會把判定回報給模式
+// （`onResult`），情境對話的總結要靠它算「幾句表達到位」。
+//
 // 金鑰一律不進瀏覽器 —— 這裡只送文字，模型是伺服器呼叫的（見 server/settings.js）。
 
 import { h } from './dom.js';
@@ -50,8 +54,8 @@ export function forgetAiReviewAvailability() {
 /**
  * 送一句話去要一次 AI 修正。**不丟例外** —— 一律回一個可以直接顯示的結果。
  *
- * 為什麼連網路錯誤都不丟：呼叫端是「對答案」之後的一段附加資訊，
- * 本地批改與參考答案已經在畫面上了。丟例外的話那邊就要再寫一層 try，
+ * 為什麼連網路錯誤都不丟：這一趟沒回來的話，畫面會退回本地的關鍵字比對，
+ * 而例句本來就在上面。丟例外的話那邊就要再寫一層 try，
  * 而漏掉的症狀是整個模式當掉 —— 代價完全不對等。
  *
  * @param {object} task 見 server/coach.js 的 `parseReviewRequest()`：
@@ -91,7 +95,7 @@ export async function requestReview(task) {
     return {
       ok: false,
       reason: 'failed',
-      message: '連不到伺服器，AI 修正這次沒有回來（本地批改與參考答案不受影響）。',
+      message: '連不到伺服器，AI 修正這次沒有回來（這一題退回本地比對，例句不受影響）。',
     };
   }
 }
@@ -154,16 +158,16 @@ export function storedReview(key, input) {
 }
 
 /**
- * 判定的三級要怎麼顯示。伺服器只回 `ok` / `minor` / `major` 三個字 ——
- * 中文與顏色是畫面的事，寫在前端。
+ * 判定決定 AI 那一行左邊那條色帶的顏色。伺服器只回 `ok` / `minor` / `major`
+ * 三個字（`server/coach.js` 的 `VERDICTS`），顏色是畫面的事，寫在前端。
  *
- * 標籤裡就講完判定（「可以」「更自然」「要改」），所以不再另外畫一行標題 ——
- * 兩句並列的版面上，一行標題加一句話等於同一件事講兩次。
+ * **判定的文字不在這裡** —— 它現在是整張結果卡最上面那一句（`lib/verdict.js`）。
+ * 兩個地方各寫一次的話，同一件事在同一張卡上會講兩遍，而它們遲早會不一致。
  */
-export const VERDICT_HEAD = {
-  ok: ['🤖 AI：這樣說可以', 'ok'],
-  minor: ['🤖 AI 改的', 'close'],
-  major: ['🤖 AI 改的', 'bad'],
+export const VERDICT_TONE = {
+  ok: 'ok',
+  minor: 'close',
+  major: 'bad',
 };
 
 /**
@@ -186,19 +190,23 @@ export function quotaNote(quota) {
  *
  * 用法（兩個模式都一樣）：
  * ```js
- * const reviewer = createReviewer({ onChange: render });
+ * const reviewer = createReviewer({ onChange: render, onResult: noteVerdict });
  * // 對答案時：
  * reviewer.begin({ key, input, task, mode: aiMode('dialogue') });
  * // 畫面上（三塊各自有位置，見 render()）：
  * const ai = reviewer.render();
- * append(card, answerPair(ai.row, sentenceRow('📘 參考答案', reference)), ai.notes);
+ * append(card, answerPair(ai.row, sentenceRow('📘 例句', reference)), ai.notes);
  * // 換題／再試一次：
  * reviewer.reset();
  * ```
  *
- * @param {{onChange: () => void}} options onChange 就是模式的 render()
+ * @param {{onChange: () => void, onResult?: (result: {verdict: string, input: string,
+ *   key: string, cached: boolean}) => void}} options
+ *   onChange 就是模式的 render()；onResult 在**判定變得可用時**呼叫一次
+ *   （包含直接從快取拿到的那一次），給模式回頭記下這一句的判定用 ——
+ *   模式自己在 render() 裡讀的話，會變成「畫到一半才知道結論」
  */
-export function createReviewer({ onChange }) {
+export function createReviewer({ onChange, onResult }) {
   let state = null;      // null（還沒要）| { phase: 'loading'|'done'|'error', … }
   let request = null;    // 最近一次的 { key, input, task } —— 「再要一次」要用
   // 每要一次就 +1。回應回來時對不上就丟掉（陷阱 1）
@@ -232,9 +240,17 @@ export function createReviewer({ onChange }) {
           notes: out.review.notes ?? [],
           label: out.label ?? '',
         });
+        // 先回報再重畫：反過來的話，這一次 render() 看到的還是舊的判定
+        report(out.review.verdict, false);
       }
       onChange();
     });
+  }
+
+  /** 把判定交給模式。沒有判定就不吵它 —— 那一題就維持本地的比對結果。 */
+  function report(verdict, cached) {
+    if (!verdict || !onResult || !request) return;
+    onResult({ verdict, input: request.input, key: request.key, cached });
   }
 
   return {
@@ -255,6 +271,7 @@ export function createReviewer({ onChange }) {
       const cached = storedReview(key, clean);
       if (cached) {
         state = { phase: 'done', data: cached, label: cached.label, cached: true };
+        report(cached.verdict, true);
         onChange();
         return;
       }
@@ -279,16 +296,27 @@ export function createReviewer({ onChange }) {
     },
 
     /**
+     * 模型給的判定（`ok` / `minor` / `major`），還沒有就是 null。
+     *
+     * 結果卡最上面那一句就是它決定的（`lib/verdict.js` 的 `pickVerdict()`）——
+     * 模式要的是「這一題現在的結論」，而那個結論在這裡。
+     */
+    get verdict() {
+      return state?.phase === 'done' ? (state.data?.verdict ?? null) : null;
+    },
+
+    /**
      * 那一段畫面，拆成三塊交給模式自己排。
      *
-     * 為什麼是三塊而不是一整個 `view()`：AI 改的那一句現在要跟教材的參考答案
+     * 為什麼是三塊而不是一整個 `view()`：AI 改的那一句現在要跟教材的例句
      * **並排在結果卡最上面**（見 `lib/answer-lines.js`），而說明與出處還是屬於
      * 下面的細節區 —— 揉成一塊的話，模式就沒辦法把它們拆到兩個位置。
      *
      * 五種狀態各自要說不同的話，而分不清楚的代價都是「以為壞了」：
      *   還沒要（手動模式）→ 一顆按鈕，按了才花錢
      *   要不到（伺服器沒設定模型）→ 講清楚要去哪裡設定，不要給一個按了也沒用的按鈕
-     *   正在要 → 明講在等什麼，不然那幾秒看起來像卡住
+     *   正在要 → 佔住位置＋一個轉圈的；「在等什麼」由卡片最上面那一句講
+     *     （`lib/verdict.js` 的 `WAITING_HEAD`），這裡再寫一次就是同一句話講兩遍
      *   要到了 / 這次沒回來 → 前者顯示修正，後者給一顆「再要一次」
      *   關掉 → 整塊都不畫（那正是「關」跟「手動」的差別）
      *
@@ -305,7 +333,7 @@ export function createReviewer({ onChange }) {
         return {
           ...empty,
           row: sentenceRow('🤖 AI 改的',
-            h('p', { class: 'status status--busy' }, 'AI 正在看你寫的這一句…'),
+            h('p', { class: 'status status--busy' }, '正在看…'),
             { tone: 'ai', extraClass: 'airev' }),
         };
       }
@@ -356,14 +384,17 @@ export function createReviewer({ onChange }) {
  *
  * 「模型把原句照抄回來」要講出來而不是留白：秀一次一模一樣的句子只會讓人
  * 以為它沒看懂，什麼都不畫又看起來像沒回來。
+ *
+ * 這一行的標籤**只講它是什麼**（改過的一句／看過但沒改），判定留給卡片最上面
+ * 那一句 —— 同一張卡上講兩次判定，兩句話遲早會不一致。
  */
 function doneParts({ data, label, ms, quota, cached }, input) {
-  const [title, tone] = VERDICT_HEAD[data.verdict] ?? VERDICT_HEAD.minor;
+  const tone = VERDICT_TONE[data.verdict] ?? VERDICT_TONE.minor;
   const unchanged = data.corrected && normalize(data.corrected) === normalize(input);
   const show = data.corrected && !unchanged;
 
   const row = sentenceRow(
-    title,
+    show ? '🤖 AI 改的' : '🤖 AI 看過了',
     show ? data.corrected : '你原本那句就可以直接用，不用改。',
     { tone, speakText: show ? data.corrected : '', extraClass: 'airev' },
   );

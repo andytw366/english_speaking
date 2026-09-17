@@ -1435,31 +1435,31 @@ if (await partnerButton.count()) {
 check('對方講的那句不算進度', (await text('.card--today')).startsWith('0 /'),
   (await text('.card--today')).replace(/\s+/g, ' ').slice(0, 16));
 
-// 結果卡的**順序**：🤖 AI 改的那句在上、📘 教材的參考答案在下，兩句並列。
+// 結果卡的**順序**：🤖 AI 改的那句在上、📘 教材的例句在下，兩句並列。
 //
 // 為什麼要釘住順序而不只是「兩個都在」：使用者剛剛寫了一句話，最貼近那一句的
 // 答案是模型改出來的那一句 —— 排在逐字比對與其他說法後面的話，等於沒有。
 //
 // **不管這台伺服器有沒有設定模型**，AI 那一行都要在：有修正就顯示修正，
 // 沒有模型就講出原因。靜靜不見是最糟的一種（看起來像壞了），
-// 所以驗的是「那一行在、而且排在參考答案上面」，不是某一種特定文字。
+// 所以驗的是「那一行在、而且排在例句上面」，不是某一種特定文字。
 const answerBox = page.locator('#view #answer');
 if (await answerBox.count()) {
   await answerBox.fill('I want a coffee please');
   await page.locator('#view button', { hasText: '對答案' }).click();
   await page.waitForTimeout(600);
   const afterCheck = await viewText();
-  check('對完答案仍然看得到教材的參考說法', afterCheck.includes('參考說法'));
+  check('對完答案仍然看得到教材的例句', afterCheck.includes('📘 例句'));
   check('AI 那一行在結果卡上有位置（有修正、或講得出為什麼沒有）',
     afterCheck.includes('🤖'),
     afterCheck.replace(/^.*(?=🤖)/, '').slice(0, 60));
 
-  // DOM 順序：AI 那一行要排在參考答案那一行前面
+  // DOM 順序：AI 那一行要排在例句那一行前面
   const pairOrder = await page.evaluate(() => {
     const rows = [...document.querySelectorAll('#view .pair .pair__row')];
     return rows.map((r) => r.querySelector('.pair__label')?.textContent ?? '');
   });
-  check('情境對話：AI 那句排在參考說法上面',
+  check('情境對話：AI 那句排在例句上面',
     pairOrder.length === 2 && pairOrder[0].includes('🤖') && pairOrder[1].includes('📘'),
     pairOrder.join(' → '));
 
@@ -1480,10 +1480,16 @@ await page.waitForTimeout(600);
 const transOrder = await page.evaluate(() =>
   [...document.querySelectorAll('#view .pair .pair__row')]
     .map((r) => r.querySelector('.pair__label')?.textContent ?? ''));
-check('中翻英：AI 那句排在參考答案上面',
+check('中翻英：AI 那句排在例句上面',
   transOrder.length === 2 && transOrder[0].includes('🤖') && transOrder[1].includes('📘'),
   transOrder.join(' → '));
-check('中翻英的參考答案照樣看得到', (await viewText()).includes('參考答案'));
+check('中翻英的例句照樣看得到', (await viewText()).includes('📘 例句'));
+
+// 判定只有一句。這台測試機不一定設得到模型，所以兩種都算過：
+// 模型有回來的話標題上會寫「AI」，沒有的話是本地那三級 ——
+// **不管哪一種，畫面上不可以同時出現兩個判定**（那正是這次要修掉的東西）
+const resultHead = await page.locator('#view .result__title').allTextContents();
+check('結果卡只有一個判定', resultHead.length === 1, resultHead.join(' ／ '));
 await shot(page, 'ui-17-兩句並列');
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1496,7 +1502,8 @@ await page.waitForSelector('#view .qa');
 const helpBody = await viewText();
 check('說明頁載得起來', (await page.locator('#view .qa').count()) >= 10,
   `${await page.locator('#view .qa').count()} 組問答`);
-check('說明頁講得出 AI 那句跟參考答案的差別', helpBody.includes('回答的是'));
+check('說明頁講得出 AI 那句跟例句的差別', helpBody.includes('回答的是'));
+check('說明頁講得出判定是誰給的', helpBody.includes('判定'));
 check('說明頁沒有錯誤橫幅', (await page.locator('#view .banner--error').count()) === 0);
 
 // 手機寬度：頁首那顆 ❓ 是唯一的入口（側欄不會畫出來，下方那一列只放

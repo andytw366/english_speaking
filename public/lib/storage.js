@@ -579,6 +579,165 @@ export function recordActivity(mode, n = 1, now = Date.now()) {
   return next;
 }
 
+// ─── 每天練得怎麼樣（五個模式共用）────────────────────────────────────────
+//
+// 形狀：{ vocabulary: { '2026-09-18': { 'dev-a1b2': { n: 24, ok: 20, fresh: 8 } } }, … }
+//
+// **跟 `activity` 是兩張表，刻意的。** `activity` 回答「今天練了幾個」——
+// 連續天數與每日目標的唯一來源，是這個 App 裡最不能弄壞的一份資料。
+// 這一張回答「練得怎麼樣」，而那是後來才加的能力量表要用的東西。
+// 混進同一張表的話，能力量表寫錯一行就會讓連續天數歸零。
+//
+// **形狀刻意跟 `activity` 一樣**（模式 → 日期 → 裝置格），只是格子裡放的
+// 不是一個數字而是一組計數器。所以合併規則直接沿用同一套（逐格取 max），
+// 而那套規則已經被 `test/merge.test.js` 釘過一輪了。
+//
+// **每一個計數器都只會往上加**，這是合併能用「取 max」的全部理由 ——
+// 平均分數存的是 `sum`（總和）而不是 `avg`，因為平均會上上下下，
+// 取 max 會挑到那一天分數最高的**中間狀態**，而那個數字誰也沒看過。
+// 要平均就 `sum / n`，兩個都是單調的，除出來才對。
+
+/** 每個模式記哪些計數器。白名單：localStorage 是使用者改得到的。 */
+export const RESULT_FIELDS = {
+  // n 答完幾張、ok 答對幾張、fresh 其中幾個是今天第一次見到的新字
+  vocabulary: ['n', 'ok', 'fresh'],
+  // n 幾組、q 那幾組總共幾題、ok 答對幾題
+  //（今天的份算「組」，但正確率只有照「題」算才有意義）
+  listening: ['n', 'q', 'ok'],
+  // n 幾題、ok 判定通過幾題，其中 aiN / aiOk 是**模型看過**的那部分
+  translation: ['n', 'ok', 'aiN', 'aiOk'],
+  dialogue: ['n', 'ok', 'aiN', 'aiOk'],
+  // n 幾句、sum 分數總和（平均 = sum / n，見上面為什麼不存 avg）
+  shadowing: ['n', 'sum'],
+};
+
+/** 留幾天。跟 `ACTIVITY_DAY_LIMIT` 同一個數字，兩張表才會一起長一起縮。 */
+export const RESULTS_DAY_LIMIT = ACTIVITY_DAY_LIMIT;
+
+/** 只留認得的模式與認得的計數器。 */
+function normalizeResults(raw) {
+  const out = {};
+  for (const mode of MODE_IDS) {
+    const days = raw?.[mode];
+    if (!days || typeof days !== 'object' || Array.isArray(days)) continue;
+    out[mode] = days;
+  }
+  return out;
+}
+
+export function getResults() {
+  const raw = read('results', null);
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? normalizeResults(raw) : {};
+}
+
+/**
+ * 某個模式在某一天加一筆成績。純函式，回一份新的表。
+ *
+ * **只加自己那一格**（`slot`），理由跟 `addActivity()` 完全一樣 ——
+ * 那是逐格取 max 能夠冪等合併的全部原因。
+ *
+ * @param {object} results
+ * @param {string} mode
+ * @param {string} key YYYY-MM-DD
+ * @param {Record<string, number>} counters 只有 `RESULT_FIELDS[mode]` 裡的會被採用
+ */
+export function addResult(results, mode, key, counters, {
+  slot = LEGACY_SLOT, limit = RESULTS_DAY_LIMIT,
+} = {}) {
+  const fields = RESULT_FIELDS[mode];
+  if (!fields || !key || !counters || typeof counters !== 'object') return { ...results };
+
+  const days = { ...(results?.[mode] ?? {}) };
+  const slots = { ...(days[key] ?? {}) };
+  const cell = { ...(slots[slot] ?? {}) };
+
+  let touched = false;
+  for (const field of fields) {
+    const add = Number(counters[field]);
+    // 0 也要記：「這一題答錯了」是 ok 加 0，而那筆 n 一定要加上去
+    if (!Number.isFinite(add) || add < 0) continue;
+    cell[field] = (Number(cell[field]) || 0) + add;
+    touched = true;
+  }
+  if (!touched) return { ...results };
+
+  slots[slot] = cell;
+  days[key] = slots;
+
+  // 鍵是 YYYY-MM-DD，字串由大到小排就是由新到舊
+  const keys = Object.keys(days).sort().reverse();
+  const trimmed = keys.length <= limit
+    ? days
+    : Object.fromEntries(keys.slice(0, limit).map((k) => [k, days[k]]));
+
+  return { ...results, [mode]: trimmed };
+}
+
+/** 記一筆成績（預設今天）。回傳更新後的表。 */
+export function recordResult(mode, counters, now = Date.now()) {
+  const next = addResult(getResults(), mode, dayKey(new Date(now)), counters, { slot: deviceId() });
+  write('results', next);
+  return next;
+}
+
+/**
+ * 把一段日期裡的計數器全部加起來（所有裝置格）。
+ *
+ * @param {object} results
+ * @param {string} mode
+ * @param {string[]} days 要算哪幾天（呼叫端決定「最近幾天」）
+ * @returns {Record<string, number>} 該模式的每一個計數器，沒有資料就是 0
+ */
+export function sumResults(results, mode, days) {
+  const fields = RESULT_FIELDS[mode] ?? [];
+  const out = Object.fromEntries(fields.map((f) => [f, 0]));
+  const table = results?.[mode];
+  if (!table) return out;
+
+  for (const day of days ?? []) {
+    for (const cell of Object.values(table[day] ?? {})) {
+      if (!cell || typeof cell !== 'object') continue;
+      for (const field of fields) {
+        const n = Number(cell[field]);
+        if (Number.isFinite(n) && n > 0) out[field] += n;
+      }
+    }
+  }
+  return out;
+}
+
+/** 這個模式有成績的日子，由新到舊。「最近 N 天」要先知道有哪幾天。 */
+export function resultDays(results, mode) {
+  return Object.keys(results?.[mode] ?? {}).sort().reverse();
+}
+
+export function clearResults() {
+  write('results', {});
+}
+
+/**
+ * 「今天的總結看過了沒」。`{ mode: 'YYYY-MM-DD' }`。
+ *
+ * **刻意不進 `BACKUP_KEYS`／`SYNC_KEYS`**：它不是學習進度，是「這台裝置上
+ * 這個畫面有沒有出現過」。同步的話，在手機上看過總結，桌機打開就再也不會看到
+ * 那一天的總結了 —— 而那兩台是兩個不同的當下。
+ */
+export function getSummarySeen() {
+  const all = read('summarySeen', {});
+  return all && typeof all === 'object' && !Array.isArray(all) ? all : {};
+}
+
+export function markSummarySeen(mode, now = Date.now()) {
+  const all = getSummarySeen();
+  all[mode] = dayKey(new Date(now));
+  write('summarySeen', all);
+  return all;
+}
+
+export function summarySeenToday(mode, now = Date.now()) {
+  return getSummarySeen()[mode] === dayKey(new Date(now));
+}
+
 // ─── 備份 ────────────────────────────────────────────────────────────────
 
 /**

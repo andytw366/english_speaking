@@ -15,7 +15,7 @@
 /** 跟讀紀錄留幾筆。跟 `storage.js` 的 `HISTORY_LIMIT` 是同一個數字。 */
 const HISTORY_LIMIT = 200;
 
-/** 每個模式留幾天。跟 `storage.js` 的 `ACTIVITY_DAY_LIMIT` 是同一個數字。 */
+/** 每個模式留幾天。跟 `storage.js` 的 `ACTIVITY_DAY_LIMIT`／`RESULTS_DAY_LIMIT` 是同一個數字。 */
 const ACTIVITY_DAY_LIMIT = 400;
 
 /** AI 修正留幾筆。跟 `storage.js` 的 `REVIEW_LIMIT` 是同一個數字。 */
@@ -40,6 +40,7 @@ export function mergeState(a = {}, b = {}) {
   put('srs', mergeSrs(left.srs, right.srs));
   put('srsVersion', mergeVersion(left.srsVersion, right.srsVersion));
   put('activity', mergeActivity(left.activity, right.activity));
+  put('results', mergeResults(left.results, right.results));
   put('vocabDays', mergeDayNumbers(left.vocabDays, right.vocabDays));
   put('history', mergeHistory(left.history, right.history));
   put('settings', mergeSettings(left.settings, right.settings));
@@ -116,6 +117,70 @@ export function mergeActivity(a, b) {
   for (const mode of new Set([...Object.keys(left), ...Object.keys(right)])) {
     const days = mergeDaySlots(left[mode], right[mode]);
     if (days) out[mode] = trimDays(days, ACTIVITY_DAY_LIMIT);
+  }
+  return out;
+}
+
+/**
+ * 每日成績表。`{ mode: { day: { slot: { n, ok, … } } } }`，**逐格、逐計數器取 max**。
+ *
+ * 跟 `mergeActivity()` 是同一條規則，只是格子裡從一個數字變成一組計數器 ——
+ * 而那組計數器**每一個都只會往上加**（`storage.js` 的 `RESULT_FIELDS`），
+ * 所以「同一格只有一台裝置會動它、取 max 等於取那台的最新值」這個理由照樣成立。
+ *
+ * **平均分數不能存 `avg` 就是為了這裡**：取 max 會挑到那一天分數最高的
+ * 中間狀態，而那個數字誰也沒看過。存 `sum` 與 `n`（兩個都單調）再相除才對。
+ *
+ * 少算的情況跟 `activity` 一樣只發生在同一格被兩台裝置寫（不會發生，
+ * 格子就是裝置 id），而 `legacy` 格沒有人在寫 —— 這張表是後來才有的，
+ * 沒有舊形狀要搬。
+ */
+export function mergeResults(a, b) {
+  if (!isObject(a) && !isObject(b)) return undefined;
+  const left = isObject(a) ? a : {};
+  const right = isObject(b) ? b : {};
+
+  const out = {};
+  for (const mode of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    const days = mergeResultDays(left[mode], right[mode]);
+    if (days) out[mode] = trimDays(days, ACTIVITY_DAY_LIMIT);
+  }
+  return out;
+}
+
+function mergeResultDays(a, b) {
+  if (!isObject(a) && !isObject(b)) return null;
+  const left = isObject(a) ? a : {};
+  const right = isObject(b) ? b : {};
+
+  const out = {};
+  for (const day of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    out[day] = mergeResultSlots(left[day], right[day]);
+  }
+  return out;
+}
+
+function mergeResultSlots(a, b) {
+  const left = isObject(a) ? a : {};
+  const right = isObject(b) ? b : {};
+  const out = {};
+  for (const slot of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    out[slot] = mergeCounters(left[slot], right[slot]);
+  }
+  return out;
+}
+
+/** 一格裡的計數器。**逐個取 max**，而不是整格取比較新的那一邊 —— */
+function mergeCounters(a, b) {
+  const left = isObject(a) ? a : {};
+  const right = isObject(b) ? b : {};
+  const out = {};
+  for (const field of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    const l = Number(left[field]);
+    const r = Number(right[field]);
+    const max = Math.max(Number.isFinite(l) && l > 0 ? Math.floor(l) : 0,
+      Number.isFinite(r) && r > 0 ? Math.floor(r) : 0);
+    if (max > 0) out[field] = max;
   }
   return out;
 }

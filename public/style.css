@@ -1458,6 +1458,16 @@ body {
   margin-bottom: 1rem;
 }
 
+/* 手機上排成兩欄。一列擠四五個的話，每個只剩 65px，
+   「連續天數」會斷成「連續天 / 數」、「20 個字」會斷成「20 個 / 字」——
+   中文沒有空白可以斷，瀏覽器會斷在字與字之間（整份 CSS 裡反覆踩到的同一件事）。 */
+@media (max-width: 640px) {
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .stat {
   flex: 1;
   display: flex;
@@ -1873,6 +1883,205 @@ body {
 }
 
 
+
+/* ─── 能力雷達圖與「現在最該練什麼」（首頁）───────────────────────────────
+   圖的顏色全部走 CSS 變數，深色模式不必再寫一份（跟 trend-chart 同一招）。 */
+.card--ability {
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+}
+
+.ability__top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0.7rem;
+}
+
+/* 寬一點就並排。圖本身最寬 300px，而主欄有 720px —— 上下排的話右邊是空的，
+   而這張卡在手機上已經是整個首頁最高的一張了 */
+@media (min-width: 640px) {
+  .ability__top {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.2rem;
+  }
+
+  .ability__top .radar {
+    flex: 0 0 auto;
+  }
+
+  .ability__top .ability__detail {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+}
+
+.radar {
+  margin: 0;
+}
+
+.radar__chart {
+  display: flex;
+  justify-content: center;
+}
+
+.radar__svg {
+  display: block;
+  width: 100%;
+  /* 上限比 trend 高一點 —— 雷達是方的，寬度被壓扁的話四個標籤會疊在一起。
+     `overflow: visible` 是必要的：標籤畫在 viewBox 外面一點（見 radar-chart.js）。 */
+  max-width: 300px;
+  height: auto;
+  overflow: visible;
+}
+
+.radar__ring {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.radar__ring--edge {
+  stroke-dasharray: none;
+}
+
+.radar__axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+/* 還沒有資料的那一軸畫成虛線 —— 它不是 0 分，是還不知道 */
+.radar__axis--empty {
+  stroke-dasharray: 2 4;
+}
+
+.radar__label {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.radar__value {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.radar__value--empty {
+  fill: var(--text-muted);
+  font-weight: 400;
+}
+
+.radar__area {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+/* 只有兩個面向有資料時連不成面，畫一條線 —— fill 要關掉，不然是一條粗線 */
+.radar__area--line {
+  fill: none;
+}
+
+.radar__dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.2;
+}
+
+.ability__detail {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.ability__detail li {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.ability__dim {
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.ability__text {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.card__title--sub {
+  margin-top: 0.4rem;
+}
+
+.weaklist {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.weakrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.weakrow__icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.weakrow__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.weakrow__label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.weakrow__text {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* 中文按鈕不能斷行（沒有空白可以斷，瀏覽器會斷在字與字之間）—— 要換行的是外面 */
+.weakrow .btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ─── 今天練完了的總結 ──────────────────────────────────────────────────
+   跟「一組練完」共用 .card--set 的外框，再加一句話的位置。 */
+.card--daydone {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+}
+
+.daydone__note {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    窄螢幕（手機）

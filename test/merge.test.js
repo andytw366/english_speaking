@@ -12,7 +12,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  mergeActivity, mergeDayNumbers, mergeHistory, mergeReviews, mergeSettings, mergeSrs, mergeState,
+  mergeActivity, mergeDayNumbers, mergeHistory, mergeResults, mergeReviews,
+  mergeSettings, mergeSrs, mergeState,
 } from '../public/lib/merge.js';
 
 /** 兩個性質一起驗。每一種資料都跑一次。 */
@@ -323,6 +324,23 @@ test('隨機的兩台裝置操作序列都滿足冪等與交換律', () => {
         }
       }
       if (rnd() < 0.7) {
+        state.results = {};
+        for (const mode of ['vocabulary', 'listening', 'shadowing'].slice(0, 1 + Math.floor(rnd() * 3))) {
+          const days = {};
+          for (let d = 0; d < 1 + Math.floor(rnd() * 3); d++) {
+            const day = `2026-09-0${1 + Math.floor(rnd() * 9)}`;
+            days[day] = {
+              [pick(['dev-a', 'dev-b'])]: {
+                n: 1 + Math.floor(rnd() * 20),
+                ok: Math.floor(rnd() * 20),
+                ...(rnd() < 0.5 ? { sum: Math.floor(rnd() * 600) } : {}),
+              },
+            };
+          }
+          state.results[mode] = days;
+        }
+      }
+      if (rnd() < 0.7) {
         state.srs = {};
         for (let i = 0; i < 1 + Math.floor(rnd() * 4); i++) {
           const key = `ecdict:${1 + Math.floor(rnd() * 5)}`;
@@ -382,3 +400,64 @@ function seeded(seed) {
     return s / 0x100000000;
   };
 }
+
+
+// ─── results：每日成績表（形狀跟 activity 一樣，格子裡多一層計數器）────────
+
+test('成績表：兩台裝置同一天各練各的，逐格逐計數器取 max', () => {
+  const phone = { results: { listening: { '2026-09-18': { 'dev-a': { n: 3, q: 9, ok: 7 } } } } };
+  const desk = { results: { listening: { '2026-09-18': { 'dev-b': { n: 1, q: 4, ok: 2 } } } } };
+
+  const merged = assertWellBehaved(phone, desk, '成績表');
+  assert.deepEqual(merged.results.listening['2026-09-18'], {
+    'dev-a': { n: 3, q: 9, ok: 7 },
+    'dev-b': { n: 1, q: 4, ok: 2 },
+  });
+});
+
+test('成績表：同一格重送不會膨脹（取 max，不是相加）', () => {
+  // 相加的話同步重試一次，今天的題數就變兩倍，而正確率跟著一起變假
+  const a = { results: { translation: { '2026-09-18': { 'dev-a': { n: 5, ok: 4 } } } } };
+  const b = { results: { translation: { '2026-09-18': { 'dev-a': { n: 8, ok: 6 } } } } };
+
+  const merged = assertWellBehaved(a, b, '成績表（同一格）');
+  assert.deepEqual(merged.results.translation['2026-09-18']['dev-a'], { n: 8, ok: 6 });
+});
+
+test('成績表：平均分存 sum 而不是 avg，就是為了這裡', () => {
+  // 存 avg 的話取 max 會挑到「那一天分數最高的中間狀態」—— 一個誰也沒看過的數字。
+  // sum 與 n 都是單調的，除出來才是真的平均
+  const a = { results: { shadowing: { '2026-09-18': { 'dev-a': { n: 2, sum: 190 } } } } };
+  const b = { results: { shadowing: { '2026-09-18': { 'dev-a': { n: 5, sum: 400 } } } } };
+
+  const merged = assertWellBehaved(a, b, '成績表（分數總和）');
+  const cell = merged.results.shadowing['2026-09-18']['dev-a'];
+  assert.deepEqual(cell, { n: 5, sum: 400 });
+  assert.equal(Math.round(cell.sum / cell.n), 80);
+});
+
+test('成績表：只有一邊有的時候原樣帶過去，壞形狀不會爆', () => {
+  const only = { shadowing: { '2026-09-18': { 'dev-a': { n: 1, sum: 70 } } } };
+  assert.deepEqual(mergeResults(only, undefined), only);
+  assert.deepEqual(mergeResults(undefined, only), only);
+  assert.equal(mergeResults(undefined, undefined), undefined);
+  assert.deepEqual(mergeResults(['x'], only), only);
+  // 格子裡不是物件（被手改壞的 localStorage）
+  assert.deepEqual(
+    mergeResults({ shadowing: { '2026-09-18': { 'dev-a': 'junk' } } }, only),
+    only
+  );
+});
+
+test('成績表跟計數表是兩張表 —— 合併一張不會動到另一張', () => {
+  // 混在同一張表的話，能力量表寫錯一行就會讓連續天數歸零
+  const a = {
+    activity: { shadowing: { '2026-09-18': { 'dev-a': 5 } } },
+    results: { shadowing: { '2026-09-18': { 'dev-a': { n: 5, sum: 380 } } } },
+  };
+  const b = { activity: { shadowing: { '2026-09-18': { 'dev-b': 2 } } } };
+
+  const merged = assertWellBehaved(a, b, '兩張表');
+  assert.deepEqual(merged.activity.shadowing['2026-09-18'], { 'dev-a': 5, 'dev-b': 2 });
+  assert.deepEqual(merged.results.shadowing['2026-09-18'], { 'dev-a': { n: 5, sum: 380 } });
+});

@@ -18,7 +18,7 @@ import { mergeState } from '../public/lib/merge.js';
 
 /** 這些鍵才會被存進伺服器 —— 跟前端的 `BACKUP_KEYS` 是同一份清單。 */
 export const SYNC_KEYS = [
-  'srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings', 'reviews',
+  'srs', 'srsVersion', 'activity', 'results', 'vocabDays', 'history', 'settings', 'reviews',
 ];
 
 /**

@@ -3,6 +3,7 @@ import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { filterBySettings, getSettings } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
+import { dueForSummary, renderDaySummary, markSummarySeen } from '../lib/day-summary.js';
 import { shuffleOptions } from '../lib/practice.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { bindKeys, indexOfKey } from '../lib/keys.js';
@@ -19,6 +20,10 @@ let submitted = false;
 // （中翻英的 `counted` 是同一個理由，README 的雷單裡記過。）
 let counted = false;
 let showTranscript = false;
+// 今天的份練完了，停在總結那一頁。**擋在「換一題」上而不是在對答案的當下** ——
+// 剛按完對答案最想看的是這一組對了幾題、解析寫什麼，總結蓋上去等於把那些吃掉
+// （單字卡的 `!picked` 條件、跟讀的「一組練完」都是同一個坑）。
+let showingDaySummary = false;
 let root = null;
 
 export async function mount(container) {
@@ -28,6 +33,7 @@ export async function mount(container) {
   const raw = await res.json();
   items = filterBySettings(raw);
   if (items.length === 0) items = raw;
+  showingDaySummary = false;
   pick(items[Math.floor(Math.random() * items.length)]);
   const unbindKeys = bindKeys(onKey);
   return () => { stopTts(); unbindKeys(); root = null; };
@@ -40,6 +46,8 @@ function pick(item) {
   // shuffleOptions），不洗的話一路按 B 就能對三分之二，那不是在練聽力。
   current = { ...item, questions: item.questions.map((q) => shuffleOptions(q)) };
   counted = false;
+  // 換一題一定要離開總結。`mount()` 也是走這裡
+  showingDaySummary = false;
   restart();
   // 「換一題就自動播」（設定 → 練習偏好）。預設是關的：自動播放在別人旁邊
   // 練習時很惱人，而且第一次進來時使用者還沒準備好要聽
@@ -66,6 +74,12 @@ function render() {
   const { main, side } = columns(root);
 
   append(side, renderDailyCard('listening'));
+
+  // 總結自己占主欄（側欄的今天照舊留著）—— 跟跟讀的「一組練完」同一種處理
+  if (showingDaySummary) {
+    append(main, renderDaySummary('listening', { onDismiss: dismissDaySummary }));
+    return;
+  }
 
   append(main,
     h('div', { class: 'card' },
@@ -172,6 +186,13 @@ function render() {
 function onKey(key) {
   if (!root || !current) return false;
 
+  // 停在總結那一頁時畫面上只有那幾顆按鈕。**空白鍵尤其要攔** ——
+  // 不攔的話它會落到下面的作答鍵去（跟讀那邊踩過同一個坑）
+  if (showingDaySummary) {
+    if (key === 'enter' || key === 'space' || key === 'n') { dismissDaySummary(); return true; }
+    return false;
+  }
+
   if (key === 'p') { root.querySelector('#btn-play')?.click(); return true; }
   if (key === 'n') { nextItem(); return true; }
   // 看原文。已經在看了就不必再接（那顆按鈕已經消失）
@@ -195,6 +216,9 @@ function onKey(key) {
 
 /** 對答案。按鈕與 Enter 共用同一份 —— 分兩份寫的話「今天的份」會有一邊忘了記。 */
 function recordAnswers() {
+  // 這一組答對幾題。**成績照題算、今天的份照組算**（理由見下面那段註解）——
+  // 一組 2～6 題，正確率只有照題算才比得起來。
+  const correct = answers.filter((a, i) => a === current.questions[i].answer).length;
   // 今天的份算「答完的題組數」，一組算一次。
   //
   // 原本是照題數算（一組 3 題就 +3），有兩個問題：
@@ -205,7 +229,9 @@ function recordAnswers() {
   // 畫面上的「答對 4 / 6 題」照舊，那是這一組的正確率，跟今天的份是兩回事。
   if (!counted) {
     counted = true;
-    recordPractice('listening');
+    recordPractice('listening', {
+      result: { n: 1, q: current.questions.length, ok: correct },
+    });
   }
   render();
 }
@@ -228,10 +254,25 @@ async function play() {
 }
 
 function nextItem() {
+  // 今天達標之後的第一次「換一題」先停在總結。看過就不再擋（`markSummarySeen`），
+  // 想再練多少都可以 —— 目標是拿來知道自己完成了，不是拿來鎖門的
+  if (!showingDaySummary && dueForSummary('listening')) {
+    stopTts();
+    showingDaySummary = true;
+    render();
+    return;
+  }
   stopTts();
   let next = current;
   while (items.length > 1 && next.id === current.id) {
     next = items[Math.floor(Math.random() * items.length)];
   }
   pick(next);
+}
+
+/** 看完今天的總結，換下一題。 */
+function dismissDaySummary() {
+  markSummarySeen('listening');
+  showingDaySummary = false;
+  nextItem();
 }

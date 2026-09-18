@@ -2,8 +2,11 @@ import { h, append } from '../lib/dom.js';
 import { columns } from '../lib/layout.js';
 import { PRACTICE_MODES } from '../lib/modes.js';
 import { dailyState, overallToday } from '../lib/daily.js';
-import { getSrsState, getActivity, activityToday } from '../lib/storage.js';
-import { dayKey } from '../lib/practice.js';
+import { getSrsState, getActivity, activityToday, getResults, getHistory } from '../lib/storage.js';
+import { dayKey, weakIssues } from '../lib/practice.js';
+import { issueLabel } from '../lib/labels.js';
+import { computeAbility, topWeaknesses } from '../lib/ability.js';
+import { buildRadarChart } from '../lib/radar-chart.js';
 import { bindKeys, indexOfKey } from '../lib/keys.js';
 
 export const meta = { id: 'home', label: '今天', icon: '🏠' };
@@ -67,6 +70,16 @@ function render() {
       h('p', { class: 'hint' }, headline(withGoal.length, done, today.total)),
     ),
 
+    // 能力量表排在目標清單**前面**，而且在主欄。
+    //
+    // 為什麼不是輔助欄：輔助欄的 DOM 順序就是手機上的順序（窄螢幕時它接在主欄
+    // 後面），而「我現在的問題是什麼」放在五行清單後面等於手機上要捲過去才看得到
+    // —— 首頁的總覽卡當年就是因此從輔助欄搬回主欄的。
+    //
+    // 為什麼排在目標清單前面：清單回答「今天還差多少」，量表回答「我該練哪一個」。
+    // 先知道該練哪一個，那份清單才知道要從哪一行開始看。
+    abilityCard(),
+
     h('div', { class: 'card' },
       h('p', { class: 'card__title' }, '今天的目標'),
       h('div', { class: 'homelist' }, rows.map(({ mode, state }) => modeRow(mode, state))),
@@ -107,6 +120,61 @@ function modeRow(mode, state) {
         : state.streak > 0 ? `連續 ${state.streak} 天`
         : hasGoal ? `還差 ${state.goal - state.done} ${mode.unit}` : '沒有設目標'),
   );
+}
+
+/**
+ * 四個能力面向 + 現在最該練什麼。
+ *
+ * **不載入任何字庫檔**（首頁的老規矩）：四個面向全部從 `results`（每日成績表）、
+ * `srs`（盒號）與跟讀的 `history` 算得出來，一個字庫檔都不用碰。
+ *
+ * 圖與排行榜是**同一張卡上的兩個東西**，刻意不拆開：
+ * 圖給的是一眼的高低（「聽力那一格比較短」），而那不是一個可以拿去做的結論。
+ * 排行榜把同一份數字翻成「最近 20 題只對 11 題，去練聽力」，並且每一行都點得下去。
+ * 拆成兩張卡的話，使用者會以為那是兩種不同的資訊。
+ */
+function abilityCard() {
+  const dims = computeAbility({ results: getResults(), srsState: getSrsState() });
+  const chart = buildRadarChart(dims);
+  const weak = topWeaknesses(dims, { weak: weakIssues(getHistory()), issueLabel });
+  const scored = dims.filter((d) => typeof d.score === 'number');
+
+  const card = h('div', { class: 'card card--ability' },
+    h('p', { class: 'card__title' }, '目前的能力'),
+    // 圖與文字在寬螢幕上並排（CSS 的 .ability__top）—— 圖本身最寬 300px，
+    // 主欄有 720px，上下排的話右邊那 400px 是空的，而這張卡又特別高
+    h('div', { class: 'ability__top' },
+      h('figure', { class: 'radar' },
+        h('div', { class: 'radar__chart' }, chart.svg),
+      ),
+      // 量（練過幾個字、最近幾題）用文字寫在圖旁邊 —— 圖上那四條只講「熟不熟」，
+      // 講不了「你會幾個字」。理由完整版在 `lib/ability.js` 的開頭
+      h('ul', { class: 'ability__detail' },
+        dims.map((d) => h('li', {},
+          h('span', { class: 'ability__dim' }, `${d.icon} ${d.label}`),
+          h('span', { class: 'ability__text' }, d.detail),
+        ))),
+    ),
+    // 圖的文字說明。讀螢幕的人看不到那張圖，四個數字要用文字再講一次 ——
+    // 跟趨勢圖的 figcaption 同一個規矩
+    h('p', { class: 'hint', id: 'radar-caption' }, chart.caption),
+  );
+
+  if (weak.length > 0) {
+    append(card,
+      h('p', { class: 'card__title card__title--sub' },
+        scored.length > 0 ? '現在最該練什麼' : '先把資料練出來'),
+      h('ol', { class: 'weaklist' }, weak.map((w) => h('li', { class: 'weakrow' },
+        h('span', { class: 'weakrow__icon' }, w.icon),
+        h('div', { class: 'weakrow__main' },
+          h('span', { class: 'weakrow__label' }, w.label),
+          h('span', { class: 'weakrow__text' }, w.text)),
+        h('button', {
+          class: 'btn btn--small', onclick: () => goTo(w.mode),
+        }, w.cta)))));
+  }
+
+  return card;
 }
 
 /**

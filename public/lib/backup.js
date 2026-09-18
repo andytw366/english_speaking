@@ -23,7 +23,7 @@ export const BACKUP_APP = 'speaking-coach';
  * 漏加的症狀是「還原之後某一種進度不見了」，而且不會有任何錯誤訊息。
  */
 export const BACKUP_KEYS = [
-  'srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings', 'reviews',
+  'srs', 'srsVersion', 'activity', 'results', 'vocabDays', 'history', 'settings', 'reviews',
 ];
 
 /**
@@ -119,10 +119,10 @@ export function backupSummary(data) {
   let items = 0;
   for (const days of tables) {
     for (const [key, value] of Object.entries(days)) {
-      const n = Number(value);
-      if (!Number.isFinite(n) || n <= 0) continue;
+      const n = dayTotal(value);
+      if (n <= 0) continue;
       allDays.add(key);
-      items += Math.floor(n);
+      items += n;
     }
   }
 
@@ -134,6 +134,26 @@ export function backupSummary(data) {
     reviews: count(data?.reviews),
     hasSettings: Boolean(data?.settings),
   };
+}
+
+/**
+ * 一天練了幾個。**兩種形狀都要讀得懂**（跟 `storage.js` 的 `activityCount()` 同一件事）：
+ * 現在的是一天一格（把格子加起來），舊備份是一天一個數字。
+ *
+ * 只認得舊形狀的時候，現在的備份會被算成「每日紀錄 0 天」—— 而那句話正是
+ * 「確定要用這份覆蓋嗎」要給的資訊，講錯等於那個確認沒有意義。
+ */
+function dayTotal(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    let total = 0;
+    for (const slot of Object.values(value)) {
+      const n = Number(slot);
+      if (Number.isFinite(n) && n > 0) total += Math.floor(n);
+    }
+    return total;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
 /** 給使用者看的一句話摘要。 */

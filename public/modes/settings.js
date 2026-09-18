@@ -12,7 +12,7 @@ import {
 } from '../lib/sync.js';
 import {
   resetSrs, clearHistory, getHistory, getSrsState, exportState, importState,
-  clearActivity, getActivity, activityDays, getReviews, clearReviews,
+  clearActivity, clearResults, getActivity, activityDays, getReviews, clearReviews,
 } from '../lib/storage.js';
 import {
   buildBackup, parseBackup, backupSummary, summaryText, backupFilename,
@@ -989,8 +989,12 @@ function dataCard() {
       h('button', {
         class: 'btn',
         onclick: () => confirmThen(
-          '確定要清除每日紀錄嗎？連續天數會歸零。（複習進度與跟讀成績不受影響）',
-          () => { clearActivity(); render(); }),
+          '確定要清除每日紀錄嗎？連續天數與首頁的能力量表都會歸零。' +
+          '（複習進度與跟讀成績不受影響）',
+          // **每日成績表跟著一起清。** 兩張表記的是同一批日子的兩件事
+          // （練了幾個 / 練得怎麼樣），只清一張的話，首頁上會同時出現
+          // 「連續 0 天」與一張畫得出來的能力圖 —— 而那兩句話互相矛盾。
+          () => { clearActivity(); clearResults(); render(); }),
       }, '清除每日紀錄'),
       // 清掉它的代價要講清楚：這份紀錄同時是「同一句話不要再付一次錢」的快取，
       // 清掉之後練到同一句台詞會重新呼叫一次模型

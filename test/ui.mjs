@@ -26,6 +26,7 @@ import { firstSense } from '../public/lib/quiz.js';
 // 一組幾句從 App 自己那份拿（`lib/practice.js`），測試裡不要再寫死一個
 import { SET_SIZE as SET_SIZE_UI } from '../public/lib/practice.js';
 import { MODE_IDS } from '../public/lib/modes.js';
+import { BACKUP_KEYS } from '../public/lib/backup.js';
 import {
   TEST_USER, addCookieToContext, apiGetter, authenticate, resetServerProgress,
 } from './login.mjs';
@@ -149,6 +150,13 @@ async function seed({
     localStorage.setItem('speaking-coach:srs', JSON.stringify(r));
     localStorage.removeItem('speaking-coach:srsVersion');
     localStorage.removeItem('speaking-coach:vocabDays');
+    // 每日成績表與「今天的總結看過了沒」也要清掉，否則這兩個會**跨段累積**：
+    //   results     前面幾段真的送出過錄音，平均分會把那些也算進來，
+    //               而這一段驗的是「這五句」
+    //   summarySeen 前面某一段一旦看過今天的總結，後面就再也不會擋一次 ——
+    //               那會讓【9b】變成一條看順序才會過的測試
+    localStorage.removeItem('speaking-coach:results');
+    localStorage.removeItem('speaking-coach:summarySeen');
     // **把自動同步關掉。** 這些測試塞的是假的 localStorage，而自動同步會把
     // 伺服器上（前面幾段測試推上去的）東西合進來 —— 假資料就不是假資料了。
     // 跨裝置同步本身在【22】用自己的 context 測，那裡是開著的。
@@ -666,23 +674,34 @@ check('練完一組之後，「換一句」變成看總結的入口',
   (await page.locator('#view button', { hasText: '看總結' }).count()) === 1,
   (await viewText()).slice(0, 60).replace(/\s+/g, ' '));
 // 不自動彈出來：剛錄完最想看的是自己這一句幾分
-check('總結不會自己插進講評裡', !(await viewText()).includes('這一組練完了'));
+// （用卡片在不在，不是比字串 —— 按鈕上就寫著「這一組 5 句練完了，看總結」）
+check('總結不會自己插進講評裡', (await page.locator('.card--set').count()) === 0);
 
 await page.locator('#view button', { hasText: '看總結' }).click();
 await page.waitForTimeout(400);
-check('按下去就停在總結那一頁', (await viewText()).includes('這一組練完了'));
+// **每日目標預設 5 句、一組也是 5 句**，所以兩張總結在同一刻一起等著 ——
+// 今天那張把「一組練完」那張吃掉了（見 modes/shadowing.js 的 onNextSentence），
+// 而它補上了「最高 / 最低」，所以一張就講得完
+check('按下去就停在總結那一頁', (await viewText()).includes('今天的跟讀練完了'));
 check('總結自己占一頁，不用捲', (await page.locator('#sentence').count()) === 0);
 check('側欄的今天與紀錄還在', (await page.locator('.card--today').count()) === 1 &&
   (await page.locator('.history__item').count()) === SET_SIZE_UI);
 check('總結算的是這五句', (await text('.card--set')).includes(`${SET_SIZE_UI} 句`),
   (await text('.card--set')).replace(/\s+/g, ' ').slice(0, 40));
-await shot(page, 'ui-09b-一組練完了');
+check('被吃掉的那張上面有的東西沒有弄丟（最高 / 最低）',
+  (await text('.card--set')).includes('最高 / 最低'));
+check('鼓勵的那一句是從真的數字算出來的，不是罐頭',
+  /\d/.test(await text('.daydone__note')), await text('.daydone__note'));
+check('接下來去哪講得出來，而且不是叫他再練同一個',
+  (await page.locator('.card--set button', { hasText: '去練' }).count()) === 1);
+await shot(page, 'ui-09b-今天練完了');
 
-await page.locator('#view button', { hasText: '再練一組' }).click();
+await page.locator('#view button', { hasText: '再多練' }).click();
 await page.waitForTimeout(500);
-check('「再練一組」接回下一句', (await page.locator('#sentence').count()) === 1);
+check('「再多練」接回下一句', (await page.locator('#sentence').count()) === 1);
 check('接回去之後按鈕變回「換一句」',
   (await page.locator('#view button', { hasText: '換一句' }).count()) === 1);
+check('今天的總結只擋一次', !(await viewText()).includes('今天的跟讀練完了'));
 // 一句算一次：五句五個句子，而且每一句都只送出過一次
 check('今天的進度是 5 句', (await text('.today__value')).startsWith(`${SET_SIZE_UI} /`),
   await text('.today__value'));
@@ -1280,8 +1299,10 @@ const backupKeys = Object.keys(backupJson.data);
 check('備份帶走四種進度資料',
   ['srs', 'activity', 'history', 'settings'].every((k) => backupKeys.includes(k)),
   backupKeys.join());
+// 讀同一份白名單而不是再抄一次 —— 抄一份的話，加了新的進度資料時
+// 這條會紅，而紅的原因看起來像「夾帶了不該有的東西」，其實只是清單沒跟上
 check('備份沒有夾帶白名單以外的鍵',
-  backupKeys.every((k) => ['srs', 'srsVersion', 'activity', 'vocabDays', 'history', 'settings'].includes(k)),
+  backupKeys.every((k) => BACKUP_KEYS.includes(k)),
   backupKeys.join());
 check('備份裡沒有金鑰', !JSON.stringify(backupJson).includes('AIza'));
 check('下載後畫面說出帶走了什麼', (await viewText()).includes('已下載'));

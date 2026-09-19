@@ -7,6 +7,7 @@ import {
   getCardState, resetSrs, getSrsState, tierProgress,
 } from '../lib/storage.js';
 import { dailyState as modeDaily, recordPractice, renderDailyCard } from '../lib/daily.js';
+import { renderDaySummary } from '../lib/day-summary.js';
 import { pickType, buildQuestion, briefMeaning, senses } from '../lib/quiz.js';
 import { bindKeys, indexOfKey } from '../lib/keys.js';
 import { filterBySettings, getSettings, newWordsPerDay, updateSettings } from '../lib/settings.js';
@@ -234,22 +235,20 @@ function render() {
   // 這一題的正確答案、背面與「其他選項」會被「今天練完了」整個蓋掉，
   // 最後一題等於白答。停在作答完的卡上，等使用者自己按「完成今天的份」再切過來。
   if (daily.remaining <= 0 && !picked) {
-    append(main,
-      h('div', { class: 'card empty' },
-        h('p', { class: 'empty__title' }, `今天的 ${daily.goal} 個字練完了 🎉`),
-        h('p', { class: 'hint' },
-          daily.streak > 1
-            ? `連續 ${daily.streak} 天。明天到期要複習的字會自動排在最前面。`
-            : '明天到期要複習的字會自動排在最前面。'),
-        h('div', { class: 'row' },
-          h('button', {
-            class: 'btn btn--primary',
-            onclick: () => { extra += EXTRA_BATCH; startSession(); },
-          }, `再多練 ${EXTRA_BATCH} 個`),
-          h('button', { class: 'btn btn--ghost', onclick: () => { picking = true; render(); } }, '換難度'),
-        ),
-      ),
-    );
+    // 這張卡原本只有一句「今天的 N 個字練完了 🎉」加一句提醒。現在它是
+    // 五個模式共用的那張總結（`lib/day-summary.js`）—— 答對率、新字、
+    // 跟前幾天比起來如何，以及接下來最該練什麼。
+    //
+    // **單字卡的總結不是一次性的**，它就是「今天練完了」這個狀態本身：
+    // 再進來還是會看到（remaining 還是 0）。其餘四個模式沒有這種狀態，
+    // 所以那四個是在達標的那一刻擋一次（`dueForSummary()`）。
+    append(main, renderDaySummary('vocabulary', {
+      onDismiss: () => { extra += EXTRA_BATCH; startSession(); },
+      dismissLabel: `再多練 ${EXTRA_BATCH} 個`,
+      actions: [
+        h('button', { class: 'btn btn--ghost', onclick: () => { picking = true; render(); } }, '換難度'),
+      ],
+    }));
     return;
   }
 
@@ -433,10 +432,14 @@ function submitChoice(card, option) {
   if (picked) return;
   // 前後的盒號都留著 —— 「退到第 3 盒」與「留在第 1 盒」是兩句不同的話，
   // 而答完之後只看得到現在這一盒
-  const from = getCardState(card).box;
+  const before = getCardState(card);
+  const from = before.box;
+  // 「這是不是今天第一次見到這個字」要在 recordAnswer **之前**問 ——
+  // 答完之後 seen 已經是 1，新字與複習就分不出來了
+  const fresh = (Number(before.seen) || 0) === 0 ? 1 : 0;
   const to = recordAnswer(card, option.correct).box;
   picked = { id: option.id, correct: option.correct, from, to };
-  recordPractice('vocabulary');
+  recordPractice('vocabulary', { result: { n: 1, ok: option.correct ? 1 : 0, fresh } });
   render();
 }
 
@@ -888,9 +891,15 @@ function onKey(key) {
 
 /** 翻卡的作答：使用者自己判斷記不記得。 */
 function answer(card, wasCorrect) {
+  // 新字要在 recordAnswer 之前問，理由同 `submitChoice()`
+  const fresh = (Number(getCardState(card).seen) || 0) === 0 ? 1 : 0;
   recordAnswer(card, wasCorrect);
-  // 記進「哪一天練了幾張」的計數表。答對答錯都算 —— 今天的份算的是練習量，
-  // 不是正確率（正確率在 srs 的 box 裡）。
-  recordPractice('vocabulary');
+  // 記進「哪一天練了幾張」的計數表。答對答錯都算 —— 今天的份算的是練習量。
+  // 成績（對幾張、幾個新字）進另一張表，能力量表要用（見 `lib/ability.js`）。
+  //
+  // **翻卡的「記得」是使用者自己說的**，跟選擇題的「答對」不是同一種證據。
+  // 仍然記成 ok：srs 的盒號本來就一視同仁，能力量表另外分兩種的話，
+  // 只練翻卡的人會看到一個永遠空白的字彙軸。
+  recordPractice('vocabulary', { result: { n: 1, ok: wasCorrect ? 1 : 0, fresh } });
   nextCard();
 }

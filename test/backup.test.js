@@ -125,6 +125,30 @@ test('摘要數得出字數、天數與跟讀筆數', () => {
   assert.equal(s.hasSettings, true);
 });
 
+test('摘要讀得懂現在的計數表形狀（一天一格，每台裝置各一格）', () => {
+  // 只認得舊形狀（一天一個數字）的話，**現在的備份會被算成「每日紀錄 0 天」** ——
+  // 而那句話正是「確定要用這份覆蓋嗎」要給的資訊，講錯等於那個確認沒有意義。
+  // 上面的 STATE 用的是舊形狀，所以這個 bug 曾經一路活著沒被抓到。
+  const s = backupSummary({
+    activity: {
+      vocabulary: { '2026-09-04': { 'dev-a': 20, 'dev-b': 3 }, '2026-09-05': { 'dev-a': 12 } },
+      listening: { '2026-09-05': { 'dev-a': 6 } },
+    },
+  });
+  assert.equal(s.days, 2);
+  assert.equal(s.items, 41);      // 20 + 3 + 12 + 6
+});
+
+test('每日成績表也要進備份 —— 漏掉的話還原之後能力量表是空的', () => {
+  // BACKUP_KEYS 漏加一個鍵 = 那種進度還原不回來，而且完全沒有錯誤訊息
+  assert.ok(BACKUP_KEYS.includes('results'));
+
+  const results = { shadowing: { '2026-09-05': { 'dev-a': { n: 5, sum: 380 } } } };
+  const backup = buildBackup({ ...STATE, results }, NOW);
+  assert.deepEqual(backup.data.results, results);
+  assert.deepEqual(parseBackup(JSON.stringify(backup)).data.results, results);
+});
+
 test('摘要不會因為資料壞掉就丟例外', () => {
   assert.doesNotThrow(() => backupSummary({}));
   assert.doesNotThrow(() => backupSummary(null));

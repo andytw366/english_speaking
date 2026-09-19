@@ -5,6 +5,7 @@ import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, stop as stopTts, isSupported as ttsSupported } from '../lib/tts.js';
 import { filterBySettings, getSettings, aiMode } from '../lib/settings.js';
 import { recordPractice, renderDailyCard } from '../lib/daily.js';
+import { dueForSummary, renderDaySummary, markSummarySeen } from '../lib/day-summary.js';
 import { grade, diffView, normalize } from '../lib/grade.js';
 import { pickVerdict, isPass } from '../lib/verdict.js';
 import { createReviewer, reviewKey, storedReview } from '../lib/ai-review.js';
@@ -27,6 +28,10 @@ let scores = [];
 let reviewer = null;
 let recorder = null;
 let recState = 'idle';   // idle | recording | done
+// 今天的份練完了，停在總結那一頁。**擋在「換一段情境」上** ——
+// 一段對話中間插進來會打斷角色扮演，而說完一句就跳出總結更糟；
+// 使用者本來就會在換情境那一刻停下來，那裡才是它的位置（跟讀的「一組練完」同理）。
+let showingDaySummary = false;
 let playbackUrl = null;
 let root = null;
 let unbindKeys = null;
@@ -39,6 +44,7 @@ export async function mount(container) {
   all = filterBySettings(raw);
   if (all.length === 0) all = raw;
   reviewer = createReviewer({ onChange: render, onResult: noteAiVerdict });
+  showingDaySummary = false;
   start(all[Math.floor(Math.random() * all.length)]);
   unbindKeys = bindKeys(onKey);
   return cleanup;
@@ -52,6 +58,12 @@ export async function mount(container) {
  */
 function onKey(key) {
   if (!root || !current) return false;
+
+  // 停在總結那一頁時畫面上只有那幾顆按鈕，**空白鍵尤其要攔**
+  if (showingDaySummary) {
+    if (key === 'enter' || key === 'space' || key === 'n') { dismissDaySummary(); return true; }
+    return false;
+  }
 
   // 換一段情境：整段對話的任何時候都能按（畫面右上角那顆按鈕）
   if (key === 'n') { nextDialogue(); return true; }
@@ -98,6 +110,8 @@ function revokePlayback() {
 
 function start(dialogue) {
   stopTts();
+  // 開新的一段一定要離開總結。`mount()` 也是走這裡
+  showingDaySummary = false;
   current = dialogue;
   step = 0;
   checked = null;
@@ -138,7 +152,7 @@ async function maybeSpeakPartner() {
 function advance() {
   // 只有「自己說完一句」才算今天的進度 —— 對方的台詞是語音在唸，
   // 一路按「換我說」不該累積出練習量
-  if (currentTurn()?.speaker === 'you') recordPractice('dialogue');
+  if (currentTurn()?.speaker === 'you') recordPractice('dialogue', { result: turnResult() });
   step++;
   checked = null;
   revealed = false;
@@ -156,6 +170,13 @@ function render() {
   const { main, side } = columns(root);
 
   append(side, renderDailyCard('dialogue'), headerCard());
+
+  // 總結自己占主欄（側欄的今天與情境說明照舊留著）
+  if (showingDaySummary) {
+    append(main, renderDaySummary('dialogue', { onDismiss: dismissDaySummary }));
+    return;
+  }
+
   append(main, transcriptCard());
 
   if (isFinished()) {
@@ -233,6 +254,30 @@ function transcriptCard() {
     }
   });
   return card;
+}
+
+/**
+ * 這一句台詞的成績。**沒作答就回 null** —— 今天的份照舊算一句
+ * （走過這一句就是練到了），但正確率的分母只能是真的寫過的句子，
+ * 不然一路按「繼續」看例句會把正確率壓成 0，而畫面上完全看不出原因。
+ *
+ * 判定用的是**最後採用的那一個**（`lib/verdict.js` 的 `isPass()`）：
+ * 模型看過就以模型的為準，沒看過才是關鍵字比對 —— 跟畫面上那一句一致。
+ */
+function turnResult() {
+  const said = scores[countUserTurnsBefore(step)];
+  if (!said?.input?.trim()) return null;
+
+  // 重新整理之後 `scores` 是空的，但存下來的那份還在 —— 對話記錄裡也是這樣接的
+  const stored = storedReviewFor(step, said.input);
+  const aiVerdict = said.aiVerdict ?? stored?.verdict ?? null;
+  const pass = isPass({ ...said, aiVerdict }) ? 1 : 0;
+
+  return {
+    n: 1,
+    ok: pass,
+    ...(aiVerdict ? { aiN: 1, aiOk: pass } : {}),
+  };
 }
 
 /** 對話記錄裡第 index 句台詞存下來的修正（句子要對得上，理由見 storedReview）。 */
@@ -467,11 +512,25 @@ function check() {
 }
 
 function nextDialogue() {
+  // 今天達標之後的第一次「換一段情境」先停在總結。看過就不再擋
+  if (!showingDaySummary && dueForSummary('dialogue')) {
+    stopTts();
+    showingDaySummary = true;
+    render();
+    return;
+  }
   let next = current;
   while (all.length > 1 && next.id === current.id) {
     next = all[Math.floor(Math.random() * all.length)];
   }
   start(next);
+}
+
+/** 看完今天的總結，換下一段情境。 */
+function dismissDaySummary() {
+  markSummarySeen('dialogue');
+  showingDaySummary = false;
+  nextDialogue();
 }
 
 function setRecStatus(text, kind = '') {

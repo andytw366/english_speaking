@@ -3,7 +3,8 @@ import { columns } from '../lib/layout.js';
 import { categoryLabel, difficultyLabel } from '../lib/labels.js';
 import { speak, isSupported as ttsSupported } from '../lib/tts.js';
 import { getSettings, aiMode } from '../lib/settings.js';
-import { recordPractice, renderDailyCard } from '../lib/daily.js';
+import { recordPractice, recordOutcome, renderDailyCard } from '../lib/daily.js';
+import { dueForSummary, renderDaySummary, markSummarySeen } from '../lib/day-summary.js';
 import { grade, diffView } from '../lib/grade.js';
 import { pickVerdict } from '../lib/verdict.js';
 import { createReviewer, reviewKey } from '../lib/ai-review.js';
@@ -19,9 +20,16 @@ let pool = [];
 let current = null;
 let checked = null;      // null = 還沒對答案
 let counted = false;     // 這一題算進今天的進度了沒（「再試一次」不會再算一次）
+// 這一題的**模型判定**記進成績了沒。跟 `counted` 分開：今天的份在按下「對答案」
+// 那一刻就要加上去，而模型的判定兩秒後才回來（也可能永遠不回來）。
+let aiCounted = false;
 let showHint = false;
 // AI 修正。狀態、快取、那一段畫面都在 lib/ai-review.js（情境對話用的是同一份）
 let reviewer = null;
+// 今天的份練完了，停在總結那一頁。**擋在「下一題」上而不是在對答案的當下** ——
+// 剛對完答案最想看的是自己這一句跟例句差在哪、AI 怎麼說，總結蓋上去等於把
+// 那一題白答了（單字卡的 `!picked` 條件是同一個坑）。
+let showingDaySummary = false;
 let root = null;
 
 export async function mount(container) {
@@ -30,7 +38,8 @@ export async function mount(container) {
   if (!res.ok) throw new Error(`讀取中翻英題目失敗（HTTP ${res.status}）`);
   all = await res.json();
   applyFilter();
-  reviewer = createReviewer({ onChange: render });
+  reviewer = createReviewer({ onChange: render, onResult: noteAiVerdict });
+  showingDaySummary = false;
   next();
   // 作答中的 Enter 由輸入框自己的 onEnter 處理（整句翻譯要能換行，所以是 ⌘+Enter）；
   // 這裡接的是**焦點不在輸入框時**的鍵。鍵的意思跟別的模式一致，見 lib/modes.js
@@ -44,6 +53,12 @@ export async function mount(container) {
  */
 function onKey(key) {
   if (!root || !current) return false;
+
+  // 停在總結那一頁時畫面上只有那幾顆按鈕，**空白鍵尤其要攔**
+  if (showingDaySummary) {
+    if (key === 'enter' || key === 'space' || key === 'n') { dismissDaySummary(); return true; }
+    return false;
+  }
 
   if (key === 'n') { next(); return true; }
 
@@ -70,16 +85,36 @@ function applyFilter() {
 }
 
 function next() {
+  // 今天達標之後的第一次「下一題」先停在總結。看過就不再擋，想再練多少都可以。
+  //
+  // **`current` 要先有東西**：`mount()` 就是靠 `next()` 抽第一題的，
+  // 少了這個條件的話，今天已經達標的人一進中翻英會看到一片空白
+  // （總結畫出來了，但 `render()` 在 `current` 是 null 時直接 return）。
+  if (current && !showingDaySummary && dueForSummary('translation')) {
+    showingDaySummary = true;
+    render();
+    return;
+  }
   let candidate = current;
   while (pool.length > 1 && candidate?.id === current?.id) {
     candidate = pool[Math.floor(Math.random() * pool.length)];
   }
   current = candidate ?? pool[0];
+  // 換一題一定要離開總結。`mount()` 也是走這裡
+  showingDaySummary = false;
   checked = null;
   counted = false;
+  aiCounted = false;
   showHint = false;
   reviewer?.reset();
   render();
+}
+
+/** 看完今天的總結，換下一題。 */
+function dismissDaySummary() {
+  markSummarySeen('translation');
+  showingDaySummary = false;
+  next();
 }
 
 // ─── 畫面 ────────────────────────────────────────────────────────────────
@@ -88,6 +123,12 @@ function render() {
   const { main, side } = columns(root);
 
   append(side, renderDailyCard('translation'));
+
+  // 總結自己占主欄（側欄的今天照舊留著）
+  if (showingDaySummary) {
+    append(main, renderDaySummary('translation', { onDismiss: dismissDaySummary }));
+    return;
+  }
 
   const isCloze = current.type === 'cloze';
 
@@ -258,7 +299,11 @@ function check() {
   // 要用一個跟著題目走的旗標。
   if (result.level !== 'empty' && !counted) {
     counted = true;
-    recordPractice('translation');
+    // 成績記的是**第一次**作答，跟今天的份同一條規則。「再試一次」改好了再記一次的話，
+    // 正確率會變成「最後一次改對了沒」—— 那個數字誰都是 100%。
+    recordPractice('translation', {
+      result: { n: 1, ok: result.level === 'exact' || result.level === 'close' ? 1 : 0 },
+    });
   }
 
   checked = { input, result };
@@ -283,6 +328,22 @@ function check() {
       model: getSettings().geminiModel || undefined,
     },
   });
+}
+
+/**
+ * 模型的判定回來了（或是從快取直接拿到的）。
+ *
+ * **要比對 key**：判定是非同步回來的，而使用者在等待的那幾秒裡可以換一題、
+ * 也可以按「再試一次」重寫。對不上就丟掉，不然會記到別題頭上。
+ * （情境對話的 `noteAiVerdict()` 是同一件事、同一個理由。）
+ *
+ * 一題只記一次（`aiCounted`）：「再試一次」而句子沒改時 `ai-review.js` 會直接
+ * 從快取回報同一個判定，不擋的話同一題會被算兩次。
+ */
+function noteAiVerdict({ verdict, key }) {
+  if (!current || aiCounted || key !== reviewKey('translation', current.id)) return;
+  aiCounted = true;
+  recordOutcome('translation', { aiN: 1, aiOk: verdict === 'ok' || verdict === 'minor' ? 1 : 0 });
 }
 
 async function playAnswer(button) {

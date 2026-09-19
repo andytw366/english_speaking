@@ -30,6 +30,7 @@ import { requestNarration, quotaNote } from '../lib/ai-review.js';
 import { chipField } from '../lib/fields.js';
 import { renderToday, renderSetSummary, renderHistory } from './shadowing-views.js';
 import { recordPractice } from '../lib/daily.js';
+import { dueForSummary, renderDaySummary, markSummarySeen } from '../lib/day-summary.js';
 import { demoSource, referencePitch } from '../lib/reference-pitch.js';
 import { goalOf, setGoal } from '../lib/settings.js';
 
@@ -63,6 +64,10 @@ let weak = new Map();    // 最近哪些音出問題出得最多
 let setRecords = [];     // 這一組練到第幾句（只存在記憶體：一組是「這次坐下來練的」）
 let pendingSummary = null;  // 這一組的總結，還沒給使用者看
 let showingSummary = false; // 現在停在總結那一頁（擋在「換一句」前面，見 onNextSentence）
+// 今天的份練完了的那張總結。**跟「一組 5 句」那張是兩件事**：
+// 一組是這五句的結論，這一張是今天的結論（正確率、跟前幾天比、接下來練什麼）。
+// 兩張都可能同時等著，今天的那張排在前面 —— 達標是比較大的一件事。
+let showingDaySummary = false;
 // 手動要來的中文講評：null（還沒要）| { phase: 'loading'|'done'|'error', … }。
 // 跟著 lastResult 走 —— 換一句、或重新送出一次錄音都要清掉
 let narration = null;
@@ -101,6 +106,10 @@ function onKey(key) {
 
   // 停在總結那一頁時畫面上只有一顆「再練一組」。**空白鍵尤其要攔**：
   // 那一頁沒有錄音的按鈕，照原本的規則按下去會在背後開始錄音
+  if (showingDaySummary) {
+    if (key === 'enter' || key === 'space' || key === 'n') { dismissDaySummary(); return true; }
+    return false;
+  }
   if (showingSummary) {
     if (key === 'enter' || key === 'space' || key === 'n') { dismissSummary(); return true; }
     return false;
@@ -184,6 +193,23 @@ function dailyGoal() {
  * 總結是「這一組」的結論，等他要往下走的那一刻才是它的位置。
  */
 function onNextSentence() {
+  // 今天的份練完了的那張排在最前面，而且**把「一組練完」那張吃掉**。
+  //
+  // 為什麼要吃掉：每日目標預設 5 句、一組也是 5 句 —— 兩張總結會在
+  // **同一刻**一起等著，而它們講的是同一批句子。連續彈兩張幾乎一樣的卡
+  // 比只彈一張差；所以今天那張補上了「最高 / 最低」（`day-summary.js` 的
+  // `scoreRange()`），一張就講得完。
+  //
+  // 只擋一次（`markSummarySeen`），之後「一組練完」那張照常接手。
+  if (showingDaySummary) return dismissDaySummary();
+  if (dueForSummary('shadowing')) {
+    showingDaySummary = true;
+    pendingSummary = null;
+    render();
+    root?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
   // 三種情況（規則與理由在 `nextSentenceAction()`，那裡測得到）：
   // 已經在總結那一頁 → 當成「再練一組」，不然總結沒被清掉，
   // 下一句的按鈕又會變回「看總結」，永遠出不去
@@ -200,6 +226,16 @@ function onNextSentence() {
   }
 }
 
+/**
+ * 看完今天的總結。**不換句** —— 「一組練完」那張可能還等在後面，
+ * 而那是使用者下一次按「換一句」本來就會看到的東西。
+ */
+function dismissDaySummary() {
+  markSummarySeen('shadowing');
+  showingDaySummary = false;
+  render();
+}
+
 /** 看完總結，開下一組。 */
 function dismissSummary() {
   pendingSummary = null;
@@ -209,6 +245,8 @@ function dismissSummary() {
 
 function nextSentence() {
   showingSummary = false;
+  // 換句一定要離開總結。`mount()` 也是走這裡，所以重新進來不會停在昨天的總結上
+  showingDaySummary = false;
   narration = null;
   refPitch = null;
   outOfPoolNote = '';
@@ -254,6 +292,11 @@ function resetAttempt() {
   render();
 }
 
+/** 有沒有總結等著看（這一組的、或今天的）。按鈕的標籤與行為都看它。 */
+function summaryWaiting() {
+  return Boolean(pendingSummary) || dueForSummary('shadowing');
+}
+
 function revokePlayback() {
   if (playbackUrl) {
     URL.revokeObjectURL(playbackUrl);
@@ -283,8 +326,11 @@ function render() {
   // 一組練完的總結**自己占一頁**（側欄的今天與紀錄照舊留著）。
   // 跟單字卡的「選難度 / 複習盒」是同一個做法：要使用者停下來看的東西，
   // 就不要跟他正在做的事擠在同一欄
-  if (showingSummary && pendingSummary) {
-    append(main, renderSetSummary(pendingSummary, dismissSummary));
+  if (showingDaySummary || (showingSummary && pendingSummary)) {
+    append(main, showingDaySummary
+      ? renderDaySummary('shadowing', { onDismiss: dismissDaySummary })
+      : renderSetSummary(pendingSummary, dismissSummary));
+    // 紀錄照舊留在側欄：總結講的是結論，「我這幾句各幾分」還是要看得到
     append(side, renderHistory(history, {
       sentences: allSentences,
       onReplay: practiseSentence,
@@ -345,12 +391,18 @@ function sentenceCard() {
     h('div', { class: 'row' },
       ttsSupported() && h('button', { class: 'btn btn--ghost', onclick: playDemo }, '🔊 播放正確發音'),
       // 總結還沒看的時候，這顆按鈕就是去看總結的入口 ——
-      // 使用者本來就會按這裡，而總結原本躲在整頁的最下面
+      // 使用者本來就會按這裡，而總結原本躲在整頁的最下面。
+      //
+      // **今天的份練完了也算**（`dueForSummary`）：按鈕上寫著「換一句」卻跳出
+      // 一張總結，是使用者會認為壞掉的那種事。兩種總結都走同一顆按鈕，
+      // 所以標籤只要回答「有沒有東西等著看」。
       h('button', {
-        class: pendingSummary ? 'btn btn--primary' : 'btn btn--ghost',
+        class: summaryWaiting() ? 'btn btn--primary' : 'btn btn--ghost',
         disabled: Boolean(recorder?.isRecording),
         onclick: onNextSentence,
-      }, pendingSummary ? `✅ 這一組 ${SET_SIZE} 句練完了，看總結` : '🔀 換一句'),
+      }, summaryWaiting()
+        ? (pendingSummary ? `✅ 這一組 ${SET_SIZE} 句練完了，看總結` : '✅ 今天的份練完了，看總結')
+        : '🔀 換一句'),
       setRecords.length > 0 &&
         h('span', { class: 'hint' }, `這一組：${setRecords.length} / ${SET_SIZE} 句`),
     ),
@@ -773,7 +825,17 @@ async function submit() {
     saveAttempt(payload);
     // 六個模式共用的每日計數表。跟讀的逐筆紀錄（history）另外還是要留，
     // 分數與弱點音會回頭決定抽句 —— 這裡記的只是「今天練了幾句」。
-    if (firstToday) recordPractice('shadowing');
+    //
+    // 成績（`sum`）跟著同一個 `firstToday` 走，**所以平均分算的是每一句
+    // 今天第一次的分數**，不是每一次錄音的平均。同一句重錄三次會愈錄愈好，
+    // 全算進去的話「唸得準」量到的是「同一句練得順不順」而不是「唸不唸得準」，
+    // 而那條線只要肯重錄就會一直漂亮。
+    if (firstToday) {
+      const score = scoreOf(payload);
+      recordPractice('shadowing', {
+        result: typeof score === 'number' ? { n: 1, sum: Math.round(score) } : null,
+      });
+    }
     render();
     setStatus('');
   } catch (err) {
@@ -786,6 +848,16 @@ async function submit() {
 }
 
 /**
+ * 這一次幾分。兩個供應商放的位置不一樣，而**每日成績表與逐筆紀錄要拿到同一個數字**
+ * —— 各自抄一份的話，能力量表與跟讀頁上的平均分會慢慢對不起來。
+ */
+function scoreOf(payload) {
+  return payload?.provider === 'azure'
+    ? payload.scores?.pronunciation ?? null
+    : payload?.score ?? null;
+}
+
+/**
  * 把這次的結果寫進紀錄。
  *
  * 關鍵在 `problemWords`：那是弱點加權唯一的來源，而兩個供應商給的形狀不同 ——
@@ -793,9 +865,7 @@ async function submit() {
  * 統一成同一個形狀之後，弱點統計與一組總結都用同一段程式讀。
  */
 function saveAttempt(payload) {
-  const score = payload.provider === 'azure'
-    ? payload.scores?.pronunciation ?? null
-    : payload.score ?? null;
+  const score = scoreOf(payload);
 
   const problemWords = payload.provider === 'azure'
     ? [problemWordsFromAssessment(payload), prosodyIssue(payload)].flat().filter(Boolean)

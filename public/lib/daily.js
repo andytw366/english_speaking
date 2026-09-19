@@ -5,7 +5,7 @@
 // 一定會有人算錯一種邊界（跨月、今天還沒練該不該歸零…）。
 
 import {
-  getActivity, activityCount, activityDays, activityToday, recordActivity,
+  getActivity, activityCount, activityDays, activityToday, recordActivity, recordResult,
 } from './storage.js';
 import { dayKey, streakFromDays } from './practice.js';
 import { goalOf } from './settings.js';
@@ -57,13 +57,41 @@ export function overallToday(now = Date.now()) {
 /**
  * 記一次練習。答對答錯都算 —— 今天的份算的是練習量，不是正確率。
  *
+ * **成績也在這裡一起記**（`result`），而不是各模式自己去呼叫第二個函式：
+ * 兩張表是一起長大的，分兩個呼叫點的話遲早有一個模式只記了其中一張，
+ * 而那種錯誤完全沒有徵兆 —— 練習量正常累積，只有能力圖悄悄少算。
+ *
  * 記完發一個事件：外殼左側的「今天練了 / 連續天數」不屬於任何一個模式，
  * 沒有這個通知就只會在切模式時才更新（練了一整輪，數字還停在進來時的樣子）。
+ *
+ * @param {string} mode
+ * @param {object} [options]
+ * @param {number} [options.n] 今天的份加幾（預設 1）
+ * @param {Record<string, number>} [options.result]
+ *   這一次的成績計數器，欄位見 `storage.js` 的 `RESULT_FIELDS`。
+ *   省略 = 只記練習量（沒有成績可記的動作）
  */
-export function recordPractice(mode, n = 1) {
+export function recordPractice(mode, { n = 1, result = null } = {}) {
   const next = recordActivity(mode, n);
+  if (result) recordResult(mode, result);
   window.dispatchEvent(new CustomEvent('practice-recorded', { detail: { mode, n } }));
   return next;
+}
+
+/**
+ * 只記成績，**不動今天的份**。
+ *
+ * 給「判定比作答晚一步才知道」的情況用 —— 中翻英按下「對答案」時只有本地的
+ * 關鍵字比對，模型的判定要兩秒後才回來，而今天的份在按下去那一刻就該加上去了
+ * （不然關掉 App 那一題就白練了）。用 `recordPractice(mode, { n: 0 })` 也做得到，
+ * 但那會讓「今天的份加 0」變成一個要在每個呼叫點讀懂的東西。
+ *
+ * @param {string} mode
+ * @param {Record<string, number>} counters 欄位見 `storage.js` 的 `RESULT_FIELDS`
+ */
+export function recordOutcome(mode, counters) {
+  if (!counters) return;
+  recordResult(mode, counters);
 }
 
 /**

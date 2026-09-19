@@ -150,6 +150,13 @@ async function seed({
     localStorage.setItem('speaking-coach:srs', JSON.stringify(r));
     localStorage.removeItem('speaking-coach:srsVersion');
     localStorage.removeItem('speaking-coach:vocabDays');
+    // 每日成績表與「今天的總結看過了沒」也要清掉，否則這兩個會**跨段累積**：
+    //   results     前面幾段真的送出過錄音，平均分會把那些也算進來，
+    //               而這一段驗的是「這五句」
+    //   summarySeen 前面某一段一旦看過今天的總結，後面就再也不會擋一次 ——
+    //               那會讓【9b】變成一條看順序才會過的測試
+    localStorage.removeItem('speaking-coach:results');
+    localStorage.removeItem('speaking-coach:summarySeen');
     // **把自動同步關掉。** 這些測試塞的是假的 localStorage，而自動同步會把
     // 伺服器上（前面幾段測試推上去的）東西合進來 —— 假資料就不是假資料了。
     // 跨裝置同步本身在【22】用自己的 context 測，那裡是開著的。
